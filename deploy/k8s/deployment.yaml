@@ -1,0 +1,21 @@
+# k8s/deployment.yaml - placeholder for Kubernetes deployments
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auction-service
+  namespace: online-auction
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auction
+  template:
+    metadata:
+      labels:
+        app: auction
+    spec:
+      containers:
+        - name: auction
+          image: your-registry/auction-service:latest
+          ports:
+            - containerPort: 8080

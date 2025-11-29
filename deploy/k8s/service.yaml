@@ -1,0 +1,13 @@
+# k8s/service.yaml - placeholder for Kubernetes services
+apiVersion: v1
+kind: Service
+metadata:
+  name: auction-service
+  namespace: online-auction
+spec:
+  selector:
+    app: auction
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP

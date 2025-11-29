@@ -1,0 +1,6 @@
+# Placeholder namespace definition
+# Replace with actual namespace manifest when ready
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: online-auction

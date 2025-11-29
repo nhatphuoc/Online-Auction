@@ -1,0 +1,14 @@
+# otel-collector/collector.yaml - placeholder
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+exporters:
+  logging:
+    logLevel: debug
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [logging]

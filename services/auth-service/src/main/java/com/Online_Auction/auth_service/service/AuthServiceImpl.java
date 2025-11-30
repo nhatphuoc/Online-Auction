@@ -2,54 +2,56 @@ package com.Online_Auction.auth_service.service;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.Online_Auction.auth_service.domain.OtpToken;
-import com.Online_Auction.auth_service.domain.User;
 import com.Online_Auction.auth_service.dto.request.RegisterRequest;
 import com.Online_Auction.auth_service.dto.request.SignInRequest;
+import com.Online_Auction.auth_service.external.response.StatusResponse;
+import com.Online_Auction.auth_service.external.response.UserResponse;
 import com.Online_Auction.auth_service.repository.OtpTokenRepository;
-import com.Online_Auction.auth_service.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
-    private final UserRepository userRepository;
     private final RestTemplateNotificationService notificationService;
     private final OtpTokenRepository otpTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RestTemplateUserService restTemplateUserService;
 
     public AuthServiceImpl(
-        UserRepository userRepository,
         RestTemplateNotificationService notificationService,
         OtpTokenRepository otpTokenRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        RestTemplateUserService restTemplateUserService
     ) {
-        this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.otpTokenRepository = otpTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.restTemplateUserService = restTemplateUserService;
     }
 
     @Override
     @Transactional
     public void register(RegisterRequest request) {
         // 1. Kiểm tra email tồn tại
-        if(userRepository.findByEmail(request.getEmail()).isPresent()){
-            throw new RuntimeException("Email already registered");
+        UserResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
+        if (!Objects.isNull(userResponse)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already registered");
         }
 
         // 2. Tạo user
-        User user = new User();
-        user.setFullName(request.getFullName());
-        user.setEmail(request.getEmail());
-        user.setPassword(this.passwordEncoder.encode( request.getPassword()));
-        user.setBirthDay(request.getBirthDay());
-        userRepository.save(user);
+        StatusResponse response = restTemplateUserService.registerUser(request);
+        if (!response.isSuccess()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fail to register new user, unknown reason");
+        }
 
         // 3. Tạo OTP
         String otpCode = generateOtp();
@@ -61,9 +63,9 @@ public class AuthServiceImpl implements AuthService {
         
         // 4. Gọi NotificationService
         notificationService.sendEmail(
-                user.getEmail(),
-                "Xác nhận đăng ký",
-                "Mã OTP của bạn là: " + otpCode + "\nHạn dùng: 10 phút"
+            request.getEmail(),
+            "Xác nhận đăng ký",
+            "Mã OTP của bạn là: " + otpCode + "\nHạn dùng: 10 phút"
         );
     }
 
@@ -73,40 +75,43 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Transactional
-    public boolean verifyOtp(String email, String otpCode) {
+    public StatusResponse verifyOtp(String email, String otpCode) {
         OtpToken otpToken = otpTokenRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("OTP not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP not found"));
 
         if (otpToken.getExpiredAt().isBefore(LocalDateTime.now())) {
             otpTokenRepository.deleteByEmail(email);
-            throw new RuntimeException("OTP expired");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP expired");
         }
 
         if (!otpToken.getOtpCode().equals(otpCode)) {
-            throw new RuntimeException("Invalid OTP");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid OTP");
         }
 
         // Đánh dấu user emailVerified = true
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setEmailVerified(true);
-        userRepository.save(user);
+        StatusResponse statusResponse = restTemplateUserService.verifyEmail(email);
+        if (!statusResponse.isSuccess()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, statusResponse.getMessage());
+        }
 
         // Xóa OTP sau khi xác thực
         otpTokenRepository.deleteByEmail(email);
-        return true;
+        return statusResponse;
     }
 
     @Override
-    public User authenticate(SignInRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+    public UserResponse authenticate(SignInRequest request) {
+        UserResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
+        if (Objects.isNull(userResponse)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User not found");
         }
-        if (!Boolean.TRUE.equals(user.getEmailVerified())) {
-            throw new RuntimeException("Email not verified");
+
+        if (!passwordEncoder.matches(request.getPassword(), userResponse.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials");
         }
-        return user;
+        if (!Boolean.TRUE.equals(userResponse.getEmailVerified())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email not verified");
+        }
+        return userResponse;
     }   
 }

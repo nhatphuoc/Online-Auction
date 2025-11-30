@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import com.Online_Auction.auth_service.domain.OtpToken;
 
 @Repository
-public interface OtpTokenRepository extends JpaRepository<OtpToken, Long> {
+public interface OtpTokenRepository extends JpaRepository<OtpToken, Long>{
     Optional<OtpToken> findByEmail(String email);
     void deleteByEmail(String email);
 }

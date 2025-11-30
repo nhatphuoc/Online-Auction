@@ -9,13 +9,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.Online_Auction.auth_service.config.jwt.JwtUtils;
-import com.Online_Auction.auth_service.domain.User;
 import com.Online_Auction.auth_service.dto.request.RegisterRequest;
 import com.Online_Auction.auth_service.dto.request.SignInRequest;
 import com.Online_Auction.auth_service.dto.request.ValidateJwtRequest;
 import com.Online_Auction.auth_service.dto.request.VerifyOtpRequest;
 import com.Online_Auction.auth_service.dto.response.JwtResponse;
 import com.Online_Auction.auth_service.dto.response.ValidateJwtResponse;
+import com.Online_Auction.auth_service.external.response.StatusResponse;
+import com.Online_Auction.auth_service.external.response.UserResponse;
 import com.Online_Auction.auth_service.service.AuthService;
 
 @RestController
@@ -27,6 +28,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Map<String,Object>> register(@RequestBody RegisterRequest request) {
+        System.out.println("RegisterRequest: " + request);
         authService.register(request);
         return ResponseEntity.ok(Map.of(
             "success", true, 
@@ -35,17 +37,16 @@ public class AuthController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<Map<String, Object>> verifyOtp(@RequestBody VerifyOtpRequest request) {
-        boolean success = authService.verifyOtp(request.getEmail(), request.getOtpCode());
-        return ResponseEntity.ok(Map.of(
-            "success", success,
-            "message", "OTP verified successfully"
-        ));
+    public ResponseEntity<StatusResponse> verifyOtp(@RequestBody VerifyOtpRequest request) {
+        System.out.println("Request: " + request);
+        StatusResponse response = authService.verifyOtp(request.getEmail(), request.getOtpCode());
+        System.out.println("Response: " + response);
+        return ResponseEntity.ok().body(response);
     }
 
     @PostMapping("/sign-in")
     public ResponseEntity<JwtResponse> signIn(@RequestBody SignInRequest request) {
-        User user = authService.authenticate(request);
+        UserResponse user = authService.authenticate(request);
 
         JwtResponse jwtResponse = new JwtResponse(
                 JwtUtils.generateAccessToken(user),
@@ -61,7 +62,6 @@ public class AuthController {
         ValidateJwtResponse response = new ValidateJwtResponse(valid);
 
         if (!valid) {
-            // trả 401 nếu token không hợp lệ
             return ResponseEntity.status(401).body(response);
         }
 

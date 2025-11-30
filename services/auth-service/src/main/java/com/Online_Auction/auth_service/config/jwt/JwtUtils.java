@@ -9,8 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import com.Online_Auction.auth_service.external.response.UserResponse;
 
 public class JwtUtils {
     private static final String SECRET_KEY = "X8f3N2p9V6yR1qT7Z4wM0bC5sH2kJ8lP";
@@ -46,29 +45,27 @@ public class JwtUtils {
     // GENERATE TOKEN
     // ==============================================
     private static String generateToken(
-        UserDetails user,
+        UserResponse user,
         Map<String, Object> claims,
         long expiration
     ) {
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(user.getUsername())
+                .setSubject(String.valueOf(user.getId()))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(KEY, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public static String generateAccessToken(UserDetails user) {
+    public static String generateAccessToken(UserResponse user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "access");
-        claims.put("role", user.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .toList());
+        claims.put("role", user.getUserRole());
         return generateToken(user, claims, ACCESS_TOKEN_EXPIRATION);
     }
 
-    public static String generateRefreshToken(UserDetails user) {
+    public static String generateRefreshToken(UserResponse user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
         return generateToken(user, claims, REFRESH_TOKEN_EXPIRATION);

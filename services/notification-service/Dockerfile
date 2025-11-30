@@ -1,12 +1,9 @@
-FROM golang:1.23-alpine AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o main .
-FROM alpine:3.20
+RUN ./mvnw clean package -DskipTests
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN apk --no-cache add ca-certificates tzdata
-COPY --from=builder /app/main .
+COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
-CMD ["./main"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

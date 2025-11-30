@@ -47,9 +47,21 @@ public class UserServiceImpl implements UserService {
                 "Fail to verify email, email not exists"
             );
         }
+        User user = optional.get();
+        user.setEmailVerified(true);
+        userRepository.save(user);
         return new StatusResponse(
             true,
             "Successfully verify email"
+        );
+    }
+
+    @Override
+    public StatusResponse deleteUserByEmail(String email) {
+        userRepository.deleteByEmail(email);
+        return new StatusResponse(
+            true,
+            "Successfully delete user by email"
         );
     }
     

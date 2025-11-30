@@ -16,6 +16,7 @@ import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,5 +58,8 @@ public class UserController {
         return ResponseEntity.ok().body(userService.verifyEmail(email));
     }
     
-    
+    @DeleteMapping
+    public ResponseEntity<StatusResponse> deleteUserByEmail(@RequestBody Map<String, String> payload) {
+        return ResponseEntity.ok().body(userService.deleteUserByEmail(payload.get("email")));
+    }
 }

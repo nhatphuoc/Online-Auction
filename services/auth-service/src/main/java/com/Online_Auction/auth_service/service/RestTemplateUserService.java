@@ -105,4 +105,32 @@ public class RestTemplateUserService {
             throw new RuntimeException("Failed to verify email via user-service", ex);
         }
     }
+
+    /**
+     * Delete user by email
+     */
+    public StatusResponse deleteUserByEmail(String email) {
+        String url = userServiceUrl;
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Auth-Internal-Service", internalKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, String> payload = Map.of("email", email);
+            HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<StatusResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    requestEntity,
+                    StatusResponse.class
+            );
+
+            return response.getBody();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to delete user via user-service", ex);
+        }
+    }
+
 }

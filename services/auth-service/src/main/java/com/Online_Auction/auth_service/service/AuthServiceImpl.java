@@ -48,7 +48,14 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 2. Tạo user
-        StatusResponse response = restTemplateUserService.registerUser(request);
+        RegisterRequest requestWithHashPassword = new RegisterRequest();
+        requestWithHashPassword.setEmail(request.getEmail());
+        requestWithHashPassword.setBirthDay(request.getBirthDay());
+        requestWithHashPassword.setFullName(request.getFullName());
+        requestWithHashPassword.setPassword(passwordEncoder.encode(request.getPassword()));
+        requestWithHashPassword.setReCaptchaToken(request.getReCaptchaToken());
+
+        StatusResponse response = restTemplateUserService.registerUser(requestWithHashPassword);
         if (!response.isSuccess()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fail to register new user, unknown reason");
         }
@@ -81,6 +88,7 @@ public class AuthServiceImpl implements AuthService {
 
         if (otpToken.getExpiredAt().isBefore(LocalDateTime.now())) {
             otpTokenRepository.deleteByEmail(email);
+            restTemplateUserService.deleteUserByEmail(email);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OTP expired");
         }
 

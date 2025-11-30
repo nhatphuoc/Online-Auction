@@ -38,9 +38,7 @@ public class AuthController {
 
     @PostMapping("/verify-otp")
     public ResponseEntity<StatusResponse> verifyOtp(@RequestBody VerifyOtpRequest request) {
-        System.out.println("Request: " + request);
         StatusResponse response = authService.verifyOtp(request.getEmail(), request.getOtpCode());
-        System.out.println("Response: " + response);
         return ResponseEntity.ok().body(response);
     }
 

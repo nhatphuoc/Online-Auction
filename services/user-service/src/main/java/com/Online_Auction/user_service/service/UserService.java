@@ -8,4 +8,5 @@ public interface UserService {
     User findByEmail(String email);
     boolean register(RegisterRequest registerRequest);
     StatusResponse verifyEmail(String email);
+    StatusResponse deleteUserByEmail(String email);
 }

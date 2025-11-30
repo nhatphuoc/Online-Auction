@@ -16,6 +16,7 @@ public class UserMapper {
         userResponse.setTotalNumberGoodReviews(user.getTotalNumberGoodReviews());
         userResponse.setTotalNumberReviews(userResponse.getTotalNumberReviews());
         userResponse.setUserRole(user.getRole());
+        userResponse.setPassword(user.getPassword());
         return userResponse;
     }
 }

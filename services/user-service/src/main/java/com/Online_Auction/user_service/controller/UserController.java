@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.Online_Auction.user_service.domain.User;
 import com.Online_Auction.user_service.dto.request.RegisterRequest;
+import com.Online_Auction.user_service.dto.response.SimpleUserResponse;
 import com.Online_Auction.user_service.dto.response.StatusResponse;
 import com.Online_Auction.user_service.dto.response.UserProfileResponse;
 import com.Online_Auction.user_service.mapper.UserMapper;
@@ -18,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,11 +32,11 @@ public class UserController {
     private UserService userService;
     
     @GetMapping
-    public UserProfileResponse findByEmail(@RequestParam String email) {
+    public UserProfileResponse findUserProfileByEmail(@RequestParam String email) {
         User user = userService.findByEmail(email);
         if (Objects.isNull(user))
             return null;
-        return UserMapper.toUserProfileResponse(userService.findByEmail(email));
+        return UserMapper.toUserProfileResponse(user);
     }
 
     @PostMapping
@@ -62,4 +64,13 @@ public class UserController {
     public ResponseEntity<StatusResponse> deleteUserByEmail(@RequestBody Map<String, String> payload) {
         return ResponseEntity.ok().body(userService.deleteUserByEmail(payload.get("email")));
     }
+    
+    @GetMapping("/{id}/simple")
+    public SimpleUserResponse findSimpleUserResponseByEmail(@PathVariable long id) {
+        User user = userService.findById(id);
+        if (Objects.isNull(user))
+            return null;
+        return UserMapper.toSimpleUserResponse(user);
+    }
+    
 }

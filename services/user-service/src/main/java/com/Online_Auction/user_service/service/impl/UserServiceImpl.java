@@ -64,5 +64,13 @@ public class UserServiceImpl implements UserService {
             "Successfully delete user by email"
         );
     }
+
+    @Override
+    public User findById(long id) {
+        Optional<User> optional = userRepository.findById(id);
+        if (!optional.isPresent())
+            return null;
+        return optional.get();
+    }
     
 }

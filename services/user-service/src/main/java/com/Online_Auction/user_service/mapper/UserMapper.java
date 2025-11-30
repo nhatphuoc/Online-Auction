@@ -1,6 +1,7 @@
 package com.Online_Auction.user_service.mapper;
 
 import com.Online_Auction.user_service.domain.User;
+import com.Online_Auction.user_service.dto.response.SimpleUserResponse;
 import com.Online_Auction.user_service.dto.response.UserProfileResponse;
 
 public class UserMapper {
@@ -18,5 +19,14 @@ public class UserMapper {
         userResponse.setUserRole(user.getRole());
         userResponse.setPassword(user.getPassword());
         return userResponse;
+    }
+
+    public static SimpleUserResponse toSimpleUserResponse(User user) {
+        SimpleUserResponse simpleUserResponse = new SimpleUserResponse();
+        simpleUserResponse.setId(user.getId());
+        simpleUserResponse.setEmail(user.getEmail());
+        simpleUserResponse.setFullName(user.getFullName());
+        simpleUserResponse.setUserRole(user.getRole());
+        return simpleUserResponse;
     }
 }

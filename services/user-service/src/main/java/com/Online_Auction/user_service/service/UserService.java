@@ -9,4 +9,5 @@ public interface UserService {
     boolean register(RegisterRequest registerRequest);
     StatusResponse verifyEmail(String email);
     StatusResponse deleteUserByEmail(String email);
+    User findById(long id);
 }

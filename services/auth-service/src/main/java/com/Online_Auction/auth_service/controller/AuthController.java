@@ -16,7 +16,7 @@ import com.Online_Auction.auth_service.dto.request.VerifyOtpRequest;
 import com.Online_Auction.auth_service.dto.response.JwtResponse;
 import com.Online_Auction.auth_service.dto.response.ValidateJwtResponse;
 import com.Online_Auction.auth_service.external.response.StatusResponse;
-import com.Online_Auction.auth_service.external.response.UserResponse;
+import com.Online_Auction.auth_service.external.response.UserProfileResponse;
 import com.Online_Auction.auth_service.service.AuthService;
 
 @RestController
@@ -44,7 +44,7 @@ public class AuthController {
 
     @PostMapping("/sign-in")
     public ResponseEntity<JwtResponse> signIn(@RequestBody SignInRequest request) {
-        UserResponse user = authService.authenticate(request);
+        UserProfileResponse user = authService.authenticate(request);
 
         JwtResponse jwtResponse = new JwtResponse(
                 JwtUtils.generateAccessToken(user),

@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.Online_Auction.user_service.domain.User;
 import com.Online_Auction.user_service.dto.request.RegisterRequest;
 import com.Online_Auction.user_service.dto.response.StatusResponse;
-import com.Online_Auction.user_service.dto.response.UserResponse;
+import com.Online_Auction.user_service.dto.response.UserProfileResponse;
 import com.Online_Auction.user_service.mapper.UserMapper;
 import com.Online_Auction.user_service.service.UserService;
 
@@ -30,11 +30,11 @@ public class UserController {
     private UserService userService;
     
     @GetMapping
-    public UserResponse findByEmail(@RequestParam String email) {
+    public UserProfileResponse findByEmail(@RequestParam String email) {
         User user = userService.findByEmail(email);
         if (Objects.isNull(user))
             return null;
-        return UserMapper.toUserResponse(userService.findByEmail(email));
+        return UserMapper.toUserProfileResponse(userService.findByEmail(email));
     }
 
     @PostMapping

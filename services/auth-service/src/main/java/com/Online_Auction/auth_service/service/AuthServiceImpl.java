@@ -13,7 +13,7 @@ import com.Online_Auction.auth_service.domain.OtpToken;
 import com.Online_Auction.auth_service.dto.request.RegisterRequest;
 import com.Online_Auction.auth_service.dto.request.SignInRequest;
 import com.Online_Auction.auth_service.external.response.StatusResponse;
-import com.Online_Auction.auth_service.external.response.UserResponse;
+import com.Online_Auction.auth_service.external.response.UserProfileResponse;
 import com.Online_Auction.auth_service.repository.OtpTokenRepository;
 
 import jakarta.transaction.Transactional;
@@ -42,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void register(RegisterRequest request) {
         // 1. Kiểm tra email tồn tại
-        UserResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
+        UserProfileResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
         if (!Objects.isNull(userResponse)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already registered");
         }
@@ -108,8 +108,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserResponse authenticate(SignInRequest request) {
-        UserResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
+    public UserProfileResponse authenticate(SignInRequest request) {
+        UserProfileResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
         if (Objects.isNull(userResponse)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User not found");
         }

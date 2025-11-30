@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.Online_Auction.auth_service.external.response.UserResponse;
+import com.Online_Auction.auth_service.external.response.UserProfileResponse;
 
 public class JwtUtils {
     private static final String SECRET_KEY = "X8f3N2p9V6yR1qT7Z4wM0bC5sH2kJ8lP";
@@ -45,7 +45,7 @@ public class JwtUtils {
     // GENERATE TOKEN
     // ==============================================
     private static String generateToken(
-        UserResponse user,
+        UserProfileResponse user,
         Map<String, Object> claims,
         long expiration
     ) {
@@ -58,7 +58,7 @@ public class JwtUtils {
                 .compact();
     }
 
-    public static String generateAccessToken(UserResponse user) {
+    public static String generateAccessToken(UserProfileResponse user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "access");
         claims.put("role", user.getUserRole());
@@ -66,7 +66,7 @@ public class JwtUtils {
         return generateToken(user, claims, ACCESS_TOKEN_EXPIRATION);
     }
 
-    public static String generateRefreshToken(UserResponse user) {
+    public static String generateRefreshToken(UserProfileResponse user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
         return generateToken(user, claims, REFRESH_TOKEN_EXPIRATION);

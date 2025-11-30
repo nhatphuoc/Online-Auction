@@ -13,7 +13,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.Online_Auction.auth_service.dto.request.RegisterRequest;
 import com.Online_Auction.auth_service.external.response.StatusResponse;
-import com.Online_Auction.auth_service.external.response.UserResponse;
+import com.Online_Auction.auth_service.external.response.UserProfileResponse;
 
 @Service
 public class RestTemplateUserService {
@@ -32,7 +32,7 @@ public class RestTemplateUserService {
     /**
      * Get user by email from user-service
      */
-    public UserResponse getUserByEmail(String email) {
+    public UserProfileResponse getUserByEmail(String email) {
         String url = userServiceUrl + "?email={email}";
 
         try {
@@ -41,11 +41,11 @@ public class RestTemplateUserService {
 
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
-            ResponseEntity<UserResponse> response = restTemplate.exchange(
+            ResponseEntity<UserProfileResponse> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     requestEntity,
-                    UserResponse.class,
+                    UserProfileResponse.class,
                     email
             );
 

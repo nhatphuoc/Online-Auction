@@ -62,6 +62,7 @@ public class JwtUtils {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "access");
         claims.put("role", user.getUserRole());
+        claims.put("email", user.getEmail());
         return generateToken(user, claims, ACCESS_TOKEN_EXPIRATION);
     }
 

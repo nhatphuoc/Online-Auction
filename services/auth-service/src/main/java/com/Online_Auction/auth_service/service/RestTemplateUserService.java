@@ -11,9 +11,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import com.Online_Auction.auth_service.dto.request.RegisterRequest;
+import com.Online_Auction.auth_service.dto.request.RegisterUserRequest;
+import com.Online_Auction.auth_service.dto.request.SignInRequest;
+import com.Online_Auction.auth_service.external.response.SimpleUserResponse;
 import com.Online_Auction.auth_service.external.response.StatusResponse;
-import com.Online_Auction.auth_service.external.response.UserProfileResponse;
 
 @Service
 public class RestTemplateUserService {
@@ -30,10 +31,10 @@ public class RestTemplateUserService {
     }
 
     /**
-     * Get user by email from user-service
+     * Get Simple User by email from user-service
      */
-    public UserProfileResponse getUserByEmail(String email) {
-        String url = userServiceUrl + "?email={email}";
+    public SimpleUserResponse getUserByEmail(String email) {
+        String url = userServiceUrl + "/simple?email={email}";
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -41,11 +42,11 @@ public class RestTemplateUserService {
 
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
-            ResponseEntity<UserProfileResponse> response = restTemplate.exchange(
+            ResponseEntity<SimpleUserResponse> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     requestEntity,
-                    UserProfileResponse.class,
+                    SimpleUserResponse.class,
                     email
             );
 
@@ -58,7 +59,7 @@ public class RestTemplateUserService {
     /**
      * Register a new user via user-service
      */
-    public StatusResponse registerUser(RegisterRequest request) {
+    public StatusResponse registerUser(RegisterUserRequest request) {
         String url = userServiceUrl;
 
         try {
@@ -66,8 +67,10 @@ public class RestTemplateUserService {
             headers.set("X-Auth-Internal-Service", internalKey);
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            HttpEntity<RegisterRequest> requestEntity = new HttpEntity<>(request, headers);
+            HttpEntity<RegisterUserRequest> requestEntity = new HttpEntity<>(request, headers);
 
+            System.out.println("URL: " + url);
+            System.out.println("body: " + request);
             ResponseEntity<StatusResponse> response = restTemplate.postForEntity(
                     url,
                     requestEntity,
@@ -133,4 +136,29 @@ public class RestTemplateUserService {
         }
     }
 
+    /**
+     * Authenticate User
+     */
+    public SimpleUserResponse authenticateUser(SignInRequest signInRequest) {
+        String url = userServiceUrl + "/authenticate";
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Auth-Internal-Service", internalKey);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<SignInRequest> requestEntity = new HttpEntity<>(signInRequest, headers);
+
+            ResponseEntity<SimpleUserResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    SimpleUserResponse.class
+            );
+
+            return response.getBody();
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed authenticate user", ex);
+        }
+    }
 }

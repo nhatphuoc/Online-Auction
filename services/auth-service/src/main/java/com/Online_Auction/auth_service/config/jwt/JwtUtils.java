@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.Online_Auction.auth_service.external.response.UserProfileResponse;
+import com.Online_Auction.auth_service.external.response.SimpleUserResponse.UserRole;
 
 public class JwtUtils {
     private static final String SECRET_KEY = "X8f3N2p9V6yR1qT7Z4wM0bC5sH2kJ8lP";
@@ -45,31 +45,31 @@ public class JwtUtils {
     // GENERATE TOKEN
     // ==============================================
     private static String generateToken(
-        UserProfileResponse user,
+        Long userId,
         Map<String, Object> claims,
         long expiration
     ) {
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(String.valueOf(user.getId()))
+                .setSubject(String.valueOf(userId))
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(KEY, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public static String generateAccessToken(UserProfileResponse user) {
+    public static String generateAccessToken(Long userId, String email, UserRole userRole) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "access");
-        claims.put("role", user.getUserRole());
-        claims.put("email", user.getEmail());
-        return generateToken(user, claims, ACCESS_TOKEN_EXPIRATION);
+        claims.put("role", userRole);
+        claims.put("email", email);
+        return generateToken(userId, claims, ACCESS_TOKEN_EXPIRATION);
     }
 
-    public static String generateRefreshToken(UserProfileResponse user) {
+    public static String generateRefreshToken(Long userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
-        return generateToken(user, claims, REFRESH_TOKEN_EXPIRATION);
+        return generateToken(userId, claims, REFRESH_TOKEN_EXPIRATION);
     }
 
     // ==============================================

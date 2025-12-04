@@ -5,16 +5,18 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.Online_Auction.auth_service.domain.OtpToken;
-import com.Online_Auction.auth_service.dto.request.RegisterRequest;
+import com.Online_Auction.auth_service.dto.request.GoogleTokenRequest;
+import com.Online_Auction.auth_service.dto.request.RegisterUserRequest;
 import com.Online_Auction.auth_service.dto.request.SignInRequest;
+import com.Online_Auction.auth_service.external.response.SimpleUserResponse;
 import com.Online_Auction.auth_service.external.response.StatusResponse;
-import com.Online_Auction.auth_service.external.response.UserProfileResponse;
 import com.Online_Auction.auth_service.repository.OtpTokenRepository;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 
 import jakarta.transaction.Transactional;
 
@@ -23,39 +25,32 @@ public class AuthServiceImpl implements AuthService {
 
     private final RestTemplateNotificationService notificationService;
     private final OtpTokenRepository otpTokenRepository;
-    private final PasswordEncoder passwordEncoder;
     private final RestTemplateUserService restTemplateUserService;
+    private final GoogleIdTokenVerifier googleIdTokenVerifier;
 
     public AuthServiceImpl(
         RestTemplateNotificationService notificationService,
         OtpTokenRepository otpTokenRepository,
-        PasswordEncoder passwordEncoder,
-        RestTemplateUserService restTemplateUserService
+        RestTemplateUserService restTemplateUserService,
+        GoogleIdTokenVerifier googleIdTokenVerifier
     ) {
         this.notificationService = notificationService;
         this.otpTokenRepository = otpTokenRepository;
-        this.passwordEncoder = passwordEncoder;
         this.restTemplateUserService = restTemplateUserService;
+        this.googleIdTokenVerifier = googleIdTokenVerifier;
     }
 
     @Override
     @Transactional
-    public void register(RegisterRequest request) {
+    public void register(RegisterUserRequest request) {
         // 1. Kiểm tra email tồn tại
-        UserProfileResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
+        SimpleUserResponse userResponse = restTemplateUserService.getUserByEmail(request.email());
         if (!Objects.isNull(userResponse)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already registered");
         }
 
         // 2. Tạo user
-        RegisterRequest requestWithHashPassword = new RegisterRequest();
-        requestWithHashPassword.setEmail(request.getEmail());
-        requestWithHashPassword.setBirthDay(request.getBirthDay());
-        requestWithHashPassword.setFullName(request.getFullName());
-        requestWithHashPassword.setPassword(passwordEncoder.encode(request.getPassword()));
-        requestWithHashPassword.setReCaptchaToken(request.getReCaptchaToken());
-
-        StatusResponse response = restTemplateUserService.registerUser(requestWithHashPassword);
+        StatusResponse response = restTemplateUserService.registerUser(request);
         if (!response.isSuccess()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fail to register new user, unknown reason");
         }
@@ -63,17 +58,19 @@ public class AuthServiceImpl implements AuthService {
         // 3. Tạo OTP
         String otpCode = generateOtp();
         OtpToken otpToken = new OtpToken();
-        otpToken.setEmail(request.getEmail());
+        otpToken.setEmail(request.email());
         otpToken.setOtpCode(otpCode);
         otpToken.setExpiredAt(LocalDateTime.now().plus(10, ChronoUnit.MINUTES));
         otpTokenRepository.save(otpToken);
         
         // 4. Gọi NotificationService
-        notificationService.sendEmail(
-            request.getEmail(),
-            "Xác nhận đăng ký",
-            "Mã OTP của bạn là: " + otpCode + "\nHạn dùng: 10 phút"
-        );
+        if (notificationService != null) {
+                notificationService.sendEmail(
+                request.email(),
+                "Xác nhận đăng ký",
+                "Mã OTP của bạn là: " + otpCode + "\nHạn dùng: 10 phút"
+            );
+        }
     }
 
     private String generateOtp() {
@@ -108,18 +105,51 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public UserProfileResponse authenticate(SignInRequest request) {
-        UserProfileResponse userResponse = restTemplateUserService.getUserByEmail(request.getEmail());
-        if (Objects.isNull(userResponse)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User not found");
+    public SimpleUserResponse authenticate(SignInRequest request) {
+        return restTemplateUserService.authenticateUser(request);
+    }
+
+    @Override
+    public SimpleUserResponse loginWithGoogle(GoogleTokenRequest request) {
+
+        GoogleIdToken idToken;
+        try {
+            idToken = googleIdTokenVerifier.verify(request.idToken());
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Google ID Token");
         }
 
-        if (!passwordEncoder.matches(request.getPassword(), userResponse.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid credentials");
+        if (idToken == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid Google ID Token");
         }
-        if (!Boolean.TRUE.equals(userResponse.getEmailVerified())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email not verified");
+
+        GoogleIdToken.Payload payload = idToken.getPayload();
+
+        String email = payload.getEmail();
+        String name = (String) payload.get("name");
+
+        // 1. Get user from user-service
+        SimpleUserResponse user = restTemplateUserService.getUserByEmail(email);
+
+
+        // 2. If no user → register automatically
+        if (user == null) {
+            RegisterUserRequest req = new RegisterUserRequest(
+                    name,
+                    email,
+                    null,
+                    null,
+                    true
+            );
+
+            StatusResponse status = restTemplateUserService.registerUser(req);
+            if (!status.isSuccess()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to auto-register user");
+            }
+
+            user = restTemplateUserService.getUserByEmail(email);
+            return user;
         }
-        return userResponse;
-    }   
+        return null;
+    }
 }

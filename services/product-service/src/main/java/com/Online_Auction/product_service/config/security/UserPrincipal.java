@@ -14,8 +14,8 @@ public class UserPrincipal implements Serializable {
     
     public enum UserRole {
         // BIDDER, SELLER, ADMIN
-        BIDDER,
-        SELLER,
-        ADMIN
+        ROLE_BIDDER,
+        ROLE_SELLER,
+        ROLE_ADMIN
     }
 }

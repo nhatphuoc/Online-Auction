@@ -53,7 +53,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String role = claims.get("role", String.class); // nếu role là List<String>
 
         // Chuyển sang GrantedAuthority
-        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
         
         // Tạo principal
         UserPrincipal principal = new UserPrincipal(

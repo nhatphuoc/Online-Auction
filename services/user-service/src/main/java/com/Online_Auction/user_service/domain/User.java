@@ -8,6 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -32,6 +33,7 @@ public class User implements UserDetails {
 
     private String fullName;
 
+    @Column(unique = true)
     private String email;
 
     private LocalDate birthDay;
@@ -64,8 +66,8 @@ public class User implements UserDetails {
     public boolean isEnabled() { return emailVerified != null && emailVerified; }
 
     public enum UserRole {
-        BIDDER,
-        SELLER,
-        ADMIN
+        ROLE_BIDDER,
+        ROLE_MANAGER,
+        ROLE_ADMIN
     }
 }

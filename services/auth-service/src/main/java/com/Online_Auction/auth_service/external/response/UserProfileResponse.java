@@ -1,15 +1,15 @@
-package com.Online_Auction.user_service.dto.response;
+package com.Online_Auction.auth_service.external.response;
 
 import java.time.LocalDate;
 
-import com.Online_Auction.user_service.domain.User;
+import com.Online_Auction.auth_service.external.response.SimpleUserResponse.UserRole;
 
 public record UserProfileResponse(
     Long id,
     String fullName,
     String email,
     LocalDate birthDay,
-    User.UserRole role,
+    UserRole role,
     int totalNumberReviews,
     int totalNumberGoodReviews,
     Boolean emailVerified,

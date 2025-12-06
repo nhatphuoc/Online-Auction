@@ -16,3 +16,6 @@ server:
 
 internal:
   key: ${X_AUTH_INTERNAL_KEY}
+  
+gateway:
+  key: secret

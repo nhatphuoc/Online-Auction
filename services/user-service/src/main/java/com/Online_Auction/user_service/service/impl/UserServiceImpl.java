@@ -3,10 +3,13 @@ package com.Online_Auction.user_service.service.impl;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.Online_Auction.user_service.config.security.UserPrincipal;
 import com.Online_Auction.user_service.domain.User;
 import com.Online_Auction.user_service.domain.User.UserRole;
 import com.Online_Auction.user_service.dto.request.RegisterUserRequest;
@@ -36,7 +39,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public boolean register(RegisterUserRequest request) {    
+    public boolean register(RegisterUserRequest request) {
+        Optional<User> existing = userRepository.findByEmail(request.email());
+        if (existing.isPresent()) return false;
+        
         User user = new User();
         user.setFullName(request.fullName());
         user.setEmail(request.email());
@@ -98,5 +104,17 @@ public class UserServiceImpl implements UserService {
         }
         return UserMapper.toSimpleUserResponse(user.get());
     }
+
+    public User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        return userRepository.findById(principal.getUserId()).orElse(null);
+    }
+
     
 }

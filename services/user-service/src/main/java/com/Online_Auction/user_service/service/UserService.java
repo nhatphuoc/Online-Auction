@@ -13,4 +13,5 @@ public interface UserService {
     StatusResponse deleteUserByEmail(String email);
     User findById(long id);
     SimpleUserResponse authenticateUser(SignInRequest request);
+    User getCurrentUser();
 }

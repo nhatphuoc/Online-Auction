@@ -2,14 +2,13 @@ package com.Online_Auction.auth_service.controller;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.client.RestTemplate;
 import com.Online_Auction.auth_service.config.jwt.JwtUtils;
 import com.Online_Auction.auth_service.dto.request.GoogleTokenRequest;
 import com.Online_Auction.auth_service.dto.request.RegisterUserRequest;
@@ -18,31 +17,30 @@ import com.Online_Auction.auth_service.dto.request.ValidateJwtRequest;
 import com.Online_Auction.auth_service.dto.request.VerifyOtpRequest;
 import com.Online_Auction.auth_service.dto.response.JwtResponse;
 import com.Online_Auction.auth_service.dto.response.ValidateJwtResponse;
+import com.Online_Auction.auth_service.external.response.ApiResponse;
 import com.Online_Auction.auth_service.external.response.SimpleUserResponse;
-import com.Online_Auction.auth_service.external.response.StatusResponse;
 import com.Online_Auction.auth_service.service.AuthService;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
     private final AuthService authService;
 
-    public AuthController(AuthService authService) { this.authService = authService; }
+    public AuthController(AuthService authService, RestTemplate restTemplate) { 
+        this.authService = authService;
+    }
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String,Object>> register(@RequestBody RegisterUserRequest request) {
-        System.out.println("RegisterRequest: " + request);
-        authService.register(request);
-        return ResponseEntity.ok(Map.of(
-            "success", true, 
-            "message", "Successfully register"
-        ));
+    public ResponseEntity<ApiResponse<Void>> register(@RequestBody RegisterUserRequest request) {
+        ApiResponse<Void> response = authService.register(request);
+        return response.isSuccess() ? ResponseEntity.ok().body(response) : ResponseEntity.badRequest().body(response);
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<StatusResponse> verifyOtp(@RequestBody VerifyOtpRequest request) {
-        StatusResponse response = authService.verifyOtp(request.getEmail(), request.getOtpCode());
-        return ResponseEntity.ok().body(response);
+    public ResponseEntity<ApiResponse<Void>> verifyOtp(@RequestBody VerifyOtpRequest request) {
+        ApiResponse<Void> response = authService.verifyOtp(request.getEmail(), request.getOtpCode());
+        return response.isSuccess() ? ResponseEntity.ok().body(response) : ResponseEntity.badRequest().body(response);
     }
 
     @PostMapping("/sign-in")

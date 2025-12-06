@@ -1,6 +1,7 @@
 package com.Online_Auction.user_service.config;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -12,25 +13,24 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.Online_Auction.user_service.config.security.InternalAuthFilter;
+import com.Online_Auction.user_service.config.security.JwtAuthFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final InternalConfig internalConfig;
-
-    public SecurityConfig(InternalConfig internalConfig) {
-        this.internalConfig = internalConfig;
-    }
+    @Autowired
+    private JwtAuthFilter jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .cors(Customizer.withDefaults())   // 👈 ENABLE CORS
-                .addFilterBefore(new InternalAuthFilter(internalConfig),
-                        UsernamePasswordAuthenticationFilter.class);
+            .csrf(csrf -> csrf.disable())
+            .cors(Customizer.withDefaults())
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .authorizeHttpRequests(c ->
+                c.anyRequest().authenticated()
+            );
 
         return http.build();
     }

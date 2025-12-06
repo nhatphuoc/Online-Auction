@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  category-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: category-service
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=3000
+      - OTEL_ENDPOINT=${OTEL_ENDPOINT:-localhost:4317}
+      - OTEL_SERVICE_NAME=category-service-api
+      - OTEL_SERVICE_VERSION=1.0.0
+      - OTEL_ENVIRONMENT=${OTEL_ENVIRONMENT:-development}
+    restart: unless-stopped
+    networks:
+      - auction-network
+
+networks:
+  auction-network:
+    driver: bridge

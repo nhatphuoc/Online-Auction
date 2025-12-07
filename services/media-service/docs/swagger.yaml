@@ -1,0 +1,117 @@
+basePath: /api
+definitions:
+  main.ErrorResponse:
+    properties:
+      details:
+        example: Missing file parameter
+        type: string
+      error:
+        example: Invalid request
+        type: string
+    type: object
+  main.UploadResponse:
+    properties:
+      filename:
+        example: image.jpg
+        type: string
+      key:
+        example: uploads/image.jpg
+        type: string
+      message:
+        example: Upload thành công
+        type: string
+      size:
+        example: 1048576
+        type: integer
+      uploaded_at:
+        type: string
+      url:
+        example: https://bucket.s3.region.amazonaws.com/uploads/image.jpg
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API for uploading and managing media files (images, videos) to AWS
+    S3
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Media Service API
+  version: "1.0"
+paths:
+  /upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a file to AWS S3
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 'Folder path in S3 (default: uploads/)'
+        in: query
+        name: folder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.UploadResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Upload a single file
+      tags:
+      - media
+  /upload/multiple:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload multiple files to AWS S3
+      parameters:
+      - description: Files to upload
+        in: formData
+        name: files
+        required: true
+        type: file
+      - description: 'Folder path in S3 (default: uploads/)'
+        in: query
+        name: folder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Upload multiple files
+      tags:
+      - media
+schemes:
+- http
+- https
+swagger: "2.0"

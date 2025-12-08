@@ -74,7 +74,6 @@ public class AuthController {
 
     @PostMapping("/sign-in/google")
     public ResponseEntity<JwtResponse> loginWithGoogle(@RequestBody GoogleTokenRequest request) throws GeneralSecurityException, IOException {
-        System.out.println("Sign in with google");
         SimpleUserResponse user = authService.loginWithGoogle(request);
 
         if (user == null) {

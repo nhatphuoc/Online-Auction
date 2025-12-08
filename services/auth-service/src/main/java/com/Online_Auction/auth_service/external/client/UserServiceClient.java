@@ -17,7 +17,6 @@ import com.Online_Auction.auth_service.dto.request.RegisterUserRequest;
 import com.Online_Auction.auth_service.dto.request.SignInRequest;
 import com.Online_Auction.auth_service.external.response.ApiResponse;
 import com.Online_Auction.auth_service.external.response.SimpleUserResponse;
-import com.Online_Auction.auth_service.external.response.UserProfileResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
@@ -143,17 +142,4 @@ public class UserServiceClient {
                 new ParameterizedTypeReference<>() {}
         );
     }
-
-    /**
-     * Get logged-in user's profile
-     */
-    public ApiResponse<UserProfileResponse> getMyProfile() {
-        return callApi(
-                BASE_URL + "/profile/me",
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {}
-        );
-    }
-
 }

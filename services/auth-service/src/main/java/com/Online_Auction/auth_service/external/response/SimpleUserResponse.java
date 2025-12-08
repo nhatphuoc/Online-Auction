@@ -21,4 +21,3 @@ public class SimpleUserResponse {
         ROLE_ADMIN
     }
 }
-    

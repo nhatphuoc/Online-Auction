@@ -22,6 +22,7 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,6 +45,18 @@ public class UserController {
         );
     }
 
+    @GetMapping("/{id}/simple")
+    public ResponseEntity<ApiResponse<SimpleUserResponse>> getSimpleUserById(@PathVariable Long id) {
+        User user = userService.findById(id);
+        if (user == null)
+            return ResponseEntity.badRequest().body(ApiResponse.fail("User not found"));
+
+        return ResponseEntity.ok(
+                ApiResponse.success(UserMapper.toSimpleUserResponse(user), "User fetched successfully")
+        );
+    }
+    
+
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> registerUser(@RequestBody RegisterUserRequest entity) {
         boolean registerSuccess = userService.register(entity);
@@ -53,7 +66,6 @@ public class UserController {
                     .body(ApiResponse.fail("Fail to register user, email is already registered"));
         }
 
-        System.out.println("Success");
         return ResponseEntity.ok(ApiResponse.success(null, "Successfully registered user"));
     }
 

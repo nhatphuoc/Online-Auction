@@ -18,4 +18,4 @@ internal:
   key: ${X_AUTH_INTERNAL_KEY}
   
 gateway:
-  key: secret
+  key: ${X_API_GATEWAY}

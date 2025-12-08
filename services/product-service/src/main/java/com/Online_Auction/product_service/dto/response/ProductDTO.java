@@ -1,9 +1,9 @@
-package com.Online_Auction.product_service.dto;
+package com.Online_Auction.product_service.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.Online_Auction.product_service.domain.ProductStatus;
+import com.Online_Auction.product_service.domain.Product.ProductStatus;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -47,8 +47,6 @@ public class ProductDTO {
     private Long sellerId;
     private SimpleUserInfo sellerInfo;    // CALL USER-SERVICE
     private SimpleUserInfo highestBidder; // FROM BIDDING-SERVICE
-
-    private List<QuestionDTO> questions;
 
     private ProductStatus status;
 }

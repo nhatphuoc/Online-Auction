@@ -9,16 +9,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.Online_Auction.product_service.config.security.UserPrincipal;
-import com.Online_Auction.product_service.dto.FavoriteDTO;
-import com.Online_Auction.product_service.dto.ProductDTO;
-import com.Online_Auction.product_service.dto.QuestionDTO;
-import com.Online_Auction.product_service.dto.request.AnswerCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
-import com.Online_Auction.product_service.dto.request.QuestionCreateRequest;
-import com.Online_Auction.product_service.service.FavoriteService;
+import com.Online_Auction.product_service.dto.response.ApiResponse;
+import com.Online_Auction.product_service.dto.response.ProductDTO;
+import com.Online_Auction.product_service.external.ProductBidRequest;
+import com.Online_Auction.product_service.service.ProductBidService;
 import com.Online_Auction.product_service.service.ProductService;
-import com.Online_Auction.product_service.service.QuestionService;
 
 import jakarta.validation.Valid;
 
@@ -30,8 +27,7 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
-    private final QuestionService questionService;
-    private final FavoriteService favoriteService;
+    private final ProductBidService productBidService;
 
     // =================================
     // SELLER: CREATE PRODUCT
@@ -85,78 +81,18 @@ public class ProductController {
     }
 
     // =================================
-    // BIDDER: ASK QUESTION
+    //  INTERNAL USAGE: BID
     // =================================
-    @PreAuthorize("hasRole('BIDDER')")
-    @PostMapping("/{productId}/questions")
-    public ResponseEntity<QuestionDTO> askQuestion(
-            @PathVariable Long productId,
-            @Valid @RequestBody QuestionCreateRequest request
+    @PostMapping("/{id}/bids")
+    public ResponseEntity<?> placeBid(
+            @PathVariable Long id,
+            @RequestBody ProductBidRequest request
     ) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-        Long userId = principal.getUserId();
-        QuestionDTO question = questionService.askQuestion(userId, productId, request);
-        return ResponseEntity.ok(question);
-    }
+        ApiResponse<?> response = productBidService.placeBid(id, request);
 
-    // =================================
-    // SELLER: ANSWER QUESTION
-    // =================================
-    @PreAuthorize("hasRole('SELLER')")
-    @PostMapping("/questions/{questionId}/answer")
-    public ResponseEntity<QuestionDTO> answerQuestion(
-            @PathVariable Long questionId,
-            @Valid @RequestBody AnswerCreateRequest request
-    ) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-        Long sellerId = principal.getUserId();
-        QuestionDTO question = questionService.answerQuestion(sellerId, questionId, request);
-        return ResponseEntity.ok(question);
-    }
+        if (!response.isSuccess())
+            return ResponseEntity.badRequest().body(response);
 
-    // =================================
-    // FAVORITE: ADD
-    // =================================
-    @PreAuthorize("isAuthenticated()")
-    @PostMapping("/{productId}/favorite")
-    public ResponseEntity<Void> addFavorite(@PathVariable Long productId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-
-        Long userId = principal.getUserId(); // Lấy userId từ principal
-        favoriteService.addFavorite(userId, productId);
-        return ResponseEntity.ok().build();
-    }
-
-    // =================================
-    // FAVORITE: REMOVE
-    // =================================
-    @PreAuthorize("isAuthenticated()")
-    @DeleteMapping("/{productId}/favorite")
-    public ResponseEntity<Void> removeFavorite(
-            @PathVariable Long productId
-    ) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-
-        Long userId = principal.getUserId(); // Lấy userId từ principal
-        favoriteService.removeFavorite(userId, productId);
-        return ResponseEntity.ok().build();
-    }
-
-    // =================================
-    // LIST FAVORITE PRODUCTS OF USER
-    // =================================
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/favorites")
-    public ResponseEntity<List<FavoriteDTO>> listFavorites() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-
-        Long userId = principal.getUserId(); // Lấy userId từ principal
-        List<FavoriteDTO> favorites = favoriteService.listFavorites(userId);
-        return ResponseEntity.ok(favorites);
+        return ResponseEntity.ok(response);
     }
 }

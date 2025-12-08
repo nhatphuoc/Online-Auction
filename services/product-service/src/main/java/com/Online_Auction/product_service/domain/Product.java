@@ -1,10 +1,8 @@
 package com.Online_Auction.product_service.domain;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -15,7 +13,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -58,7 +55,9 @@ public class Product {
 
     // ===== PRICING =====
     private Double startingPrice;
-    private Double currentPrice;
+
+    @Builder.Default
+    private Double currentPrice = null;
     private Double buyNowPrice;
     private Double stepPrice;     // bước giá
 
@@ -68,13 +67,16 @@ public class Product {
 
     private boolean autoExtend; // có hỗ trợ tự động gia hạn không
 
-    // ===== Q&A =====
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "product_id")
-    @Builder.Default
-    private List<Question> questions = new ArrayList<>();
-
     // ===== OTHER =====
     @Enumerated(EnumType.STRING)
     private ProductStatus status;
+
+    private Long currentBidder;
+
+    public enum ProductStatus {
+        ACTIVE,      // đang đấu giá
+        FINISHED,    // đã kết thúc
+        PENDING,     // đang chờ duyệt
+        REJECTED
+    }
 }

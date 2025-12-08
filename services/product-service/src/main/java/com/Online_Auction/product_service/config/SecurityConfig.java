@@ -26,7 +26,6 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/products/**").permitAll()   // tất cả user xem được sản phẩm
-                        .requestMatchers("/api/categories/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .build();

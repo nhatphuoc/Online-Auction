@@ -1,4 +1,4 @@
-package com.Online_Auction.product_service.dto;
+package com.Online_Auction.product_service.dto.response;
 
 import com.Online_Auction.product_service.config.security.UserPrincipal.UserRole;
 

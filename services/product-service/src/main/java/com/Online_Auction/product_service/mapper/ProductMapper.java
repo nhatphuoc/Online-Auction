@@ -3,10 +3,9 @@ package com.Online_Auction.product_service.mapper;
 import org.springframework.stereotype.Component;
 
 import com.Online_Auction.product_service.domain.Product;
-import com.Online_Auction.product_service.domain.ProductStatus;
-import com.Online_Auction.product_service.dto.ProductDTO;
-import com.Online_Auction.product_service.dto.QuestionDTO;
-import com.Online_Auction.product_service.dto.SimpleUserInfo;
+import com.Online_Auction.product_service.domain.Product.ProductStatus;
+import com.Online_Auction.product_service.dto.response.ProductDTO;
+import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,19 +13,8 @@ import java.util.stream.Collectors;
 @Component
 public class ProductMapper {
 
-    private final QuestionMapper questionMapper;
-
-    public ProductMapper(QuestionMapper questionMapper) {
-        this.questionMapper = questionMapper;
-    }
-
     public ProductDTO toProductDTO(Product product, SimpleUserInfo seller, SimpleUserInfo highestBidder) {
         if (product == null) return null;
-
-        List<QuestionDTO> questions = product.getQuestions() == null ? List.of()
-                : product.getQuestions().stream()
-                .map(questionMapper::toDTO)
-                .collect(Collectors.toList());
 
         return ProductDTO.builder()
                 .id(product.getId())
@@ -44,7 +32,6 @@ public class ProductMapper {
                 .autoExtend(product.isAutoExtend())
                 .sellerInfo(seller)
                 .highestBidder(highestBidder)
-                .questions(questions)
                 .status(product.getStatus() != null ? product.getStatus() : ProductStatus.ACTIVE)
                 .build();
     }
@@ -67,10 +54,6 @@ public class ProductMapper {
         product.setEndAt(dto.getEndAt());
         product.setAutoExtend(dto.isAutoExtend());
         product.setSellerId(dto.getSellerId());
-        product.setQuestions(dto.getQuestions() == null ? null :
-                dto.getQuestions().stream()
-                        .map(questionMapper::toEntity)
-                        .collect(Collectors.toList()));
         product.setStatus(dto.getStatus());
         return product;
     }

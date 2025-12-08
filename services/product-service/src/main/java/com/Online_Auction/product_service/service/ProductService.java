@@ -9,11 +9,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.Online_Auction.product_service.client.RestTemplateUserServiceClient;
 import com.Online_Auction.product_service.domain.Product;
-import com.Online_Auction.product_service.domain.ProductStatus;
-import com.Online_Auction.product_service.dto.ProductDTO;
-import com.Online_Auction.product_service.dto.SimpleUserInfo;
+import com.Online_Auction.product_service.domain.Product.ProductStatus;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
+import com.Online_Auction.product_service.dto.response.ProductDTO;
+import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
 import com.Online_Auction.product_service.external.SimpleUserResponse;
 import com.Online_Auction.product_service.mapper.ProductMapper;
 import com.Online_Auction.product_service.repository.ProductRepository;

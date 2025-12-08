@@ -17,8 +17,17 @@ spring:
           timeout: 5000
           writetimeout: 5000
 
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: admin123
+
 server:
   port: 8082
 
 internal:
   key: ${X_AUTH_INTERNAL_KEY}
+
+gateway:
+  key: ${X_API_GATEWAY}

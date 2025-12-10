@@ -1,0 +1,463 @@
+basePath: /api
+definitions:
+  models.Category:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/models.Category'
+        type: array
+      created_at:
+        type: string
+      description:
+        type: string
+      display_order:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      level:
+        type: integer
+      name:
+        type: string
+      parent:
+        allOf:
+        - $ref: '#/definitions/models.Category'
+        description: Relations
+      parent_id:
+        type: integer
+      slug:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.CategoryResponse:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/models.CategoryResponse'
+        type: array
+      created_at:
+        type: string
+      description:
+        type: string
+      display_order:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      level:
+        type: integer
+      name:
+        type: string
+      parent_id:
+        type: integer
+      slug:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.CategoryTreeResponse:
+    properties:
+      categories:
+        items:
+          $ref: '#/definitions/models.CategoryResponse'
+        type: array
+    type: object
+  models.CreateCategoryRequest:
+    properties:
+      description:
+        type: string
+      display_order:
+        type: integer
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      parent_id:
+        type: integer
+      slug:
+        maxLength: 255
+        minLength: 2
+        type: string
+    required:
+    - name
+    - slug
+    type: object
+  models.Product:
+    properties:
+      auto_extend:
+        type: boolean
+      buy_now_price:
+        type: number
+      category:
+        allOf:
+        - $ref: '#/definitions/models.Category'
+        description: Relations
+      category_id:
+        type: integer
+      created_at:
+        type: string
+      current_price:
+        type: number
+      description:
+        type: string
+      end_at:
+        type: string
+      id:
+        type: integer
+      images:
+        items:
+          $ref: '#/definitions/models.ProductImage'
+        type: array
+      name:
+        type: string
+      seller_id:
+        type: integer
+      starting_price:
+        type: number
+      status:
+        type: string
+      step_price:
+        type: number
+      thumbnail_url:
+        type: string
+    type: object
+  models.ProductImage:
+    properties:
+      image_url:
+        type: string
+      product_id:
+        type: integer
+    type: object
+  models.ProductListResponse:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      products:
+        items:
+          $ref: '#/definitions/models.Product'
+        type: array
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  models.UpdateCategoryRequest:
+    properties:
+      description:
+        type: string
+      display_order:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        maxLength: 255
+        minLength: 2
+        type: string
+      parent_id:
+        type: integer
+      slug:
+        maxLength: 255
+        minLength: 2
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API Backend cho hệ thống quản lý danh mục và sản phẩm
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Category Service API
+  version: "1.0"
+paths:
+  /categories:
+    get:
+      description: Get hierarchical list of all categories
+      parameters:
+      - description: Parent category ID (empty for root categories)
+        in: query
+        name: parent_id
+        type: integer
+      - description: Category level (1 or 2)
+        in: query
+        name: level
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CategoryTreeResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get all categories
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Create a new product category
+      parameters:
+      - description: Category data
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Category'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new category
+      tags:
+      - categories
+  /categories/{id}:
+    delete:
+      description: Soft delete a category (marks as inactive)
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a category
+      tags:
+      - categories
+    get:
+      description: Get a single category by ID with its children
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CategoryResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get category by ID
+      tags:
+      - categories
+    put:
+      consumes:
+      - application/json
+      description: Update an existing category
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Category data
+        in: body
+        name: category
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Category'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update a category
+      tags:
+      - categories
+  /categories/parent/{parent_id}:
+    get:
+      description: Get all child categories of a parent category
+      parameters:
+      - description: Parent Category ID
+        in: path
+        name: parent_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.CategoryResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get categories by parent ID
+      tags:
+      - categories
+  /products:
+    get:
+      description: Get paginated list of products filtered by category
+      parameters:
+      - description: Category ID
+        in: query
+        name: category_id
+        required: true
+        type: integer
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 20, max: 100)'
+        in: query
+        name: page_size
+        type: integer
+      - description: Product status (ACTIVE, PENDING, FINISHED, REJECTED)
+        in: query
+        name: status
+        type: string
+      - description: Sort field (created_at, current_price, end_at)
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc, desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ProductListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get products by category
+      tags:
+      - products
+  /products/{id}:
+    get:
+      description: Get detailed information about a product
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Product'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get product by ID
+      tags:
+      - products
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

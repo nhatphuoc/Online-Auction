@@ -14,9 +14,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -32,10 +29,10 @@ func main() {
 	slog.Info("Starting auto-bidding-service API")
 
 	otelShutdown, err := telemetry.InitOTel(ctx, telemetry.OTelConfig{
-		ServiceName: cfg.OTelServiceName,
+		ServiceName:    cfg.OTelServiceName,
 		ServiceVersion: cfg.OTelServiceVersion,
-		Environment: cfg.OTelEnvironment,
-		OTelEndpoint: cfg.OTelEndpoint,
+		Environment:    cfg.OTelEnvironment,
+		OTelEndpoint:   cfg.OTelEndpoint,
 	})
 	if err != nil {
 		log.Fatalf("Error: %v", err)
@@ -67,12 +64,11 @@ func main() {
 	})
 
 	autoBids := api.Group("/auto-bids")
-	autoBids.Post("/", middleware.AuthMiddleware(), autoBidHandler.CreateAutoBid)
+	autoBids.Post("/", middleware.AuthMiddleware(cfg), autoBidHandler.CreateAutoBid)
 	autoBids.Post("/trigger", autoBidHandler.TriggerAutoBidding)
-	autoBids.Get("/my", middleware.AuthMiddleware(), autoBidHandler.GetMyAutoBids)
-	autoBids.Get("/:id", middleware.AuthMiddleware(), autoBidHandler.GetAutoBidByID)
-	autoBids.Post("/:id/cancel", middleware.AuthMiddleware(), autoBidHandler.CancelAutoBid)
-
+	autoBids.Get("/my", middleware.AuthMiddleware(cfg), autoBidHandler.GetMyAutoBids)
+	autoBids.Get("/:id", middleware.AuthMiddleware(cfg), autoBidHandler.GetAutoBidByID)
+	autoBids.Post("/:id/cancel", middleware.AuthMiddleware(cfg), autoBidHandler.CancelAutoBid)
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	port := os.Getenv("PORT")

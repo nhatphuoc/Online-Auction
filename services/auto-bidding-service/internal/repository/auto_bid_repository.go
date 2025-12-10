@@ -24,7 +24,7 @@ func (r *AutoBidRepository) Create(ctx context.Context, autoBid *models.AutoBid)
 	autoBid.CreatedAt = time.Now()
 	autoBid.UpdatedAt = time.Now()
 	autoBid.Status = models.AutoBidStatusActive
-	
+
 	_, err := r.db.ModelContext(ctx, autoBid).Insert()
 	if err != nil {
 		return fmt.Errorf("failed to create auto-bid: %w", err)
@@ -35,7 +35,7 @@ func (r *AutoBidRepository) Create(ctx context.Context, autoBid *models.AutoBid)
 // Update cập nhật auto-bid
 func (r *AutoBidRepository) Update(ctx context.Context, autoBid *models.AutoBid) error {
 	autoBid.UpdatedAt = time.Now()
-	
+
 	_, err := r.db.ModelContext(ctx, autoBid).
 		WherePK().
 		Update()
@@ -66,7 +66,7 @@ func (r *AutoBidRepository) GetActiveByProduct(ctx context.Context, productID in
 		Where("status = ?", models.AutoBidStatusActive).
 		Order("max_amount DESC", "created_at ASC"). // Sắp xếp theo max_amount giảm, nếu bằng nhau thì người tạo trước win
 		Select()
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active auto-bids: %w", err)
 	}
@@ -80,7 +80,7 @@ func (r *AutoBidRepository) GetByBidder(ctx context.Context, bidderID int64) ([]
 		Where("bidder_id = ?", bidderID).
 		Order("created_at DESC").
 		Select()
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bidder's auto-bids: %w", err)
 	}
@@ -95,7 +95,7 @@ func (r *AutoBidRepository) GetByBidderAndProduct(ctx context.Context, bidderID,
 		Where("product_id = ?", productID).
 		Where("status = ?", models.AutoBidStatusActive).
 		Select()
-	
+
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return nil, nil // Không có auto-bid active
@@ -112,7 +112,7 @@ func (r *AutoBidRepository) UpdateStatus(ctx context.Context, id int64, status m
 		Set("updated_at = ?", time.Now()).
 		Where("id = ?", id).
 		Update()
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to update auto-bid status: %w", err)
 	}
@@ -126,7 +126,7 @@ func (r *AutoBidRepository) UpdateCurrentAmount(ctx context.Context, id int64, a
 		Set("updated_at = ?", time.Now()).
 		Where("id = ?", id).
 		Update()
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to update current amount: %w", err)
 	}
@@ -142,7 +142,7 @@ func (r *AutoBidRepository) DeactivateOldAutoBids(ctx context.Context, bidderID,
 		Where("product_id = ?", productID).
 		Where("status = ?", models.AutoBidStatusActive).
 		Update()
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to deactivate old auto-bids: %w", err)
 	}

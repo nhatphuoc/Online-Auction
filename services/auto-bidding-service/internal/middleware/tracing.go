@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"time"
 
-	"category_service/internal/metrics"
+	"auto-bidding-service/internal/metrics"
 
 	"github.com/gofiber/fiber/v2"
 	"go.opentelemetry.io/otel"

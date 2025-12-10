@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"category_service/internal/telemetry"
+	"auto-bidding-service/internal/telemetry"
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 )

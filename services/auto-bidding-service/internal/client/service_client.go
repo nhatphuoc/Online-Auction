@@ -115,7 +115,7 @@ type ProductResponse struct {
 // GetProduct lấy thông tin sản phẩm
 func (c *ProductServiceClient) GetProduct(productID int64) (*ProductInfo, error) {
 	url := fmt.Sprintf("%s/products/%d", c.baseURL, productID)
-	
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)

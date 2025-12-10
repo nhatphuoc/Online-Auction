@@ -75,16 +75,16 @@ func (s *AutoBidService) CreateAutoBid(ctx context.Context, bidderID, productID 
 }
 
 // TriggerAutoBidding xử lý logic auto-bidding khi có bid mới
-// Logic: 
+// Logic:
 // - Lấy tất cả auto-bid ACTIVE của sản phẩm, sắp xếp theo max_amount giảm dần
 // - Những người có max_amount < giá hiện tại → OUTBID
 // - Những người có max_amount >= giá hiện tại:
-//   + Người thứ 2,3,4... bid hết max của họ
-//   + Người thứ nhất (max cao nhất) chỉ bid cao hơn người thứ 2 một bước giá
+//   - Người thứ 2,3,4... bid hết max của họ
+//   - Người thứ nhất (max cao nhất) chỉ bid cao hơn người thứ 2 một bước giá
 func (s *AutoBidService) TriggerAutoBidding(ctx context.Context, productID int64, currentPrice, stepPrice float64, triggerBidderID int64, triggerAmount float64, userToken string) error {
-	slog.Info("Triggering auto-bidding", 
-		"product_id", productID, 
-		"current_price", currentPrice, 
+	slog.Info("Triggering auto-bidding",
+		"product_id", productID,
+		"current_price", currentPrice,
 		"step_price", stepPrice,
 		"trigger_bidder", triggerBidderID,
 		"trigger_amount", triggerAmount)
@@ -125,12 +125,12 @@ func (s *AutoBidService) TriggerAutoBidding(ctx context.Context, productID int64
 	// - Nếu có 2+ người:
 	//   + Người 2,3,4,... bid hết max của họ
 	//   + Người 1 (max cao nhất) bid = min(max của người 2 + stepPrice, max của người 1)
-	
+
 	if len(eligibleBids) == 1 {
 		// Chỉ có 1 người, bid ngay
 		autoBid := eligibleBids[0]
 		nextBidAmount := currentPrice + stepPrice
-		
+
 		// Không vượt quá max
 		if nextBidAmount > autoBid.MaxAmount {
 			nextBidAmount = autoBid.MaxAmount
@@ -140,20 +140,20 @@ func (s *AutoBidService) TriggerAutoBidding(ctx context.Context, productID int64
 	} else {
 		// Có nhiều người
 		highestAutoBid := eligibleBids[0] // Người có max cao nhất
-		secondHighest := eligibleBids[1]   // Người thứ 2
+		secondHighest := eligibleBids[1]  // Người thứ 2
 
 		// Người từ thứ 2 trở đi: bid hết max của họ
 		for i := len(eligibleBids) - 1; i >= 1; i-- {
 			autoBid := eligibleBids[i]
 			s.executeBid(ctx, autoBid, autoBid.MaxAmount, userToken)
-			
+
 			// Delay một chút để tránh race condition
 			time.Sleep(100 * time.Millisecond)
 		}
 
 		// Người thứ nhất: bid cao hơn người thứ 2 một bước giá
 		winningBidAmount := secondHighest.MaxAmount + stepPrice
-		
+
 		// Không vượt quá max của người thứ nhất
 		if winningBidAmount > highestAutoBid.MaxAmount {
 			winningBidAmount = highestAutoBid.MaxAmount
@@ -170,8 +170,8 @@ func (s *AutoBidService) TriggerAutoBidding(ctx context.Context, productID int64
 // executeBid thực hiện việc đặt giá qua bidding-service
 func (s *AutoBidService) executeBid(ctx context.Context, autoBid *models.AutoBid, amount float64, userToken string) {
 	requestID := uuid.New().String()
-	
-	slog.Info("Executing auto-bid", 
+
+	slog.Info("Executing auto-bid",
 		"auto_bid_id", autoBid.ID,
 		"bidder_id", autoBid.BidderID,
 		"product_id", autoBid.ProductID,
@@ -189,7 +189,7 @@ func (s *AutoBidService) executeBid(ctx context.Context, autoBid *models.AutoBid
 	)
 
 	if err != nil {
-		slog.Error("Failed to place bid via bidding-service", 
+		slog.Error("Failed to place bid via bidding-service",
 			"error", err,
 			"auto_bid_id", autoBid.ID)
 		return
@@ -198,14 +198,14 @@ func (s *AutoBidService) executeBid(ctx context.Context, autoBid *models.AutoBid
 	if resp.Success {
 		// Cập nhật current_amount
 		s.repo.UpdateCurrentAmount(ctx, autoBid.ID, amount)
-		slog.Info("Auto-bid executed successfully", 
+		slog.Info("Auto-bid executed successfully",
 			"auto_bid_id", autoBid.ID,
 			"amount", amount)
 	} else {
-		slog.Error("Bid rejected by bidding-service", 
+		slog.Error("Bid rejected by bidding-service",
 			"auto_bid_id", autoBid.ID,
 			"message", resp.Message)
-		
+
 		// Nếu bid thất bại, có thể cần đánh dấu auto-bid
 		// Tùy theo lý do thất bại mà xử lý khác nhau
 	}

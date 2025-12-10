@@ -110,7 +110,7 @@ func (h *AutoBidHandler) CreateAutoBid(c *fiber.Ctx) error {
 // @Router /api/auto-bids/trigger [post]
 func (h *AutoBidHandler) TriggerAutoBidding(c *fiber.Ctx) error {
 	// Kiểm tra internal key (để bảo mật, chỉ cho phép bidding-service gọi)
-	internalKey := c.Get("X-Internal-Key")
+	// internalKey := c.Get("X-Internal-Key")
 	// TODO: Validate internal key với environment variable
 
 	var req models.TriggerAutoBidRequest
@@ -125,7 +125,7 @@ func (h *AutoBidHandler) TriggerAutoBidding(c *fiber.Ctx) error {
 	// Trigger auto-bidding trong background
 	// Lấy user token nếu có
 	userToken := c.Get("X-User-Token")
-	
+
 	go h.service.TriggerAutoBidding(
 		c.Context(),
 		req.ProductID,

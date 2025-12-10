@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"category_service/internal/config"
-	"category_service/internal/utils"
+	"auto-bidding-service/internal/config"
+	"auto-bidding-service/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 )

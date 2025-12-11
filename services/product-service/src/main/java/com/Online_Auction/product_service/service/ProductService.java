@@ -2,6 +2,11 @@ package com.Online_Auction.product_service.service;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +23,7 @@ import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
 import com.Online_Auction.product_service.external.SimpleUserResponse;
 import com.Online_Auction.product_service.mapper.ProductMapper;
 import com.Online_Auction.product_service.repository.ProductRepository;
+import com.Online_Auction.product_service.specs.ProductSpecs;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -154,6 +160,42 @@ public class ProductService {
                 .stream()
                 .map(ProductMapper::toListItem)
                 .toList();
+    }
+
+    // =================================
+    // SEARCH + FILTER
+    // =================================
+    public Page<ProductListItemResponse> searchProducts(
+            String query,
+            Long parentCategoryId,
+            Long categoryId,
+            int page,
+            int pageSize
+    ) {
+
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by("createdAt").descending());
+
+        Specification<Product> spec = Specification
+                .where(ProductSpecs.isActive())
+                .and(ProductSpecs.hasParentCategory(parentCategoryId))
+                .and(ProductSpecs.hasCategory(categoryId))
+                .and(ProductSpecs.hasNamePrefix(query));
+
+        return productRepository.findAll(spec, pageable)
+                .map(p -> new ProductListItemResponse(
+                        p.getId(),
+                        p.getThumbnailUrl(),
+                        p.getName(),
+                        p.getCurrentPrice(),
+                        p.getBuyNowPrice(),
+                        p.getCreatedAt(),
+                        p.getEndAt(),
+                        p.getBidCount(),
+                        p.getParentCategoryId(),
+                        p.getParentCategoryName(),
+                        p.getCategoryId(),
+                        p.getCategoryName()
+                ));
     }
 
     // =================================

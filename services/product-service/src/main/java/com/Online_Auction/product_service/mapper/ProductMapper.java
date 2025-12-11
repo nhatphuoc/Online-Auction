@@ -71,7 +71,6 @@ public class ProductMapper {
             p.getThumbnailUrl(),
             p.getName(),
             p.getCurrentPrice(),
-            p.getCurrentBidder(),
             p.getBuyNowPrice(),
             p.getCreatedAt(),
             p.getEndAt(),

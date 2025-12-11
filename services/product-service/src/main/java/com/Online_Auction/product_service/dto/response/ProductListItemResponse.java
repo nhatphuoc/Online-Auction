@@ -7,7 +7,6 @@ public record ProductListItemResponse(
         String thumbnailUrl,
         String name,
         Double currentPrice,
-        Long currentBidder,
         Double buyNowPrice,
         LocalDateTime createdAt,
         LocalDateTime endAt,

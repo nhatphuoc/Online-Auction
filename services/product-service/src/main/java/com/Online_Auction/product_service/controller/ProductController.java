@@ -3,6 +3,7 @@ package com.Online_Auction.product_service.controller;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -122,6 +123,28 @@ public class ProductController {
                 productService.topHighestPrice(),
                 "Successfully fetching top5 highest-price products"
         );
+    }
+
+    // =================================
+    //  SEARCH + FILTER
+    // =================================
+    @GetMapping("/search")
+    public ApiResponse<Page <ProductListItemResponse>> searchProducts(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Long parentCategoryId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int pageSize
+    ) {
+        Page<ProductListItemResponse> result = productService.searchProducts(
+                query,
+                parentCategoryId,
+                categoryId,
+                page,
+                pageSize
+        );
+
+        return ApiResponse.success(result, "Query success");
     }
 
 }

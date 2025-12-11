@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import com.Online_Auction.product_service.domain.Product;
 import com.Online_Auction.product_service.domain.Product.ProductStatus;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
+import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
 
 import java.util.List;
@@ -63,4 +64,25 @@ public class ProductMapper {
                 .map(p -> toProductDTO(p, seller, highestBidder))
                 .collect(Collectors.toList());
     }
+
+    public static ProductListItemResponse toListItem(Product p) {
+        return new ProductListItemResponse(
+            p.getId(),
+            p.getThumbnailUrl(),
+            p.getName(),
+            p.getCurrentPrice(),
+            p.getCurrentBidder(),
+            p.getBuyNowPrice(),
+            p.getCreatedAt(),
+            p.getEndAt(),
+            p.getBidCount(),
+
+            // NEW FIELDS
+            p.getParentCategoryId(),
+            p.getParentCategoryName(),
+            p.getCategoryId(),
+            p.getCategoryName()
+        );
+    }
+
 }

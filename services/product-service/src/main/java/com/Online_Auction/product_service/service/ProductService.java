@@ -13,6 +13,7 @@ import com.Online_Auction.product_service.domain.Product.ProductStatus;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
+import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
 import com.Online_Auction.product_service.external.SimpleUserResponse;
 import com.Online_Auction.product_service.mapper.ProductMapper;
@@ -34,12 +35,18 @@ public class ProductService {
     // =================================
     @Transactional
     public ProductDTO createProduct(Long sellerId, ProductCreateRequest request) {
+
         Product product = Product.builder()
                 .name(request.getName())
                 .thumbnailUrl(request.getThumbnailUrl())
                 .images(request.getImages())
                 .description(request.getDescription())
+
                 .categoryId(request.getCategoryId())
+                .categoryName(request.getCategoryName())
+                .parentCategoryId(request.getParentCategoryId())
+                .parentCategoryName(request.getParentCategoryName())
+
                 .startingPrice(request.getStartingPrice())
                 .buyNowPrice(request.getBuyNowPrice())
                 .stepPrice(request.getStepPrice())
@@ -53,9 +60,8 @@ public class ProductService {
         productRepository.save(product);
 
         SimpleUserInfo sellerInfo = this.getSimpleUserInfoById(sellerId);
-        SimpleUserInfo highestBidder = null;
 
-        return productMapper.toProductDTO(product, sellerInfo, highestBidder);
+        return productMapper.toProductDTO(product, sellerInfo, null);
     }
 
     // =================================
@@ -123,6 +129,36 @@ public class ProductService {
         productRepository.delete(product);
     }
 
+    // =================================
+    // HOMEPAGE
+    // =================================    
+    public List<ProductListItemResponse> topEndingSoon() {
+        return productRepository
+                .findTop5ByStatusOrderByEndAtAsc(ProductStatus.ACTIVE)
+                .stream()
+                .map(ProductMapper::toListItem)
+                .toList();
+    }
+
+    public List<ProductListItemResponse> topMostBids() {
+        return productRepository
+                .findTop5ByStatusOrderByBidCountDesc(ProductStatus.ACTIVE)
+                .stream()
+                .map(ProductMapper::toListItem)
+                .toList();
+    }
+
+    public List<ProductListItemResponse> topHighestPrice() {
+        return productRepository
+                .findTop5ByStatusOrderByCurrentPriceDesc(ProductStatus.ACTIVE)
+                .stream()
+                .map(ProductMapper::toListItem)
+                .toList();
+    }
+
+    // =================================
+    // UTILITY FUNCTIONS
+    // =================================
     private SimpleUserInfo getSimpleUserInfoById(long id) {
         SimpleUserResponse userResponse = restTemplateUserServiceClient.getUserById(id);
         if (userResponse == null) {

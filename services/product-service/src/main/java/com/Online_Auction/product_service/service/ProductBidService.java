@@ -1,7 +1,6 @@
 package com.Online_Auction.product_service.service;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
@@ -40,43 +39,48 @@ public class ProductBidService {
 
         Double bidAmount = req.getAmount();
 
-        if (Objects.isNull(product.getCurrentPrice())) {
+        // ====== CASE 1: Chưa có ai đặt giá ======
+        if (product.getCurrentPrice() == null) {
+
             if (bidAmount >= product.getStartingPrice()) {
+
                 product.setCurrentBidder(req.getBidderId());
                 product.setCurrentPrice(bidAmount);
+
+                // Tăng số lượt ra giá
+                product.setBidCount(product.getBidCount() + 1);
+
                 productRepository.save(product);
 
-                ProductBidSuccessData data = new ProductBidSuccessData(
-                    bidAmount,
-                    null
+                return ApiResponse.success(
+                        new ProductBidSuccessData(bidAmount, null),
+                        "Bid placed successfully"
                 );
-
-                return ApiResponse.success(data, "Bid placed successfully");
             }
-            return ApiResponse.fail("Bid amount must be equal or higher than starting price");
+
+            return ApiResponse.fail(
+                    "Bid amount must be equal or higher than starting price"
+            );
         }
 
-        // ====== 4. Giá phải > giá hiện tại ======
+        // ====== CASE 2: Đã có người đặt giá ======
+        // 4. Giá phải > giá hiện tại
         if (bidAmount <= product.getCurrentPrice())
             return ApiResponse.fail("Bid amount must be higher than current price");
 
-        // ====== 5. Giá phải theo đúng stepPrice ======
-        if (product.getStepPrice() != null) {
-            double diff = bidAmount - product.getCurrentPrice();
-            if (diff % product.getStepPrice() != 0) {
-                return ApiResponse.fail("Bid must follow step price: " + product.getStepPrice());
-            }
-        }
+        // 6. Lưu bidder cũ
+        Long previousHighestBidder = product.getCurrentBidder();
 
-        // ====== 6. Lưu bidder cũ ======
-        Long previousHighestBidder = null;
-        // giả sử có bảng lưu highest bidder → bỏ qua
-        // ở đây có thể return null
-        // hoặc bạn có thể thêm trường highestBidder vào Product
-
-        // ====== 7. Cập nhật giá ======
+        // 7. Cập nhật giá + bidder
         product.setCurrentPrice(bidAmount);
+        product.setCurrentBidder(req.getBidderId());
+
+        // Tăng lượt ra giá
+        product.setBidCount(product.getBidCount() + 1);
+
+        // 8. Lưu DB
         productRepository.save(product);
+
 
         // ====== 8. Trả về data success ======
         ProductBidSuccessData data = new ProductBidSuccessData(

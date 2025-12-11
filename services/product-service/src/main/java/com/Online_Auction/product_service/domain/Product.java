@@ -51,7 +51,12 @@ public class Product {
     private String description; // mô tả (WYSIWYG)
 
     // ===== CATEGORY =====
-    private Long categoryId; // category cấp 2
+    private Long parentCategoryId;
+    private String parentCategoryName;
+
+    private Long categoryId;
+    private String categoryName;
+
 
     // ===== PRICING =====
     private Double startingPrice;
@@ -70,6 +75,9 @@ public class Product {
     // ===== OTHER =====
     @Enumerated(EnumType.STRING)
     private ProductStatus status;
+
+    @Builder.Default
+    private Long bidCount = 0L;
 
     private Long currentBidder;
 

@@ -13,6 +13,7 @@ import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
 import com.Online_Auction.product_service.dto.response.ApiResponse;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
+import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.external.ProductBidRequest;
 import com.Online_Auction.product_service.service.ProductBidService;
 import com.Online_Auction.product_service.service.ProductService;
@@ -95,4 +96,32 @@ public class ProductController {
 
         return ResponseEntity.ok(response);
     }
+
+    // =================================
+    //  HOMEPAGE
+    // =================================
+    @GetMapping("/top-ending")
+    public ApiResponse<List<ProductListItemResponse>> topEnding() {
+        return ApiResponse.success(
+                productService.topEndingSoon(),
+                "Successfully fetching top5 ending-soon products"
+        );
+    }
+
+    @GetMapping("/top-most-bids")
+    public ApiResponse<List<ProductListItemResponse>> topMostBids() {
+        return ApiResponse.success(
+                productService.topMostBids(),
+                "Successfully fetching top5 most-bids products"
+        );
+    }
+
+    @GetMapping("/top-highest-price")
+    public ApiResponse<List<ProductListItemResponse>> topHighestPrice() {
+        return ApiResponse.success(
+                productService.topHighestPrice(),
+                "Successfully fetching top5 highest-price products"
+        );
+    }
+
 }

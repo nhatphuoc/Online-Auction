@@ -1,12 +1,23 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.21-alpine AS builder
+
 WORKDIR /app
-COPY go.mod go.sum ./
+
+COPY go.mod go.sum* ./
 RUN go mod download
+
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o main .
-FROM alpine:3.20
-WORKDIR /app
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o search-service ./cmd/main.go
+
+FROM alpine:latest
+
 RUN apk --no-cache add ca-certificates tzdata
-COPY --from=builder /app/main .
-EXPOSE 8080
-CMD ["./main"]
+
+WORKDIR /root/
+
+COPY --from=builder /app/search-service .
+COPY --from=builder /app/.env .
+
+EXPOSE 3000
+
+CMD ["./search-service"]

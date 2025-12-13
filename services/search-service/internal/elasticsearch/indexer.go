@@ -72,6 +72,45 @@ func (idx *Indexer) DeleteProduct(ctx context.Context, productID int64) error {
 	return nil
 }
 
+// UpdateProductBidInfo updates only the bid-related fields in Elasticsearch
+func (idx *Indexer) UpdateProductBidInfo(ctx context.Context, productID int64, currentPrice float64, currentBidCount int, bidderInfo *models.BidderInfo) error {
+	updateDoc := map[string]interface{}{
+		"doc": map[string]interface{}{
+			"current_price":      currentPrice,
+			"current_bid_count":  currentBidCount,
+			"current_bidder_info": bidderInfo,
+		},
+	}
+	
+	if bidderInfo != nil {
+		updateDoc["doc"].(map[string]interface{})["current_bidder"] = bidderInfo.UserID
+	}
+
+	data, err := json.Marshal(updateDoc)
+	if err != nil {
+		return fmt.Errorf("error marshaling update doc: %w", err)
+	}
+
+	req := esapi.UpdateRequest{
+		Index:      idx.productIndexName,
+		DocumentID: fmt.Sprintf("%d", productID),
+		Body:       bytes.NewReader(data),
+		Refresh:    "true",
+	}
+
+	res, err := req.Do(ctx, idx.es)
+	if err != nil {
+		return fmt.Errorf("error updating product bid info: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("error updating product bid info: %s", res.String())
+	}
+
+	return nil
+}
+
 func (idx *Indexer) IndexCategory(ctx context.Context, category *models.CategoryESDocument) error {
 	data, err := json.Marshal(category)
 	if err != nil {
@@ -120,23 +159,25 @@ func (idx *Indexer) DeleteCategory(ctx context.Context, categoryID int64) error 
 
 func (idx *Indexer) ConvertProductToESDocument(product *models.Product, category *models.Category) *models.ProductESDocument {
 	doc := &models.ProductESDocument{
-		ID:            product.ID,
-		Name:          product.Name,
-		NameNoAccent:  utils.RemoveVietnameseAccents(product.Name),
-		Description:   product.Description,
+		ID:                  product.ID,
+		Name:                product.Name,
+		NameNoAccent:        utils.RemoveVietnameseAccents(product.Name),
+		Description:         product.Description,
 		DescriptionNoAccent: utils.RemoveVietnameseAccents(product.Description),
-		CategoryID:    product.CategoryID,
-		SellerID:      product.SellerID,
-		StartingPrice: product.StartingPrice,
-		CurrentPrice:  product.CurrentPrice,
-		BuyNowPrice:   product.BuyNowPrice,
-		StepPrice:     product.StepPrice,
-		Status:        product.Status,
-		ThumbnailURL:  product.ThumbnailURL,
-		AutoExtend:    product.AutoExtend,
-		CurrentBidder: product.CurrentBidder,
-		EndAt:         product.EndAt,
-		CreatedAt:     product.CreatedAt,
+		CategoryID:          product.CategoryID,
+		SellerID:            product.SellerID,
+		StartingPrice:       product.StartingPrice,
+		CurrentPrice:        product.CurrentPrice,
+		BuyNowPrice:         product.BuyNowPrice,
+		StepPrice:           product.StepPrice,
+		Status:              product.Status,
+		ThumbnailURL:        product.ThumbnailURL,
+		AutoExtend:          product.AutoExtend,
+		CurrentBidder:       product.CurrentBidder,
+		CurrentBidCount:     product.CurrentBidCount,
+		EndAt:               product.EndAt,
+		CreatedAt:           product.CreatedAt,
+		CurrentBidderInfo:   nil, // This should be populated from user service via event or join
 	}
 
 	if category != nil {

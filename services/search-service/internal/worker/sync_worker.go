@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"search-service/internal/elasticsearch"
 	"search-service/internal/models"
@@ -38,6 +39,8 @@ func (w *SyncWorker) HandleEvent(ctx context.Context, event *models.Event) error
 		return w.syncCategory(ctx, event.EntityID)
 	case models.EventCategoryDeleted:
 		return w.deleteCategory(ctx, event.EntityID)
+	case models.EventBidPlaced:
+		return w.handleBidPlaced(ctx, event)
 	default:
 		log.Printf("Unknown event type: %s", event.Type)
 		return nil
@@ -97,5 +100,44 @@ func (w *SyncWorker) deleteCategory(ctx context.Context, categoryID int64) error
 	}
 
 	log.Printf("Successfully deleted category %d from index", categoryID)
+	return nil
+}
+
+// handleBidPlaced handles bid.placed events to update product bid information in real-time
+func (w *SyncWorker) handleBidPlaced(ctx context.Context, event *models.Event) error {
+	// Parse event data
+	if event.Data == nil {
+		log.Printf("No data in bid event for product %d", event.EntityID)
+		// Fallback to full product sync
+		return w.syncProduct(ctx, event.EntityID)
+	}
+
+	// Extract bid data from event
+	var bidData models.BidEventData
+	dataBytes, err := json.Marshal(event.Data)
+	if err != nil {
+		log.Printf("Error marshaling bid event data: %v", err)
+		return w.syncProduct(ctx, event.EntityID)
+	}
+	
+	if err := json.Unmarshal(dataBytes, &bidData); err != nil {
+		log.Printf("Error unmarshaling bid event data: %v", err)
+		return w.syncProduct(ctx, event.EntityID)
+	}
+
+	// Update only bid-related fields in Elasticsearch (faster than full sync)
+	if err := w.indexer.UpdateProductBidInfo(
+		ctx,
+		bidData.ProductID,
+		bidData.CurrentPrice,
+		bidData.CurrentBidCount,
+		bidData.BidderInfo,
+	); err != nil {
+		log.Printf("Error updating product bid info %d: %v", bidData.ProductID, err)
+		return err
+	}
+
+	log.Printf("Successfully updated bid info for product %d (price=%.2f, bids=%d)", 
+		bidData.ProductID, bidData.CurrentPrice, bidData.CurrentBidCount)
 	return nil
 }

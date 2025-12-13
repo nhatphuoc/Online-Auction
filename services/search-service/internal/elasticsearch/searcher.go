@@ -77,16 +77,19 @@ func (s *Searcher) SearchProducts(ctx context.Context, req *models.SearchRequest
 	hits := searchResult["hits"].(map[string]interface{})
 	total := int64(hits["total"].(map[string]interface{})["value"].(float64))
 	
-	var products []models.ProductESDocument
+	var products []models.ProductListingResponse
 	for _, hit := range hits["hits"].([]interface{}) {
 		source := hit.(map[string]interface{})["_source"]
 		sourceBytes, _ := json.Marshal(source)
 		
-		var product models.ProductESDocument
-		if err := json.Unmarshal(sourceBytes, &product); err != nil {
+		var esDoc models.ProductESDocument
+		if err := json.Unmarshal(sourceBytes, &esDoc); err != nil {
 			continue
 		}
-		products = append(products, product)
+		
+		// Convert to ProductListingResponse with calculated fields
+		listingProduct := s.convertToListingResponse(&esDoc)
+		products = append(products, listingProduct)
 	}
 
 	totalPages := int((total + int64(req.PageSize) - 1) / int64(req.PageSize))
@@ -229,4 +232,51 @@ func (s *Searcher) buildSort(req *models.SearchRequest) []map[string]interface{}
 	}
 	
 	return sort
+}
+
+// convertToListingResponse converts ProductESDocument to ProductListingResponse
+func (s *Searcher) convertToListingResponse(doc *models.ProductESDocument) models.ProductListingResponse {
+	return models.ProductListingResponse{
+		ID:                doc.ID,
+		Name:              doc.Name,
+		ThumbnailURL:      doc.ThumbnailURL,
+		CurrentPrice:      doc.CurrentPrice,
+		BuyNowPrice:       doc.BuyNowPrice,
+		CurrentBidderInfo: doc.CurrentBidderInfo,
+		CreatedAt:         doc.CreatedAt,
+		EndAt:             doc.EndAt,
+		TimeRemaining:     calculateTimeRemaining(doc.EndAt),
+		CurrentBidCount:   doc.CurrentBidCount,
+		Status:            doc.Status,
+		CategoryName:      doc.CategoryName,
+	}
+}
+
+// calculateTimeRemaining calculates human-readable time remaining
+func calculateTimeRemaining(endAt time.Time) string {
+	now := time.Now()
+	
+	// If auction has ended
+	if endAt.Before(now) {
+		return "Đã kết thúc"
+	}
+	
+	duration := endAt.Sub(now)
+	
+	// Calculate days, hours, minutes
+	days := int(duration.Hours() / 24)
+	hours := int(duration.Hours()) % 24
+	minutes := int(duration.Minutes()) % 60
+	
+	// Format output based on time remaining
+	if days > 0 {
+		return fmt.Sprintf("%d ngày %d giờ", days, hours)
+	} else if hours > 0 {
+		return fmt.Sprintf("%d giờ %d phút", hours, minutes)
+	} else if minutes > 0 {
+		return fmt.Sprintf("%d phút", minutes)
+	} else {
+		seconds := int(duration.Seconds())
+		return fmt.Sprintf("%d giây", seconds)
+	}
 }

@@ -47,8 +47,17 @@ func CreateProductIndex(ctx context.Context, es *elasticsearch.Client, indexName
 				"thumbnail_url":         map[string]string{"type": "keyword"},
 				"auto_extend":           map[string]string{"type": "boolean"},
 				"current_bidder":        map[string]string{"type": "long"},
+				"current_bid_count":     map[string]string{"type": "integer"},
 				"end_at":                map[string]string{"type": "date"},
 				"created_at":            map[string]string{"type": "date"},
+				"current_bidder_info": map[string]interface{}{
+					"type": "object",
+					"properties": map[string]interface{}{
+						"user_id":    map[string]string{"type": "long"},
+						"username":   map[string]string{"type": "keyword"},
+						"avatar_url": map[string]string{"type": "keyword"},
+					},
+				},
 			},
 		},
 	}

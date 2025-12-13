@@ -1,0 +1,634 @@
+basePath: /api
+definitions:
+  models.CreateOrderRequest:
+    properties:
+      auction_id:
+        type: integer
+      final_price:
+        type: number
+      seller_id:
+        type: integer
+      winner_id:
+        type: integer
+    required:
+    - auction_id
+    - final_price
+    - seller_id
+    - winner_id
+    type: object
+  models.Order:
+    properties:
+      auction_id:
+        description: ID sản phẩm đấu giá
+        type: integer
+      cancel_reason:
+        description: Lý do hủy
+        type: string
+      cancelled_at:
+        description: Thời gian hủy
+        type: string
+      completed_at:
+        description: Thời gian hoàn thành
+        type: string
+      created_at:
+        type: string
+      delivered_at:
+        description: Thời gian giao hàng
+        type: string
+      final_price:
+        description: Giá cuối cùng
+        type: number
+      id:
+        type: integer
+      messages:
+        description: Relations
+        items:
+          $ref: '#/definitions/models.OrderMessage'
+        type: array
+      payment_method:
+        description: Phương thức thanh toán
+        type: string
+      payment_proof:
+        description: Ảnh chứng từ thanh toán
+        type: string
+      rating:
+        $ref: '#/definitions/models.OrderRating'
+      seller_id:
+        description: Người bán
+        type: integer
+      shipping_address:
+        description: Địa chỉ giao hàng
+        type: string
+      shipping_invoice:
+        description: Hóa đơn vận chuyển
+        type: string
+      shipping_phone:
+        description: SĐT nhận hàng
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/models.OrderStatus'
+        description: Trạng thái đơn hàng
+      tracking_number:
+        description: Mã vận đơn
+        type: string
+      updated_at:
+        type: string
+      winner_id:
+        description: Người thắng (buyer)
+        type: integer
+    type: object
+  models.OrderListResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/models.Order'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  models.OrderMessage:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      message:
+        description: Nội dung tin nhắn
+        type: string
+      order_id:
+        type: integer
+      sender_id:
+        description: ID người gửi
+        type: integer
+    type: object
+  models.OrderRating:
+    properties:
+      buyer_comment:
+        description: Nhận xét của buyer về seller
+        type: string
+      buyer_rated_at:
+        type: string
+      buyer_rating:
+        description: +1 hoặc -1, null nếu chưa đánh giá
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      order_id:
+        type: integer
+      seller_comment:
+        description: Nhận xét của seller về buyer
+        type: string
+      seller_rated_at:
+        type: string
+      seller_rating:
+        description: +1 hoặc -1, null nếu chưa đánh giá
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  models.OrderStatus:
+    enum:
+    - PENDING_PAYMENT
+    - PAYMENT_CONFIRMED
+    - ADDRESS_PROVIDED
+    - INVOICE_SENT
+    - DELIVERED
+    - COMPLETED
+    - CANCELLED
+    type: string
+    x-enum-comments:
+      OrderStatusAddressProvided: Người mua đã gửi địa chỉ
+      OrderStatusCancelled: Đã hủy
+      OrderStatusCompleted: Hoàn thành
+      OrderStatusDelivered: Đã giao hàng
+      OrderStatusInvoiceSent: Người bán đã gửi hóa đơn vận chuyển
+      OrderStatusPaymentConfirmed: Người mua đã thanh toán
+      OrderStatusPendingPayment: Chờ người mua thanh toán
+    x-enum-descriptions:
+    - Chờ người mua thanh toán
+    - Người mua đã thanh toán
+    - Người mua đã gửi địa chỉ
+    - Người bán đã gửi hóa đơn vận chuyển
+    - Đã giao hàng
+    - Hoàn thành
+    - Đã hủy
+    x-enum-varnames:
+    - OrderStatusPendingPayment
+    - OrderStatusPaymentConfirmed
+    - OrderStatusAddressProvided
+    - OrderStatusInvoiceSent
+    - OrderStatusDelivered
+    - OrderStatusCompleted
+    - OrderStatusCancelled
+  models.RateOrderRequest:
+    properties:
+      comment:
+        maxLength: 500
+        type: string
+      rating:
+        description: +1 or -1
+        enum:
+        - -1
+        - 1
+        type: integer
+    required:
+    - rating
+    type: object
+  models.SendMessageRequest:
+    properties:
+      message:
+        maxLength: 1000
+        minLength: 1
+        type: string
+    required:
+    - message
+    type: object
+  models.UpdateOrderStatusRequest:
+    properties:
+      cancel_reason:
+        type: string
+      payment_method:
+        type: string
+      payment_proof:
+        type: string
+      shipping_address:
+        type: string
+      shipping_invoice:
+        type: string
+      shipping_phone:
+        type: string
+      status:
+        $ref: '#/definitions/models.OrderStatus'
+      tracking_number:
+        type: string
+    required:
+    - status
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API Backend cho hệ thống quản lý đơn hàng sau đấu giá - Order Management
+    Service
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Order Service API
+  version: "1.0"
+paths:
+  /orders:
+    get:
+      consumes:
+      - application/json
+      description: Get all orders for current user (as buyer or seller)
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OrderListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Create a new order after auction ends (typically called by auction-service)
+      parameters:
+      - description: Order data
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Create a new order
+      tags:
+      - orders
+  /orders/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get order details by ID (only for buyer or seller)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get order by ID
+      tags:
+      - orders
+  /orders/{id}/cancel:
+    post:
+      consumes:
+      - application/json
+      description: Cancel an order (buyer or seller can cancel)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cancel reason
+        in: body
+        name: data
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel order
+      tags:
+      - orders
+  /orders/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Get all messages for an order chat
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.OrderMessage'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get order messages
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Send a message in order chat (buyer or seller)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Message data
+        in: body
+        name: message
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send message
+      tags:
+      - orders
+  /orders/{id}/rate:
+    post:
+      consumes:
+      - application/json
+      description: Rate an order (buyer rates seller or seller rates buyer)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Rating data
+        in: body
+        name: rating
+        required: true
+        schema:
+          $ref: '#/definitions/models.RateOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rate order
+      tags:
+      - orders
+  /orders/{id}/rating:
+    get:
+      consumes:
+      - application/json
+      description: Get rating for an order
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OrderRating'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get order rating
+      tags:
+      - orders
+  /orders/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Update order status (buyer or seller depending on status)
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Status update data
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateOrderStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update order status
+      tags:
+      - orders
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -3,6 +3,8 @@ package com.Online_Auction.user_service.service.impl;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -16,6 +18,7 @@ import com.Online_Auction.user_service.dto.request.RegisterUserRequest;
 import com.Online_Auction.user_service.dto.request.SignInRequest;
 import com.Online_Auction.user_service.dto.response.SimpleUserResponse;
 import com.Online_Auction.user_service.dto.response.StatusResponse;
+import com.Online_Auction.user_service.dto.response.UserSearchResponse;
 import com.Online_Auction.user_service.mapper.UserMapper;
 import com.Online_Auction.user_service.repository.UserRepository;
 import com.Online_Auction.user_service.service.UserService;
@@ -34,15 +37,17 @@ public class UserServiceImpl implements UserService {
     public User findByEmail(String email) {
         Optional<User> optionalUser = userRepository.findByEmail(email);
 
-        if (optionalUser.isPresent()) return optionalUser.get();
+        if (optionalUser.isPresent())
+            return optionalUser.get();
         return null;
     }
 
     @Override
     public boolean register(RegisterUserRequest request) {
         Optional<User> existing = userRepository.findByEmail(request.email());
-        if (existing.isPresent()) return false;
-        
+        if (existing.isPresent())
+            return false;
+
         User user = new User();
         user.setFullName(request.fullName());
         user.setEmail(request.email());
@@ -53,7 +58,7 @@ public class UserServiceImpl implements UserService {
         } else {
             user.setPassword(null);
         }
-        
+
         user.setBirthDay(request.birthDay());
         user.setEmailVerified(request.emailVerified());
         user.setRole(UserRole.ROLE_BIDDER);
@@ -66,26 +71,23 @@ public class UserServiceImpl implements UserService {
         Optional<User> optional = userRepository.findByEmail(email);
         if (!optional.isPresent()) {
             return new StatusResponse(
-                false, 
-                "Fail to verify email, email not exists"
-            );
+                    false,
+                    "Fail to verify email, email not exists");
         }
         User user = optional.get();
         user.setEmailVerified(true);
         userRepository.save(user);
         return new StatusResponse(
-            true,
-            "Successfully verify email"
-        );
+                true,
+                "Successfully verify email");
     }
 
     @Override
     public StatusResponse deleteUserByEmail(String email) {
         userRepository.deleteByEmail(email);
         return new StatusResponse(
-            true,
-            "Successfully delete user by email"
-        );
+                true,
+                "Successfully delete user by email");
     }
 
     @Override
@@ -116,5 +118,24 @@ public class UserServiceImpl implements UserService {
         return userRepository.findById(principal.getUserId()).orElse(null);
     }
 
-    
+    public Page<UserSearchResponse> searchUsers(
+            String keyword,
+            User.UserRole role,
+            Pageable pageable) {
+        return userRepository.search(keyword, role, pageable)
+                .map(this::toResponse);
+    }
+
+    private UserSearchResponse toResponse(User user) {
+        return new UserSearchResponse(
+                user.getId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getBirthDay(),
+                user.getRole(),
+                user.getTotalNumberReviews(),
+                user.getTotalNumberGoodReviews(),
+                user.getEmailVerified(),
+                user.getIsSellerRequestSent());
+    }
 }

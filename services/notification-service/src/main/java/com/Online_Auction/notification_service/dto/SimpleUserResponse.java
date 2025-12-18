@@ -15,7 +15,7 @@ public class SimpleUserResponse {
 
     public enum UserRole {
         ROLE_BIDDER,
-        ROLE_MANAGER,
+        ROLE_SELLER,
         ROLE_ADMIN
     }
 }

@@ -53,21 +53,27 @@ public class User implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role.name()));
+        return Collections.singletonList(new SimpleGrantedAuthority(role.name()));
     }
 
     @Override
-    public String getUsername() { return email; }
+    public String getUsername() {
+        return email;
+    }
 
     @Override
-    public String getPassword() { return password; }
+    public String getPassword() {
+        return password;
+    }
 
     @Override
-    public boolean isEnabled() { return emailVerified != null && emailVerified; }
+    public boolean isEnabled() {
+        return emailVerified != null && emailVerified;
+    }
 
     public enum UserRole {
         ROLE_BIDDER,
-        ROLE_MANAGER,
+        ROLE_SELLER,
         ROLE_ADMIN
     }
 }

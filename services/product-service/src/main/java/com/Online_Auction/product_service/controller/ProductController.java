@@ -37,8 +37,7 @@ public class ProductController {
     @PreAuthorize("hasRole('SELLER')")
     @PostMapping
     public ResponseEntity<ProductDTO> createProduct(
-            @Valid @RequestBody ProductCreateRequest request
-    ) {
+            @Valid @RequestBody ProductCreateRequest request) {
         // Lấy userId từ SecurityContext
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
@@ -64,8 +63,7 @@ public class ProductController {
     @PatchMapping("/{productId}/description")
     public ResponseEntity<ProductDTO> updateDescription(
             @PathVariable Long productId,
-            @Valid @RequestBody ProductUpdateRequest request
-    ) {
+            @Valid @RequestBody ProductUpdateRequest request) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
         Long sellerId = principal.getUserId();
@@ -83,13 +81,12 @@ public class ProductController {
     }
 
     // =================================
-    //  INTERNAL USAGE: BID
+    // INTERNAL USAGE: BID
     // =================================
     @PostMapping("/{id}/bids")
     public ResponseEntity<?> placeBid(
             @PathVariable Long id,
-            @RequestBody ProductBidRequest request
-    ) {
+            @RequestBody ProductBidRequest request) {
         ApiResponse<?> response = productBidService.placeBid(id, request);
 
         if (!response.isSuccess())
@@ -99,50 +96,45 @@ public class ProductController {
     }
 
     // =================================
-    //  HOMEPAGE
+    // HOMEPAGE
     // =================================
     @GetMapping("/top-ending")
     public ApiResponse<List<ProductListItemResponse>> topEnding() {
         return ApiResponse.success(
                 productService.topEndingSoon(),
-                "Successfully fetching top5 ending-soon products"
-        );
+                "Successfully fetching top5 ending-soon products");
     }
 
     @GetMapping("/top-most-bids")
     public ApiResponse<List<ProductListItemResponse>> topMostBids() {
         return ApiResponse.success(
                 productService.topMostBids(),
-                "Successfully fetching top5 most-bids products"
-        );
+                "Successfully fetching top5 most-bids products");
     }
 
     @GetMapping("/top-highest-price")
     public ApiResponse<List<ProductListItemResponse>> topHighestPrice() {
         return ApiResponse.success(
                 productService.topHighestPrice(),
-                "Successfully fetching top5 highest-price products"
-        );
+                "Successfully fetching top5 highest-price products");
     }
 
     // =================================
-    //  SEARCH + FILTER
+    // SEARCH + FILTER
     // =================================
     @GetMapping("/search")
-    public ApiResponse<Page <ProductListItemResponse>> searchProducts(
+    public ApiResponse<Page<ProductListItemResponse>> searchProducts(
             @RequestParam(required = false) String query,
             @RequestParam(required = false) Long parentCategoryId,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int pageSize
-    ) {
+            @RequestParam(defaultValue = "10") int pageSize) {
         Page<ProductListItemResponse> result = productService.searchProducts(
                 query,
                 parentCategoryId,
                 categoryId,
                 page,
-                pageSize
-        );
+                pageSize);
 
         return ApiResponse.success(result, "Query success");
     }

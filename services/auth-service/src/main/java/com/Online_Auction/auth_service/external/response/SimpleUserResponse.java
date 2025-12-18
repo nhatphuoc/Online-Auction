@@ -1,7 +1,5 @@
 package com.Online_Auction.auth_service.external.response;
 
-
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,7 +15,7 @@ public class SimpleUserResponse {
 
     public enum UserRole {
         ROLE_BIDDER,
-        ROLE_MANAGER,
+        ROLE_SELLER,
         ROLE_ADMIN
     }
 }

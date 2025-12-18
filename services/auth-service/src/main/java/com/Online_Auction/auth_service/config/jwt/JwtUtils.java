@@ -45,10 +45,9 @@ public class JwtUtils {
     // GENERATE TOKEN
     // ==============================================
     private static String generateToken(
-        Long userId,
-        Map<String, Object> claims,
-        long expiration
-    ) {
+            Long userId,
+            Map<String, Object> claims,
+            long expiration) {
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(String.valueOf(userId))

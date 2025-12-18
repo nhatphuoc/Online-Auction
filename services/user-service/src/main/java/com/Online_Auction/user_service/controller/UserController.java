@@ -1,6 +1,5 @@
 package com.Online_Auction.user_service.controller;
 
-
 import org.springframework.web.bind.annotation.RestController;
 
 import com.Online_Auction.user_service.domain.User;
@@ -10,6 +9,7 @@ import com.Online_Auction.user_service.dto.response.ApiResponse;
 import com.Online_Auction.user_service.dto.response.SimpleUserResponse;
 import com.Online_Auction.user_service.dto.response.StatusResponse;
 import com.Online_Auction.user_service.dto.response.UserProfileResponse;
+import com.Online_Auction.user_service.dto.response.UserSearchResponse;
 import com.Online_Auction.user_service.mapper.UserMapper;
 import com.Online_Auction.user_service.service.UserService;
 
@@ -19,7 +19,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,8 +46,7 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.fail("User not found"));
 
         return ResponseEntity.ok(
-                ApiResponse.success(UserMapper.toSimpleUserResponse(user), "User fetched successfully")
-        );
+                ApiResponse.success(UserMapper.toSimpleUserResponse(user), "User fetched successfully"));
     }
 
     @GetMapping("/{id}/simple")
@@ -52,10 +56,8 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.fail("User not found"));
 
         return ResponseEntity.ok(
-                ApiResponse.success(UserMapper.toSimpleUserResponse(user), "User fetched successfully")
-        );
+                ApiResponse.success(UserMapper.toSimpleUserResponse(user), "User fetched successfully"));
     }
-    
 
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> registerUser(@RequestBody RegisterUserRequest entity) {
@@ -96,14 +98,14 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.success(
                 response,
-                "Authentication successful"
-        ));
+                "Authentication successful"));
     }
 
     /**
      * GET /api/users/profile/me
      */
     @GetMapping("/profile/me")
+    @PreAuthorize("hasAnyRole('BIDDER', 'SELLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getUserProfile() {
         User user = userService.getCurrentUser();
 
@@ -111,7 +113,17 @@ public class UserController {
             return ResponseEntity.badRequest().body(ApiResponse.fail("User not authenticated"));
 
         return ResponseEntity.ok(
-                ApiResponse.success(UserMapper.toUserProfileResponse(user), "Profile retrieved")
-        );
+                ApiResponse.success(UserMapper.toUserProfileResponse(user), "Profile retrieved"));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SELLER')")
+    public Page<UserSearchResponse> searchUsers(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) User.UserRole role,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        return userService.searchUsers(keyword, role, pageable);
     }
 }

@@ -122,31 +122,31 @@ func main() {
 	auth.All("/*", proxyHandler.ProxyRequest(cfg.AuthServiceURL))
 
 	// Protected routes - require authentication
-	protected := api.Group("", middleware.AuthMiddleware(cfg), middleware.ProxyMiddleware(cfg))
+	protected := api.Group("", middleware.AuthMiddleware(cfg))
 
 	// Category service
-	protected.All("/categories/*", proxyHandler.ProxyRequest(cfg.CategoryServiceURL))
+	protected.All("/categories/*", middleware.ProxyMiddleware(cfg, cfg.CategoryServiceName), proxyHandler.ProxyRequest(cfg.CategoryServiceURL))
 
 	// Product service
-	protected.All("/products/*", proxyHandler.ProxyRequest(cfg.ProductServiceURL))
+	protected.All("/products/*", middleware.ProxyMiddleware(cfg, cfg.ProductServiceName), proxyHandler.ProxyRequest(cfg.ProductServiceURL))
 
 	// User service
-	protected.All("/users/*", proxyHandler.ProxyRequest(cfg.UserServiceURL))
+	protected.All("/users/*", middleware.ProxyMiddleware(cfg, cfg.UserServiceName), proxyHandler.ProxyRequest(cfg.UserServiceURL))
 
 	// Bidding service
-	protected.All("/bidding/*", proxyHandler.ProxyRequest(cfg.BiddingServiceURL))
+	protected.All("/bidding/*", middleware.ProxyMiddleware(cfg, cfg.BiddingServiceName), proxyHandler.ProxyRequest(cfg.BiddingServiceURL))
 
 	// Order service
-	protected.All("/orders/*", proxyHandler.ProxyRequest(cfg.OrderServiceURL))
+	protected.All("/orders/*", middleware.ProxyMiddleware(cfg, cfg.OrderServiceName), proxyHandler.ProxyRequest(cfg.OrderServiceURL))
 
 	// Payment service
-	protected.All("/payments/*", proxyHandler.ProxyRequest(cfg.PaymentServiceURL))
+	protected.All("/payments/*", middleware.ProxyMiddleware(cfg, cfg.PaymentServiceName), proxyHandler.ProxyRequest(cfg.PaymentServiceURL))
 
 	// Notification service
-	protected.All("/notifications/*", proxyHandler.ProxyRequest(cfg.NotificationServiceURL))
+	protected.All("/notifications/*", middleware.ProxyMiddleware(cfg, cfg.NotificationServiceName), proxyHandler.ProxyRequest(cfg.NotificationServiceURL))
 
 	// Media service
-	protected.All("/media/*", proxyHandler.ProxyRequest(cfg.MediaServiceURL))
+	protected.All("/media/*", middleware.ProxyMiddleware(cfg, cfg.MediaServiceName), proxyHandler.ProxyRequest(cfg.MediaServiceURL))
 
 	// Setup graceful shutdown
 	quit := make(chan os.Signal, 1)

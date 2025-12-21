@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "Category Service via API Gateway",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get All Categories",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "test-user-token", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/categories/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "categories", ""]
+        }
+      }
+    },
+    {
+      "name": "Get Categories By Parent",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "test-user-token", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/categories/parent/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "categories", "parent", "1"]
+        }
+      }
+    },
+    {
+      "name": "Get Category By ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "test-user-token", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/categories/1",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "categories", "1"]
+        }
+      }
+    },
+    {
+      "name": "Create Category",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Token", "value": "test-user-token", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Category Test\",\n  \"slug\": \"category-test\",\n  \"description\": \"Test description\",\n  \"parent_id\": 1,\n  \"display_order\": 0\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/categories/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "categories", ""]
+        }
+      }
+    },
+    {
+      "name": "Update Category",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "X-User-Token", "value": "test-user-token", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Category Updated\",\n  \"slug\": \"category-updated\",\n  \"description\": \"Updated description\",\n  \"parent_id\": 1,\n  \"is_active\": true,\n  \"display_order\": 1\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/categories/2",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "categories", "2"]
+        }
+      }
+    },
+    {
+      "name": "Delete Category",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "X-User-Token", "value": "test-user-token", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/categories/2",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "categories", "2"]
+        }
+      }
+    }
+  ]
+}

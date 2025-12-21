@@ -15,7 +15,7 @@ func init() {
 
 type Config struct {
 	Port                    string
-	APIGatewaySecret        string
+	APIGatewayPrivateKey    string
 	AuthInternalSecret      string
 	AuthServiceURL          string
 	CategoryServiceURL      string
@@ -49,8 +49,8 @@ type Config struct {
 func LoadConfig() *Config {
 	return &Config{
 		Port:                   getEnv("PORT", "8080"),
-		APIGatewaySecret:       getEnv("API_GATEWAY_SECRET", "api-gateway-secret"),
-		AuthInternalSecret:     getEnv("AUTH_INTERNAL_SECRET", "internal-auth-secret"),
+		APIGatewayPrivateKey:   getEnv("API_GATEWAY_SECRET", "api-gateway-secret"),
+		AuthInternalSecret:     getEnv("X_AUTH_INTERNAL_KEY", "internal-auth-secret"),
 		AuthServiceURL:         getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
 		CategoryServiceURL:     getEnv("CATEGORY_SERVICE_URL", "http://localhost:8082"),
 		ProductServiceURL:      getEnv("PRODUCT_SERVICE_URL", "http://localhost:8083"),

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -29,61 +30,45 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 			})
 		}
 
-		// Lấy public key từ config
-		pubKeyPEM := cfg.JWTPublicKeyAuthService
-		if pubKeyPEM == "" {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Missing JWT public key in config",
-			})
-		}
-		pubKey, err := parseRSAPublicKeyFromPEM([]byte(pubKeyPEM))
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Invalid public key",
-			})
-		}
-
-		type CustomClaims struct {
-			Role  interface{} `json:"role"`
-			Email string      `json:"email"`
-			Type  string      `json:"type"`
-			jwt.RegisteredClaims
-		}
-
-		token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-				return nil, errors.New("unexpected signing method")
-			}
-			return pubKey, nil
-		})
+		token, _, err := new(jwt.Parser).ParseUnverified(
+			tokenString,
+			jwt.MapClaims{},
+		)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token",
+				"error": "Invalid token format",
 			})
 		}
 
-		claims, ok := token.Claims.(*CustomClaims)
-		if !ok || !token.Valid {
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid token claims",
 			})
 		}
 
-		if claims.ExpiresAt == nil || claims.ExpiresAt.Time.Before(time.Now()) || claims.Type != "access" {
+		// Kiểm tra type == "access"
+		if t, ok := claims["type"].(string); !ok || t != "access" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Token expired or invalid type",
+				"error": "Token is not access token",
 			})
 		}
 
-		userID := claims.Subject
-		email := claims.Email
+		// Lấy userId (subject), email, role
+		userID := ""
+		if sub, ok := claims["sub"].(string); ok {
+			userID = sub
+		} else if subf, ok := claims["sub"].(float64); ok {
+			userID = fmt.Sprintf("%.0f", subf)
+		}
+		email, _ := claims["email"].(string)
 		role := ""
-		switch v := claims.Role.(type) {
-		case string:
-			role = v
-		case []interface{}:
-			if len(v) > 0 {
-				role = v[0].(string)
+		if r, ok := claims["role"].(string); ok {
+			role = r
+		} else if r, ok := claims["role"].(map[string]interface{}); ok {
+			// Trường hợp role là object (enum)
+			if name, ok := r["name"].(string); ok {
+				role = name
 			}
 		}
 
@@ -126,7 +111,8 @@ func ProxyMiddleware(cfg *config.Config, serviceName string) fiber.Handler {
 		// Tạo JWT nội bộ ký bằng private key của API Gateway
 		internalJWT, err := generateInternalJWT(cfg, serviceName)
 		if err != nil {
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to sign internal JWT"})
+			fmt.Println(err.Error())
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
 		// Set headers for internal services
@@ -134,10 +120,11 @@ func ProxyMiddleware(cfg *config.Config, serviceName string) fiber.Handler {
 		c.Request().Header.Set("X-User-Email", email)
 		c.Request().Header.Set("X-User-Role", role)
 		c.Request().Header.Set("X-User-Token", token)
-		c.Request().Header.Set("X-Api-Gateway", cfg.APIGatewaySecret)
+		c.Request().Header.Set("X-Api-Gateway", cfg.APIGatewayPrivateKey)
 		c.Request().Header.Set("X-Auth-Internal-Service", cfg.AuthInternalSecret)
 		c.Request().Header.Set("X-Internal-JWT", internalJWT)
 
+		fmt.Printf("Proxying request to %s with userID=%s, email=%s, role=%s\n, internal-jwt=%s\n", serviceName, userID, email, role, internalJWT)
 		return c.Next()
 	}
 }
@@ -152,7 +139,7 @@ func generateInternalJWT(cfg *config.Config, aud string) (string, error) {
 	if block == nil {
 		return "", errors.New("failed to parse PEM block for private key")
 	}
-	privKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	privKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return "", err
 	}

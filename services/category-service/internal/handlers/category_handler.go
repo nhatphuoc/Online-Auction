@@ -3,7 +3,7 @@ package handlers
 import (
 	"category_service/internal/models"
 	"category_service/internal/utils"
-	"log/slog"
+	"context"
 	"strconv"
 	"time"
 
@@ -32,69 +32,54 @@ func NewCategoryHandler(db *pg.DB) *CategoryHandler {
 // @Security BearerAuth
 // @Router /categories [post]
 func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
-	ctx := c.Context()
-	
+	ctx := context.Background()
 	var req models.CreateCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
 	}
-
-	// Validate request
 	if err := utils.ValidateStruct(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
 	}
 
-	// Determine level based on parent
 	level := 1
 	if req.ParentID != nil {
-		var parent models.Category
-		err := h.db.ModelContext(ctx, &parent).Where("id = ?", *req.ParentID).Select()
+		var parentLevel int
+		_, err := h.db.QueryOneContext(ctx, pg.Scan(&parentLevel), "SELECT level FROM categories WHERE id = ? AND is_active = true", *req.ParentID)
 		if err != nil {
 			if err == pg.ErrNoRows {
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Parent category not found",
-				})
+				return utils.ErrorResponse(c, fiber.StatusBadRequest, "Parent category not found")
 			}
-			slog.Error("Error fetching parent category", "error", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Database error",
-			})
+			return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Database error")
 		}
-		level = parent.Level + 1
-		
-		// Limit to 2 levels only
+		level = parentLevel + 1
 		if level > 2 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Maximum category depth is 2 levels",
-			})
+			return utils.ErrorResponse(c, fiber.StatusBadRequest, "Maximum category depth is 2 levels")
 		}
 	}
 
-	category := &models.Category{
-		Name:        req.Name,
-		Slug:        req.Slug,
-		Description: req.Description,
-		ParentID:    req.ParentID,
-		Level:       level,
-		IsActive:    true,
-		DisplayOrder: req.DisplayOrder,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	_, err := h.db.ModelContext(ctx, category).Insert()
+	createdAt := time.Now()
+	updatedAt := createdAt
+	var id int64
+	query := `INSERT INTO categories (name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+	_, err := h.db.QueryOneContext(ctx, pg.Scan(&id), query,
+		req.Name, req.Slug, req.Description, req.ParentID, level, true, req.DisplayOrder, createdAt, updatedAt)
 	if err != nil {
-		slog.Error("Error creating category", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create category",
-		})
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to create category: "+err.Error())
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(category)
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"id":            id,
+		"name":          req.Name,
+		"slug":          req.Slug,
+		"description":   req.Description,
+		"parent_id":     req.ParentID,
+		"level":         level,
+		"is_active":     true,
+		"display_order": req.DisplayOrder,
+		"created_at":    createdAt,
+		"updated_at":    updatedAt,
+	})
 }
 
 // GetCategories godoc
@@ -108,60 +93,42 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{}
 // @Router /categories [get]
 func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
-	ctx := c.Context()
-	
+	ctx := context.Background()
 	parentIDStr := c.Query("parent_id")
 	levelStr := c.Query("level")
-
-	query := h.db.ModelContext(ctx, &[]*models.Category{}).
-		Where("is_active = ?", true).
-		Order("display_order ASC", "name ASC")
-
-	// Filter by parent_id if provided
-	if parentIDStr != "" {
-		if parentIDStr == "null" || parentIDStr == "0" {
-			query = query.WhereGroup(func(q *pg.Query) (*pg.Query, error) {
-				return q.WhereOr("parent_id IS NULL").WhereOr("parent_id = 0"), nil
-			})
-		} else {
-			parentID, err := strconv.ParseInt(parentIDStr, 10, 64)
-			if err == nil {
-				query = query.Where("parent_id = ?", parentID)
-			}
+	var categories []*models.Category
+	var query string
+	var args []interface{}
+	query = "SELECT id, name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at FROM categories WHERE is_active = true"
+	if parentIDStr != "" && parentIDStr != "null" && parentIDStr != "0" {
+		query += " AND parent_id = ?"
+		parentID, err := strconv.ParseInt(parentIDStr, 10, 64)
+		if err == nil {
+			args = append(args, parentID)
 		}
 	}
-
-	// Filter by level if provided
 	if levelStr != "" {
 		level, err := strconv.Atoi(levelStr)
 		if err == nil && (level == 1 || level == 2) {
-			query = query.Where("level = ?", level)
+			query += " AND level = ?"
+			args = append(args, level)
 		}
 	}
-
-	var categories []*models.Category
-	err := query.Select()
+	query += " ORDER BY display_order ASC, name ASC"
+	_, err := h.db.QueryContext(ctx, &categories, query, args...)
 	if err != nil {
-		slog.Error("Error fetching categories", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch categories",
-		})
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to fetch categories")
 	}
-
-	// Build hierarchical response if no filters applied
 	if parentIDStr == "" && levelStr == "" {
 		tree := h.buildCategoryTree(ctx, categories)
 		return c.JSON(models.CategoryTreeResponse{
 			Categories: tree,
 		})
 	}
-
-	// Return flat list if filters applied
 	response := make([]*models.CategoryResponse, len(categories))
 	for i, cat := range categories {
 		response[i] = h.toCategoryResponse(cat)
 	}
-
 	return c.JSON(models.CategoryTreeResponse{
 		Categories: response,
 	})
@@ -178,35 +145,22 @@ func (h *CategoryHandler) GetCategories(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{}
 // @Router /categories/{id} [get]
 func (h *CategoryHandler) GetCategoryByID(c *fiber.Ctx) error {
-	ctx := c.Context()
-	
+	ctx := context.Background()
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid category ID",
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid category ID")
 	}
-
 	var category models.Category
-	err = h.db.ModelContext(ctx, &category).
-		Where("id = ?", id).
-		Relation("Children", func(q *pg.Query) (*pg.Query, error) {
-			return q.Where("is_active = ?", true).Order("display_order ASC"), nil
-		}).
-		Select()
-
+	_, err = h.db.QueryOneContext(ctx, &category,
+		"SELECT id, name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at FROM categories WHERE id = ? AND is_active = true", id)
 	if err != nil {
-		if err == pg.ErrNoRows {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Category not found",
-			})
-		}
-		slog.Error("Error fetching category", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Database error",
-		})
+		return utils.ErrorResponse(c, fiber.StatusNotFound, "Category not found")
 	}
-
+	// Lấy children
+	var children []*models.Category
+	_, err = h.db.QueryContext(ctx, &children,
+		"SELECT id, name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at FROM categories WHERE parent_id = ? AND is_active = true ORDER BY display_order ASC", id)
+	category.Children = children
 	response := h.toCategoryResponse(&category)
 	return c.JSON(response)
 }
@@ -226,94 +180,74 @@ func (h *CategoryHandler) GetCategoryByID(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /categories/{id} [put]
 func (h *CategoryHandler) UpdateCategory(c *fiber.Ctx) error {
-	ctx := c.Context()
-	
-	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid category ID",
-		})
-	}
-
 	var req models.UpdateCategoryRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request body",
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
 	}
-
 	if err := utils.ValidateStruct(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, err.Error())
 	}
-
-	var category models.Category
-	err = h.db.ModelContext(ctx, &category).Where("id = ?", id).Select()
+	ctx := context.Background()
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		if err == pg.ErrNoRows {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Category not found",
-			})
-		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Database error",
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid category ID")
 	}
-
-	// Update fields
+	// Kiểm tra tồn tại
+	var exists int
+	_, err = h.db.QueryOneContext(ctx, pg.Scan(&exists), "SELECT COUNT(*) FROM categories WHERE id = ?", id)
+	if err != nil || exists == 0 {
+		return utils.ErrorResponse(c, fiber.StatusNotFound, "Category not found")
+	}
+	// Xây dựng câu lệnh update động
+	setFields := ""
+	args := []interface{}{}
 	if req.Name != nil {
-		category.Name = *req.Name
+		setFields += "name = ?, "
+		args = append(args, *req.Name)
 	}
 	if req.Slug != nil {
-		category.Slug = *req.Slug
+		setFields += "slug = ?, "
+		args = append(args, *req.Slug)
 	}
 	if req.Description != nil {
-		category.Description = *req.Description
+		setFields += "description = ?, "
+		args = append(args, *req.Description)
 	}
 	if req.IsActive != nil {
-		category.IsActive = *req.IsActive
+		setFields += "is_active = ?, "
+		args = append(args, *req.IsActive)
 	}
 	if req.DisplayOrder != nil {
-		category.DisplayOrder = *req.DisplayOrder
+		setFields += "display_order = ?, "
+		args = append(args, *req.DisplayOrder)
 	}
 	if req.ParentID != nil {
-		// Validate parent exists
-		var parent models.Category
-		err := h.db.ModelContext(ctx, &parent).Where("id = ?", *req.ParentID).Select()
+		var parentLevel int
+		_, err := h.db.QueryOneContext(ctx, pg.Scan(&parentLevel), "SELECT level FROM categories WHERE id = ? AND is_active = true", *req.ParentID)
 		if err != nil {
-			if err == pg.ErrNoRows {
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Parent category not found",
-				})
-			}
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Database error",
-			})
+			return utils.ErrorResponse(c, fiber.StatusBadRequest, "Parent category not found")
 		}
-		
-		// Check level constraint
-		newLevel := parent.Level + 1
-		if newLevel > 2 {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Maximum category depth is 2 levels",
-			})
+		if parentLevel+1 > 2 {
+			return utils.ErrorResponse(c, fiber.StatusBadRequest, "Maximum category depth is 2 levels")
 		}
-		
-		category.ParentID = req.ParentID
-		category.Level = newLevel
+		setFields += "parent_id = ?, level = ?, "
+		args = append(args, *req.ParentID, parentLevel+1)
 	}
-
-	category.UpdatedAt = time.Now()
-
-	_, err = h.db.ModelContext(ctx, &category).WherePK().Update()
+	setFields += "updated_at = ?"
+	args = append(args, time.Now())
+	updateQuery := "UPDATE categories SET " + setFields + " WHERE id = ?"
+	args = append(args, id)
+	_, err = h.db.ExecContext(ctx, updateQuery, args...)
 	if err != nil {
-		slog.Error("Error updating category", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update category",
-		})
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update category: "+err.Error())
 	}
-
+	// Trả về bản ghi đã cập nhật
+	var category models.Category
+	_, err = h.db.QueryOneContext(ctx, &category,
+		"SELECT id, name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at FROM categories WHERE id = ?", id)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to fetch updated category")
+	}
 	return c.JSON(category)
 }
 
@@ -330,48 +264,23 @@ func (h *CategoryHandler) UpdateCategory(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Router /categories/{id} [delete]
 func (h *CategoryHandler) DeleteCategory(c *fiber.Ctx) error {
-	ctx := c.Context()
-	
+	ctx := context.Background()
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid category ID",
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid category ID")
 	}
-
-	// Check if category has children
-	count, err := h.db.ModelContext(ctx, &models.Category{}).
-		Where("parent_id = ?", id).
-		Where("is_active = ?", true).
-		Count()
-
+	var count int
+	_, err = h.db.QueryOneContext(ctx, pg.Scan(&count), "SELECT COUNT(*) FROM categories WHERE parent_id = ? AND is_active = true", id)
 	if err != nil {
-		slog.Error("Error checking category children", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Database error",
-		})
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Database error")
 	}
-
 	if count > 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Cannot delete category with active children",
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Cannot delete category with active children")
 	}
-
-	// Soft delete
-	_, err = h.db.ModelContext(ctx, &models.Category{}).
-		Set("is_active = ?", false).
-		Set("updated_at = ?", time.Now()).
-		Where("id = ?", id).
-		Update()
-
+	_, err = h.db.ExecContext(ctx, "UPDATE categories SET is_active = false, updated_at = ? WHERE id = ?", time.Now(), id)
 	if err != nil {
-		slog.Error("Error deleting category", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to delete category",
-		})
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to delete category: "+err.Error())
 	}
-
 	return c.JSON(fiber.Map{
 		"message": "Category deleted successfully",
 	})
@@ -404,16 +313,16 @@ func (h *CategoryHandler) buildCategoryTree(ctx interface{}, categories []*model
 
 func (h *CategoryHandler) toCategoryResponse(cat *models.Category) *models.CategoryResponse {
 	response := &models.CategoryResponse{
-		ID:          cat.ID,
-		Name:        cat.Name,
-		Slug:        cat.Slug,
-		Description: cat.Description,
-		ParentID:    cat.ParentID,
-		Level:       cat.Level,
-		IsActive:    cat.IsActive,
+		ID:           cat.ID,
+		Name:         cat.Name,
+		Slug:         cat.Slug,
+		Description:  cat.Description,
+		ParentID:     cat.ParentID,
+		Level:        cat.Level,
+		IsActive:     cat.IsActive,
 		DisplayOrder: cat.DisplayOrder,
-		CreatedAt:   cat.CreatedAt,
-		UpdatedAt:   cat.UpdatedAt,
+		CreatedAt:    cat.CreatedAt,
+		UpdatedAt:    cat.UpdatedAt,
 	}
 
 	if len(cat.Children) > 0 {
@@ -436,33 +345,20 @@ func (h *CategoryHandler) toCategoryResponse(cat *models.Category) *models.Categ
 // @Failure 500 {object} map[string]interface{}
 // @Router /categories/parent/{parent_id} [get]
 func (h *CategoryHandler) GetCategoriesByParent(c *fiber.Ctx) error {
-	ctx := c.Context()
-	
+	ctx := context.Background()
 	parentID, err := strconv.ParseInt(c.Params("parent_id"), 10, 64)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid parent ID",
-		})
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid parent ID")
 	}
-
 	var categories []*models.Category
-	err = h.db.ModelContext(ctx, &categories).
-		Where("parent_id = ?", parentID).
-		Where("is_active = ?", true).
-		Order("display_order ASC", "name ASC").
-		Select()
-
+	_, err = h.db.QueryContext(ctx, &categories,
+		"SELECT id, name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at FROM categories WHERE parent_id = ? AND is_active = true ORDER BY display_order ASC, name ASC", parentID)
 	if err != nil {
-		slog.Error("Error fetching categories", "error", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch categories",
-		})
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to fetch categories")
 	}
-
 	response := make([]*models.CategoryResponse, len(categories))
 	for i, cat := range categories {
 		response[i] = h.toCategoryResponse(cat)
 	}
-
 	return c.JSON(response)
 }

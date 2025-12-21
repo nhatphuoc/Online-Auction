@@ -3,11 +3,7 @@ package main
 import (
 	"category_service/internal/config"
 	"category_service/internal/handlers"
-	"category_service/internal/logger"
-	"category_service/internal/metrics"
 	"category_service/internal/middleware"
-	"category_service/internal/telemetry"
-	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -46,39 +42,9 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
-	ctx := context.Background()
 
 	// Load config
 	cfg := config.LoadConfig()
-
-	// Initialize logger (without OTel first)
-	logger.InitLogger(cfg.OTelEnvironment)
-	slog.Info("Starting category_service API", "version", cfg.OTelServiceVersion, "env", cfg.OTelEnvironment)
-
-	// Initialize OpenTelemetry
-	otelShutdown, err := telemetry.InitOTel(ctx, telemetry.OTelConfig{
-		ServiceName:    cfg.OTelServiceName,
-		ServiceVersion: cfg.OTelServiceVersion,
-		Environment:    cfg.OTelEnvironment,
-		OTelEndpoint:   cfg.OTelEndpoint,
-	})
-	if err != nil {
-		log.Fatalf("Lỗi khởi tạo OpenTelemetry: %v", err)
-	}
-	defer func() {
-		if err := otelShutdown(ctx); err != nil {
-			slog.Error("Error shutting down OpenTelemetry", "error", err)
-		}
-	}()
-
-	// Re-initialize logger with OTel bridge
-	logger.InitLoggerWithOTel(cfg.OTelEnvironment)
-	slog.Info("Logger with OpenTelemetry initialized")
-
-	// Initialize metrics
-	if err := metrics.InitMetrics(ctx); err != nil {
-		log.Fatalf("Lỗi khởi tạo metrics: %v", err)
-	}
 
 	// Connect database
 	db := config.ConnectDB(cfg)
@@ -88,6 +54,11 @@ func main() {
 	if err := config.InitSchema(db); err != nil {
 		log.Fatalf("Lỗi khởi tạo schema: %v", err)
 	}
+
+	// Seed initial data
+	// if err := scripts.SeedInitialData(db); err != nil {
+	// 	log.Fatalf("Lỗi seed dữ liệu ban đầu: %v", err)
+	// }
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -104,7 +75,6 @@ func main() {
 
 	// Middleware
 	app.Use(recover.New())
-	app.Use(middleware.TracingMiddleware()) // OpenTelemetry tracing
 	app.Use(fiberlogger.New(fiberlogger.Config{
 		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
 	}))
@@ -119,24 +89,15 @@ func main() {
 
 	// Initialize handlers
 	categoryHandler := handlers.NewCategoryHandler(db)
-	productHandler := handlers.NewProductHandler(db)
-
-	// Routes
-	api := app.Group("/api")
 
 	// Category routes
-	categories := api.Group("/categories")
+	categories := app.Group("", middleware.ExtractUserInfo())
 	categories.Get("/", categoryHandler.GetCategories)
-	categories.Get("/:id", categoryHandler.GetCategoryByID)
 	categories.Get("/parent/:parent_id", categoryHandler.GetCategoriesByParent)
-	categories.Post("/", middleware.AuthMiddleware(cfg), categoryHandler.CreateCategory)
-	categories.Put("/:id", middleware.AuthMiddleware(cfg), categoryHandler.UpdateCategory)
-	categories.Delete("/:id", middleware.AuthMiddleware(cfg), categoryHandler.DeleteCategory)
-
-	// Product routes
-	products := api.Group("/products")
-	products.Get("/", productHandler.GetProductsByCategory)
-	products.Get("/:id", productHandler.GetProductByID)
+	categories.Get("/:id", categoryHandler.GetCategoryByID)
+	categories.Post("/", middleware.RequireAdminRole(), categoryHandler.CreateCategory)
+	categories.Put("/:id", middleware.RequireAdminRole(), categoryHandler.UpdateCategory)
+	categories.Delete("/:id", middleware.RequireAdminRole(), categoryHandler.DeleteCategory)
 
 	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {

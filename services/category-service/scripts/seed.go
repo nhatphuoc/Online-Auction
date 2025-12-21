@@ -1,28 +1,15 @@
 package scripts
 
 import (
-	"category_service/internal/config"
 	"category_service/internal/models"
 	"context"
 	"log"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/go-pg/pg/v10"
 )
 
-func main() {
-	// Load .env
-	if err := godotenv.Load(".env"); err != nil {
-		log.Println("No .env file found")
-	}
-
-	// Load config
-	cfg := config.LoadConfig()
-
-	// Connect to database
-	db := config.ConnectDB(cfg)
-	defer db.Close()
-
+func SeedInitialData(db *pg.DB) error {
 	ctx := context.Background()
 
 	log.Println("Starting seed data...")
@@ -178,4 +165,6 @@ func main() {
 	log.Println("│   ├── Đồng hồ")
 	log.Println("│   └── Túi xách")
 	log.Println("└── Gia dụng")
+
+	return nil
 }

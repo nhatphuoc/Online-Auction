@@ -52,7 +52,7 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.fullName());
         user.setEmail(request.email());
 
-        if (StringUtils.isNotBlank(request.prodiver())) {
+        if (StringUtils.isNotBlank(request.password())) {
             String hashPassword = passwordEncoder.encode(request.password());
             user.setPassword(hashPassword);
         } else {

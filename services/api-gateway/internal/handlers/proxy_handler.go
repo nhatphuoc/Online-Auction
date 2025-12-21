@@ -3,6 +3,7 @@ package handlers
 import (
 	"api_gateway/internal/config"
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -33,6 +34,7 @@ func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 			fullURL += "?" + c.Context().QueryArgs().String()
 		}
 
+		fmt.Printf("Proxying request to: %s\n", fullURL)
 		// Create request
 		req, err := http.NewRequest(c.Method(), fullURL, bytes.NewReader(c.Body()))
 		if err != nil {

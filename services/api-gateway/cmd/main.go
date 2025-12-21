@@ -148,6 +148,15 @@ func main() {
 	// Media service
 	protected.All("/media/*", middleware.ProxyMiddleware(cfg, cfg.MediaServiceName), proxyHandler.ProxyRequest(cfg.MediaServiceURL))
 
+	// Comment service
+	protected.All("/comments/*", middleware.ProxyMiddleware(cfg, cfg.CommentServiceName), proxyHandler.ProxyRequest(cfg.CommentServiceURL))
+
+	// Search service
+	protected.All("/search/*", middleware.ProxyMiddleware(cfg, cfg.SearchServiceName), proxyHandler.ProxyRequest(cfg.ProductServiceURL))
+
+	// Auto Bidding service
+	protected.All("/auto-bidding/*", middleware.ProxyMiddleware(cfg, cfg.AutoBiddingServiceName), proxyHandler.ProxyRequest(cfg.BiddingServiceURL))
+
 	// Setup graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)

@@ -27,10 +27,11 @@ public class UserServiceClient {
     @Value("${internal.key}")
     private String internalKey;
 
-    private static final String BASE_URL = "http://localhost:8081/api/users";
+    private final String baseUrl;
 
-    public UserServiceClient(RestTemplate restTemplate) {
+    public UserServiceClient(RestTemplate restTemplate, @Value("${USER_SERVICE_URL}") String userServiceUrl) {
         this.restTemplate = restTemplate;
+        this.baseUrl = userServiceUrl + "/api/users";
     }
 
     /* ---------------------------------------------------------
@@ -86,60 +87,60 @@ public class UserServiceClient {
      * GET Simple User by Email
      */
     public ApiResponse<SimpleUserResponse> getUserByEmail(String email) {
-        return callApi(
-                BASE_URL + "/simple?email={email}",
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<>() {},
-                email
-        );
+    return callApi(
+        baseUrl + "/simple?email={email}",
+        HttpMethod.GET,
+        null,
+        new ParameterizedTypeReference<>() {},
+        email
+    );
     }
 
     /**
      * Register User
      */
     public ApiResponse<Void> registerUser(RegisterUserRequest request) {
-        return callApi(
-                BASE_URL,
-                HttpMethod.POST,
-                request,
-                new ParameterizedTypeReference<>() {}
-        );
+    return callApi(
+        baseUrl,
+        HttpMethod.POST,
+        request,
+        new ParameterizedTypeReference<>() {}
+    );
     }
 
     /**
      * Verify Email
      */
     public ApiResponse<Void> verifyEmail(String email) {
-        return callApi(
-                BASE_URL + "/verify-email",
-                HttpMethod.POST,
-                Map.of("email", email),
-                new ParameterizedTypeReference<>() {}
-        );
+    return callApi(
+        baseUrl + "/verify-email",
+        HttpMethod.POST,
+        Map.of("email", email),
+        new ParameterizedTypeReference<>() {}
+    );
     }
 
     /**
      * Delete User by Email
      */
     public ApiResponse<Void> deleteUserByEmail(String email) {
-        return callApi(
-                BASE_URL,
-                HttpMethod.DELETE,
-                Map.of("email", email),
-                new ParameterizedTypeReference<>() {}
-        );
+    return callApi(
+        baseUrl,
+        HttpMethod.DELETE,
+        Map.of("email", email),
+        new ParameterizedTypeReference<>() {}
+    );
     }
 
     /**
      * Authenticate user
      */
     public ApiResponse<SimpleUserResponse> authenticateUser(SignInRequest request) {
-        return callApi(
-                BASE_URL + "/authenticate",
-                HttpMethod.POST,
-                request,
-                new ParameterizedTypeReference<>() {}
-        );
+    return callApi(
+        baseUrl + "/authenticate",
+        HttpMethod.POST,
+        request,
+        new ParameterizedTypeReference<>() {}
+    );
     }
 }

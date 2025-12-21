@@ -7,6 +7,5 @@ public record RegisterUserRequest(
     String email,
     String password,
     LocalDate birthDay,
-    Boolean emailVerified,
-    String prodiver
+    Boolean emailVerified
 ) {}

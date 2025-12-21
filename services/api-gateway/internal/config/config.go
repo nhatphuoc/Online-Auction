@@ -26,6 +26,7 @@ type Config struct {
 	PaymentServiceURL       string
 	NotificationServiceURL  string
 	MediaServiceURL         string
+	CommentServiceURL       string
 	OTelEndpoint            string
 	OTelServiceName         string
 	OTelServiceVersion      string
@@ -47,22 +48,37 @@ type Config struct {
 
 func LoadConfig() *Config {
 	return &Config{
-		Port:                    getEnv("PORT", "8080"),
-		APIGatewaySecret:        getEnv("API_GATEWAY_SECRET", "api-gateway-secret"),
-		AuthInternalSecret:      getEnv("AUTH_INTERNAL_SECRET", "internal-auth-secret"),
-		AuthServiceURL:          getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
-		CategoryServiceURL:      getEnv("CATEGORY_SERVICE_URL", "http://localhost:8082"),
-		ProductServiceURL:       getEnv("PRODUCT_SERVICE_URL", "http://localhost:8083"),
-		UserServiceURL:          getEnv("USER_SERVICE_URL", "http://localhost:8084"),
-		BiddingServiceURL:       getEnv("BIDDING_SERVICE_URL", "http://localhost:8085"),
-		OrderServiceURL:         getEnv("ORDER_SERVICE_URL", "http://localhost:8086"),
-		PaymentServiceURL:       getEnv("PAYMENT_SERVICE_URL", "http://localhost:8087"),
-		NotificationServiceURL:  getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:8088"),
-		MediaServiceURL:         getEnv("MEDIA_SERVICE_URL", "http://localhost:8089"),
-		OTelEndpoint:            getEnv("OTEL_ENDPOINT", "localhost:4317"),
-		OTelServiceName:         getEnv("OTEL_SERVICE_NAME", "api-gateway"),
-		OTelServiceVersion:      getEnv("OTEL_SERVICE_VERSION", "1.0.0"),
-		OTelEnvironment:         getEnv("OTEL_ENVIRONMENT", "development"),
+		Port:                   getEnv("PORT", "8080"),
+		APIGatewaySecret:       getEnv("API_GATEWAY_SECRET", "api-gateway-secret"),
+		AuthInternalSecret:     getEnv("AUTH_INTERNAL_SECRET", "internal-auth-secret"),
+		AuthServiceURL:         getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
+		CategoryServiceURL:     getEnv("CATEGORY_SERVICE_URL", "http://localhost:8082"),
+		ProductServiceURL:      getEnv("PRODUCT_SERVICE_URL", "http://localhost:8083"),
+		UserServiceURL:         getEnv("USER_SERVICE_URL", "http://localhost:8084"),
+		BiddingServiceURL:      getEnv("BIDDING_SERVICE_URL", "http://localhost:8085"),
+		OrderServiceURL:        getEnv("ORDER_SERVICE_URL", "http://localhost:8086"),
+		PaymentServiceURL:      getEnv("PAYMENT_SERVICE_URL", "http://localhost:8087"),
+		NotificationServiceURL: getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:8088"),
+		MediaServiceURL:        getEnv("MEDIA_SERVICE_URL", "http://localhost:8089"),
+		CommentServiceURL:      getEnv("COMMENT_SERVICE_URL", "http://localhost:8090"),
+
+		CategoryServiceName:     getEnv("CATEGORY_SERVICE_NAME", "category-service"),
+		ProductServiceName:      getEnv("PRODUCT_SERVICE_NAME", "product-service"),
+		UserServiceName:         getEnv("USER_SERVICE_NAME", "user-service"),
+		BiddingServiceName:      getEnv("BIDDING_SERVICE_NAME", "bidding-service"),
+		OrderServiceName:        getEnv("ORDER_SERVICE_NAME", "order-service"),
+		PaymentServiceName:      getEnv("PAYMENT_SERVICE_NAME", "payment-service"),
+		NotificationServiceName: getEnv("NOTIFICATION_SERVICE_NAME", "notification-service"),
+		MediaServiceName:        getEnv("MEDIA_SERVICE_NAME", "media-service"),
+		SearchServiceName:       getEnv("SEARCH_SERVICE_NAME", "search-service"),
+		CommentServiceName:      getEnv("COMMENT_SERVICE_NAME", "comment-service"),
+		AutoBiddingServiceName:  getEnv("AUTO_BIDDING_SERVICE_NAME", "auto-bidding-service"),
+
+		OTelEndpoint:       getEnv("OTEL_ENDPOINT", "localhost:4317"),
+		OTelServiceName:    getEnv("OTEL_SERVICE_NAME", "api-gateway"),
+		OTelServiceVersion: getEnv("OTEL_SERVICE_VERSION", "1.0.0"),
+		OTelEnvironment:    getEnv("OTEL_ENVIRONMENT", "development"),
+
 		JWTPublicKeyAuthService: getEnv("JWT_PUBLIC_KEY_AUTH_SERVICE", ""),
 		JWTPrivateKey:           getEnv("JWT_PRIVATE_KEY", ""),
 	}

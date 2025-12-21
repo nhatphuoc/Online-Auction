@@ -1,0 +1,150 @@
+{
+  "info": {
+    "_postman_id": "user-service-collection",
+    "name": "User Service API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Simple User by Email",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/simple?email={{email}}",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "simple"],
+          "query": [
+            {"key": "email", "value": "{{email}}"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Simple User by ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/{{id}}/simple",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "{{id}}", "simple"]
+        }
+      }
+    },
+    {
+      "name": "Register User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Nguyen Van A\",\n  \"email\": \"test@example.com\",\n  \"password\": \"12345678\",\n  \"birthDay\": \"2000-01-01\"\n}"
+        },
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users"]
+        }
+      }
+    },
+    {
+      "name": "Verify Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test@example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/verify-email",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "verify-email"]
+        }
+      }
+    },
+    {
+      "name": "Delete User by Email",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test@example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users"]
+        }
+      }
+    },
+    {
+      "name": "Authenticate User",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"12345678\"\n}"
+        },
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/authenticate",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "authenticate"]
+        }
+      }
+    },
+    {
+      "name": "Get Current User Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/profile/me",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "profile", "me"]
+        }
+      }
+    },
+    {
+      "name": "Search Users (Admin/Seller)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/search?keyword={{keyword}}&role={{role}}&page=0&size=10",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "search"],
+          "query": [
+            {"key": "keyword", "value": "{{keyword}}"},
+            {"key": "role", "value": "{{role}}"},
+            {"key": "page", "value": "0"},
+            {"key": "size", "value": "10"}
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {"key": "USER_SERVICE_URL", "value": "http://localhost:8084"},
+    {"key": "email", "value": "test@example.com"},
+    {"key": "id", "value": "1"},
+    {"key": "token", "value": ""},
+    {"key": "keyword", "value": ""},
+    {"key": "role", "value": "BIDDER"}
+  ]
+}

@@ -8,9 +8,9 @@ import io.github.cdimascio.dotenv.Dotenv;
 public class EnvConfig {
 
     static {
-        // Load .env from project root: ../../.env
+        // Load .env from current directory
         Dotenv dotenv = Dotenv.configure()
-                .directory("../../")   // adjust if needed
+                .directory("./")
                 .filename(".env")
                 .load();
 

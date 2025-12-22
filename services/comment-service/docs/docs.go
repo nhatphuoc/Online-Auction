@@ -24,9 +24,14 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/auth/login": {
-            "post": {
-                "description": "Đăng nhập với email và password",
+        "/api/comments/products/{productId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lấy danh sách bình luận của sản phẩm",
                 "consumes": [
                     "application/json"
                 ],
@@ -34,223 +39,44 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Auth"
+                    "Comments"
                 ],
-                "summary": "Đăng nhập",
+                "summary": "Lấy lịch sử bình luận",
                 "parameters": [
                     {
-                        "description": "Thông tin đăng nhập",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.LoginRequest"
-                        }
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "productId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Số lượng bình luận",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Đăng nhập thành công",
+                        "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Dữ liệu không hợp lệ",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Thông tin đăng nhập sai",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/api/auth/register": {
-            "post": {
-                "description": "Tạo tài khoản người dùng mới với role mặc định là user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Đăng ký tài khoản mới",
-                "parameters": [
-                    {
-                        "description": "Thông tin đăng ký",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.RegisterRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Đăng ký thành công",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Dữ liệu không hợp lệ",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.CommentResponse"
+                            }
                         }
                     },
                     "500": {
-                        "description": "Lỗi server",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/api/courses": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Tạo một sản phẩm mới",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Courses"
-                ],
-                "summary": "Tạo Course mới",
-                "parameters": [
-                    {
-                        "description": "Thông tin Course",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CourseCreateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Tạo thành công",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Dữ liệu không hợp lệ",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Chưa xác thực",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "403": {
-                        "description": "Không có quyền",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/api/courses/listALl": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Lấy danh sách tất cả Courses",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Courses"
-                ],
-                "summary": "Lấy danh sách tất cả Courses",
-                "responses": {
-                    "200": {
-                        "description": "Danh sách Courses",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/api/courses/listPaging": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Lấy danh sách tất cả Courses có phân trang",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Courses"
-                ],
-                "summary": "Lấy danh sách tất cả Courses có phân trang",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Số trang",
-                        "name": "page",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Kích thước trang",
-                        "name": "page_size",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Danh sách Courses có phân trang",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -261,92 +87,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "models.CourseCreateRequest": {
+        "models.CommentResponse": {
             "type": "object",
-            "required": [
-                "current_price",
-                "description",
-                "original_price",
-                "title",
-                "total_hours",
-                "total_lectures"
-            ],
             "properties": {
-                "current_price": {
-                    "type": "number"
-                },
-                "description": {
+                "content": {
                     "type": "string"
                 },
-                "image_url": {
+                "created_at": {
                     "type": "string"
                 },
-                "instructor_id": {
-                    "type": "string"
-                },
-                "is_bestseller": {
-                    "type": "boolean"
-                },
-                "level_id": {
-                    "type": "string"
-                },
-                "original_price": {
-                    "type": "number"
-                },
-                "rating": {
-                    "type": "number"
-                },
-                "title": {
-                    "type": "string",
-                    "maxLength": 500,
-                    "minLength": 1
-                },
-                "total_hours": {
-                    "type": "number"
-                },
-                "total_lectures": {
-                    "type": "integer",
-                    "minimum": 0
-                },
-                "total_reviews": {
+                "id": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.LoginRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
                 },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.RegisterRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password",
-                "username"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
+                "product_id": {
+                    "type": "integer"
                 },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
+                "sender_id": {
+                    "type": "integer"
                 },
-                "username": {
-                    "type": "string",
-                    "maxLength": 100,
-                    "minLength": 3
+                "sender_name": {
+                    "type": "string"
                 }
             }
         }
@@ -367,8 +127,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:3000",
 	BasePath:         "/",
 	Schemes:          []string{"http", "https"},
-	Title:            "Final4 API",
-	Description:      "API Backend cho hệ thống quản lý User, Category và Product",
+	Title:            "comment_service API",
+	Description:      "API Backend cho hệ thống bình luận sản phẩm",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

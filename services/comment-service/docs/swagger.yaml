@@ -1,67 +1,19 @@
 basePath: /
 definitions:
-  models.CourseCreateRequest:
+  models.CommentResponse:
     properties:
-      current_price:
-        type: number
-      description:
+      content:
         type: string
-      image_url:
+      created_at:
         type: string
-      instructor_id:
-        type: string
-      is_bestseller:
-        type: boolean
-      level_id:
-        type: string
-      original_price:
-        type: number
-      rating:
-        type: number
-      title:
-        maxLength: 500
-        minLength: 1
-        type: string
-      total_hours:
-        type: number
-      total_lectures:
-        minimum: 0
+      id:
         type: integer
-      total_reviews:
+      product_id:
         type: integer
-    required:
-    - current_price
-    - description
-    - original_price
-    - title
-    - total_hours
-    - total_lectures
-    type: object
-  models.LoginRequest:
-    properties:
-      email:
+      sender_id:
+        type: integer
+      sender_name:
         type: string
-      password:
-        type: string
-    required:
-    - email
-    - password
-    type: object
-  models.RegisterRequest:
-    properties:
-      email:
-        type: string
-      password:
-        minLength: 6
-        type: string
-      username:
-        maxLength: 100
-        minLength: 3
-        type: string
-    required:
-    - email
-    - password
-    - username
     type: object
 host: localhost:3000
 info:
@@ -69,169 +21,54 @@ info:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: API Backend cho hệ thống quản lý User, Category và Product
+  description: API Backend cho hệ thống bình luận sản phẩm
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: http://swagger.io/terms/
-  title: Final4 API
+  title: comment_service API
   version: "1.0"
 paths:
-  /api/auth/login:
-    post:
+  /api/comments/products/{productId}:
+    get:
       consumes:
       - application/json
-      description: Đăng nhập với email và password
+      description: Lấy danh sách bình luận của sản phẩm
       parameters:
-      - description: Thông tin đăng nhập
-        in: body
-        name: request
+      - description: Product ID
+        in: path
+        name: productId
         required: true
-        schema:
-          $ref: '#/definitions/models.LoginRequest'
+        type: integer
+      - default: 50
+        description: Số lượng bình luận
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: Đăng nhập thành công
+          description: OK
           schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Dữ liệu không hợp lệ
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Thông tin đăng nhập sai
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Đăng nhập
-      tags:
-      - Auth
-  /api/auth/register:
-    post:
-      consumes:
-      - application/json
-      description: Tạo tài khoản người dùng mới với role mặc định là user
-      parameters:
-      - description: Thông tin đăng ký
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.RegisterRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Đăng ký thành công
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Dữ liệu không hợp lệ
-          schema:
-            additionalProperties: true
-            type: object
+            items:
+              $ref: '#/definitions/models.CommentResponse'
+            type: array
         "500":
-          description: Lỗi server
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Đăng ký tài khoản mới
-      tags:
-      - Auth
-  /api/courses:
-    post:
-      consumes:
-      - application/json
-      description: Tạo một sản phẩm mới
-      parameters:
-      - description: Thông tin Course
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/models.CourseCreateRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Tạo thành công
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Dữ liệu không hợp lệ
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Chưa xác thực
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Không có quyền
+          description: Internal Server Error
           schema:
             additionalProperties: true
             type: object
       security:
       - BearerAuth: []
-      summary: Tạo Course mới
+      summary: Lấy lịch sử bình luận
       tags:
-      - Courses
-  /api/courses/listALl:
-    get:
-      consumes:
-      - application/json
-      description: Lấy danh sách tất cả Courses
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Danh sách Courses
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Lấy danh sách tất cả Courses
-      tags:
-      - Courses
-  /api/courses/listPaging:
-    get:
-      consumes:
-      - application/json
-      description: Lấy danh sách tất cả Courses có phân trang
-      parameters:
-      - default: 1
-        description: Số trang
-        in: query
-        name: page
-        required: true
-        type: integer
-      - default: 10
-        description: Kích thước trang
-        in: query
-        name: page_size
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Danh sách Courses có phân trang
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Lấy danh sách tất cả Courses có phân trang
-      tags:
-      - Courses
+      - Comments
 schemes:
 - http
 - https

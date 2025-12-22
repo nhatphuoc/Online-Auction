@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -32,11 +33,37 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     // 1. Top 5 gần kết thúc (status ACTIVE, current time < endAt)
     List<Product> findTop5ByStatusOrderByEndAtAsc(Product.ProductStatus status);
 
-
     // 3. Top 5 giá cao nhất
     List<Product> findTop5ByStatusOrderByCurrentPriceDesc(Product.ProductStatus status);
 
-
     // 2. Top 5 nhiều lượt ra giá nhất — dùng @Query (join bids)
     List<Product> findTop5ByStatusOrderByBidCountDesc(ProductStatus status);
+
+    /* ================= CATEGORY UPDATE ================= */
+
+    @Modifying
+    @Query("""
+                UPDATE Product p
+                SET p.categoryName = :categoryName,
+                    p.parentCategoryId = :parentCategoryId,
+                    p.parentCategoryName = :parentCategoryName
+                WHERE p.categoryId = :categoryId
+            """)
+    int updateByCategoryId(
+            @Param("categoryId") Long categoryId,
+            @Param("categoryName") String categoryName,
+            @Param("parentCategoryId") Long parentCategoryId,
+            @Param("parentCategoryName") String parentCategoryName);
+
+    /* ================= PARENT CATEGORY RENAME ================= */
+
+    @Modifying
+    @Query("""
+                UPDATE Product p
+                SET p.parentCategoryName = :parentCategoryName
+                WHERE p.parentCategoryId = :parentCategoryId
+            """)
+    int updateParentCategoryName(
+            @Param("parentCategoryId") Long parentCategoryId,
+            @Param("parentCategoryName") String parentCategoryName);
 }

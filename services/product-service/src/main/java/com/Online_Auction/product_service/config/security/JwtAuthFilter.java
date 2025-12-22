@@ -29,16 +29,25 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+
+        return path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.equals("/swagger-ui.html");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+            HttpServletResponse response,
+            FilterChain filterChain)
             throws ServletException, IOException {
 
         // 1. Validate internal keys
-        // if (!internalKeyValidator.isValid(request)) {
-        //     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid internal key");
-        //     return;
-        // }
+        if (!internalKeyValidator.isValid(request)) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid internal key");
+            return;
+        }
 
         // 2. Parse JWT từ header X-User-Token
         String token = request.getHeader("X-User-Token");
@@ -54,21 +63,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // Chuyển sang GrantedAuthority
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
-        
+
         // Tạo principal
         UserPrincipal principal = new UserPrincipal(
                 Long.parseLong(claims.getSubject()),
                 claims.get("email", String.class),
-                UserRole.valueOf(role)
-        );
+                UserRole.valueOf(role));
 
         // Tạo Authentication với authorities
-        UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(
-                        principal,
-                        null,
-                        authorities
-                );
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                principal,
+                null,
+                authorities);
 
         // Set vào context
         SecurityContextHolder.getContext().setAuthentication(auth);

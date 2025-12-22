@@ -57,14 +57,13 @@ public class Product {
     private Long categoryId;
     private String categoryName;
 
-
     // ===== PRICING =====
     private Double startingPrice;
 
     @Builder.Default
     private Double currentPrice = null;
     private Double buyNowPrice;
-    private Double stepPrice;     // bước giá
+    private Double stepPrice; // bước giá
 
     // ===== AUCTION TIME =====
     private LocalDateTime createdAt;
@@ -82,9 +81,9 @@ public class Product {
     private Long currentBidder;
 
     public enum ProductStatus {
-        ACTIVE,      // đang đấu giá
-        FINISHED,    // đã kết thúc
-        PENDING,     // đang chờ duyệt
+        ACTIVE, // đang đấu giá
+        FINISHED, // đã kết thúc
+        PENDING, // đang chờ duyệt
         REJECTED
     }
 }

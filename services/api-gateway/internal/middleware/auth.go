@@ -144,7 +144,7 @@ func generateInternalJWT(cfg *config.Config, aud string) (string, error) {
 		return "", err
 	}
 	claims := jwt.RegisteredClaims{
-		Issuer:    "api-gateway",
+		Issuer:    cfg.APIGatewayName,
 		Audience:  []string{aud},
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),

@@ -91,7 +91,7 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(db)
 
 	// Category routes
-	categories := app.Group("", middleware.ExtractUserInfo())
+	categories := app.Group("", middleware.ExtractUserInfo(cfg))
 	categories.Get("/", categoryHandler.GetCategories)
 	categories.Get("/parent/:parent_id", categoryHandler.GetCategoriesByParent)
 	categories.Get("/:id", categoryHandler.GetCategoryByID)

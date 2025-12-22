@@ -14,25 +14,30 @@ func init() {
 }
 
 type Config struct {
-	Port                    string
-	APIGatewayPrivateKey    string
-	AuthInternalSecret      string
-	AuthServiceURL          string
-	CategoryServiceURL      string
-	ProductServiceURL       string
-	UserServiceURL          string
-	BiddingServiceURL       string
-	OrderServiceURL         string
-	PaymentServiceURL       string
-	NotificationServiceURL  string
-	MediaServiceURL         string
-	CommentServiceURL       string
+	Port                 string
+	APIGatewayPrivateKey string
+	AuthInternalSecret   string
+
+	AuthServiceURL         string
+	CategoryServiceURL     string
+	ProductServiceURL      string
+	UserServiceURL         string
+	BiddingServiceURL      string
+	OrderServiceURL        string
+	PaymentServiceURL      string
+	NotificationServiceURL string
+	MediaServiceURL        string
+	CommentServiceURL      string
+	AutoBiddingServiceURL  string
+
 	OTelEndpoint            string
 	OTelServiceName         string
 	OTelServiceVersion      string
 	OTelEnvironment         string
 	JWTPublicKeyAuthService string
 	JWTPrivateKey           string
+
+	APIGatewayName          string
 	CategoryServiceName     string
 	ProductServiceName      string
 	UserServiceName         string
@@ -61,7 +66,9 @@ func LoadConfig() *Config {
 		NotificationServiceURL: getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:8088"),
 		MediaServiceURL:        getEnv("MEDIA_SERVICE_URL", "http://localhost:8089"),
 		CommentServiceURL:      getEnv("COMMENT_SERVICE_URL", "http://localhost:8090"),
+		AutoBiddingServiceURL:  getEnv("AUTO_BIDDING_SERVICE_URL", "http://localhost:8091"),
 
+		APIGatewayName:          getEnv("API_GATEWAY_NAME", "api-gateway"),
 		CategoryServiceName:     getEnv("CATEGORY_SERVICE_NAME", "category-service"),
 		ProductServiceName:      getEnv("PRODUCT_SERVICE_NAME", "product-service"),
 		UserServiceName:         getEnv("USER_SERVICE_NAME", "user-service"),

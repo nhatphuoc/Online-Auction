@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.*;
 import com.Online_Auction.product_service.config.security.UserPrincipal;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
+import com.Online_Auction.product_service.dto.request.RenameParentCategoryRequest;
+import com.Online_Auction.product_service.dto.request.UpdateCategoryRequest;
 import com.Online_Auction.product_service.dto.response.ApiResponse;
+import com.Online_Auction.product_service.dto.response.BatchUpdateResult;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
 import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.external.ProductBidRequest;
@@ -139,4 +142,83 @@ public class ProductController {
         return ApiResponse.success(result, "Query success");
     }
 
+    /**
+     * ================= UPDATE CATEGORY =================
+     *
+     * Use-case:
+     * - Category-service gọi endpoint này khi:
+     * + ĐỔI TÊN category (categoryName)
+     * + DI CHUYỂN category sang parent khác
+     * + Đồng bộ lại snapshot category info trong Product
+     *
+     * Những gì endpoint này làm:
+     * - Update tất cả Product có categoryId = {categoryId}
+     * - Cập nhật các field:
+     * + categoryName
+     * + parentCategoryId
+     * + parentCategoryName
+     *
+     * Những gì endpoint này KHÔNG làm:
+     * - KHÔNG validate category tồn tại hay không (category-service chịu trách
+     * nhiệm)
+     * - KHÔNG update product thuộc category con khác
+     *
+     * Ví dụ use-case:
+     * - "Laptop Gaming" → đổi tên thành "Gaming Laptop"
+     * - Category 5 được move từ "Electronics" sang "Tech Devices"
+     *
+     * Endpoint:
+     * PUT /api/internal/products/categories/{categoryId}
+     */
+
+    @PutMapping("/categories/{categoryId}")
+    public ResponseEntity<ApiResponse<BatchUpdateResult>> updateCategory(
+            @PathVariable Long categoryId,
+            @RequestBody UpdateCategoryRequest request) {
+        int updated = productService.updateCategory(categoryId, request);
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        new BatchUpdateResult(updated),
+                        "Category updated successfully"));
+    }
+
+    /**
+     * ================= RENAME PARENT CATEGORY =================
+     *
+     * Use-case:
+     * - Category-service gọi endpoint này khi:
+     * + CHỈ ĐỔI TÊN parent category
+     *
+     * Những gì endpoint này làm:
+     * - Update tất cả Product có parentCategoryId = {parentCategoryId}
+     * - CHỈ cập nhật:
+     * + parentCategoryName
+     *
+     * Những gì endpoint này KHÔNG làm:
+     * - KHÔNG thay đổi categoryId
+     * - KHÔNG thay đổi categoryName
+     * - KHÔNG move category
+     *
+     * Ví dụ use-case:
+     * - Parent category "Electronics" → đổi tên thành "Tech Devices"
+     * - Tất cả product thuộc các category con đều được đồng bộ tên parent
+     *
+     * Endpoint:
+     * PUT /api/internal/products/parent-categories/{parentCategoryId}/rename
+     */
+
+    @PutMapping("/parent-categories/{parentCategoryId}/rename")
+    public ResponseEntity<ApiResponse<BatchUpdateResult>> renameParentCategory(
+            @PathVariable Long parentCategoryId,
+            @RequestBody RenameParentCategoryRequest request) {
+        int updated = productService.renameParentCategory(
+                parentCategoryId,
+                request.getParentCategoryName());
+
+        return ResponseEntity.ok(
+                ApiResponse.success(
+                        new BatchUpdateResult(updated),
+                        "Parent category renamed successfully"));
+    }
 }

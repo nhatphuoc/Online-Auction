@@ -17,6 +17,7 @@ import com.Online_Auction.product_service.domain.Product;
 import com.Online_Auction.product_service.domain.Product.ProductStatus;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
+import com.Online_Auction.product_service.dto.request.UpdateCategoryRequest;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
 import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
@@ -79,7 +80,7 @@ public class ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         SimpleUserInfo sellerInfo = this.getSimpleUserInfoById(product.getSellerId());
-        SimpleUserInfo highestBidder = null;        // TODO: call bidding-service
+        SimpleUserInfo highestBidder = null; // TODO: call bidding-service
 
         return productMapper.toProductDTO(product, sellerInfo, highestBidder);
     }
@@ -103,7 +104,7 @@ public class ProductService {
         productRepository.save(product);
 
         SimpleUserInfo sellerInfo = new SimpleUserInfo(); // TODO
-        SimpleUserInfo highestBidder = null;        // TODO
+        SimpleUserInfo highestBidder = null; // TODO
 
         return productMapper.toProductDTO(product, sellerInfo, highestBidder);
     }
@@ -137,7 +138,7 @@ public class ProductService {
 
     // =================================
     // HOMEPAGE
-    // =================================    
+    // =================================
     public List<ProductListItemResponse> topEndingSoon() {
         return productRepository
                 .findTop5ByStatusOrderByEndAtAsc(ProductStatus.ACTIVE)
@@ -170,8 +171,7 @@ public class ProductService {
             Long parentCategoryId,
             Long categoryId,
             int page,
-            int pageSize
-    ) {
+            int pageSize) {
 
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by("createdAt").descending());
 
@@ -194,8 +194,7 @@ public class ProductService {
                         p.getParentCategoryId(),
                         p.getParentCategoryName(),
                         p.getCategoryId(),
-                        p.getCategoryName()
-                ));
+                        p.getCategoryName()));
     }
 
     // =================================
@@ -205,9 +204,8 @@ public class ProductService {
         SimpleUserResponse userResponse = restTemplateUserServiceClient.getUserById(id);
         if (userResponse == null) {
             throw new ResponseStatusException(
-                HttpStatus.NOT_FOUND,
-                "User not found with id = " + id
-            );
+                    HttpStatus.NOT_FOUND,
+                    "User not found with id = " + id);
         }
         SimpleUserInfo userInfo = new SimpleUserInfo();
         userInfo.setId(userInfo.getId());
@@ -215,5 +213,39 @@ public class ProductService {
         userInfo.setFullName(userInfo.getFullName());
         userInfo.setUserRole(userInfo.getUserRole());
         return userInfo;
+    }
+
+    /* ================= UPDATE CATEGORY ================= */
+
+    @Transactional
+    public int updateCategory(Long categoryId, UpdateCategoryRequest request) {
+
+        if (categoryId == null) {
+            throw new IllegalArgumentException("categoryId must not be null");
+        }
+
+        return productRepository.updateByCategoryId(
+                categoryId,
+                request.getCategoryName(),
+                request.getParentCategoryId(),
+                request.getParentCategoryName());
+    }
+
+    /* ================= RENAME PARENT CATEGORY ================= */
+
+    @Transactional
+    public int renameParentCategory(Long parentCategoryId, String parentCategoryName) {
+
+        if (parentCategoryId == null) {
+            throw new IllegalArgumentException("parentCategoryId must not be null");
+        }
+
+        if (parentCategoryName == null || parentCategoryName.isBlank()) {
+            throw new IllegalArgumentException("parentCategoryName must not be blank");
+        }
+
+        return productRepository.updateParentCategoryName(
+                parentCategoryId,
+                parentCategoryName);
     }
 }

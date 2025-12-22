@@ -2,6 +2,7 @@ package com.Online_Auction.auth_service.external.client;
 
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -34,9 +35,11 @@ public class UserServiceClient {
         this.baseUrl = userServiceUrl + "/api/users";
     }
 
-    /* ---------------------------------------------------------
-     *  COMMON HEADER BUILDER
-     * --------------------------------------------------------- */
+    /*
+     * ---------------------------------------------------------
+     * COMMON HEADER BUILDER
+     * ---------------------------------------------------------
+     */
     private HttpHeaders buildHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Auth-Internal-Service", internalKey);
@@ -44,21 +47,21 @@ public class UserServiceClient {
         return headers;
     }
 
-    /* ---------------------------------------------------------
-     *  GENERIC CALLER — dùng chung cho mọi API
-     * --------------------------------------------------------- */
+    /*
+     * ---------------------------------------------------------
+     * GENERIC CALLER — dùng chung cho mọi API
+     * ---------------------------------------------------------
+     */
     private <T> ApiResponse<T> callApi(
             String url,
             HttpMethod method,
             Object body,
             ParameterizedTypeReference<ApiResponse<T>> typeRef,
-            Object... uriVars
-    ) {
+            Object... uriVars) {
         try {
             HttpEntity<Object> entity = new HttpEntity<>(body, buildHeaders());
 
-            ResponseEntity<ApiResponse<T>> response =
-                    restTemplate.exchange(url, method, entity, typeRef, uriVars);
+            ResponseEntity<ApiResponse<T>> response = restTemplate.exchange(url, method, entity, typeRef, uriVars);
 
             return response.getBody();
 
@@ -68,8 +71,7 @@ public class UserServiceClient {
                 ObjectMapper mapper = new ObjectMapper();
                 return mapper.readValue(
                         ex.getResponseBodyAsString(),
-                        mapper.getTypeFactory().constructParametricType(ApiResponse.class, Object.class)
-                );
+                        mapper.getTypeFactory().constructParametricType(ApiResponse.class, Object.class));
             } catch (Exception e) {
                 return ApiResponse.fail("Failed to parse error response from user-service");
             }
@@ -79,68 +81,70 @@ public class UserServiceClient {
         }
     }
 
-    /* ---------------------------------------------------------
-     *  API IMPLEMENTATION
-     * --------------------------------------------------------- */
+    /*
+     * ---------------------------------------------------------
+     * API IMPLEMENTATION
+     * ---------------------------------------------------------
+     */
 
     /**
      * GET Simple User by Email
      */
     public ApiResponse<SimpleUserResponse> getUserByEmail(String email) {
-    return callApi(
-        baseUrl + "/simple?email={email}",
-        HttpMethod.GET,
-        null,
-        new ParameterizedTypeReference<>() {},
-        email
-    );
+        return callApi(
+                baseUrl + "/simple?email={email}",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {
+                },
+                email);
     }
 
     /**
      * Register User
      */
     public ApiResponse<Void> registerUser(RegisterUserRequest request) {
-    return callApi(
-        baseUrl,
-        HttpMethod.POST,
-        request,
-        new ParameterizedTypeReference<>() {}
-    );
+        return callApi(
+                baseUrl,
+                HttpMethod.POST,
+                request,
+                new ParameterizedTypeReference<>() {
+                });
     }
 
     /**
      * Verify Email
      */
     public ApiResponse<Void> verifyEmail(String email) {
-    return callApi(
-        baseUrl + "/verify-email",
-        HttpMethod.POST,
-        Map.of("email", email),
-        new ParameterizedTypeReference<>() {}
-    );
+        return callApi(
+                baseUrl + "/verify-email",
+                HttpMethod.POST,
+                Map.of("email", email),
+                new ParameterizedTypeReference<>() {
+                });
     }
 
     /**
      * Delete User by Email
      */
     public ApiResponse<Void> deleteUserByEmail(String email) {
-    return callApi(
-        baseUrl,
-        HttpMethod.DELETE,
-        Map.of("email", email),
-        new ParameterizedTypeReference<>() {}
-    );
+        return callApi(
+                baseUrl,
+                HttpMethod.DELETE,
+                Map.of("email", email),
+                new ParameterizedTypeReference<>() {
+                });
     }
 
     /**
      * Authenticate user
      */
     public ApiResponse<SimpleUserResponse> authenticateUser(SignInRequest request) {
-    return callApi(
-        baseUrl + "/authenticate",
-        HttpMethod.POST,
-        request,
-        new ParameterizedTypeReference<>() {}
-    );
+        return callApi(
+                baseUrl + "/authenticate",
+                HttpMethod.POST,
+                request,
+                new ParameterizedTypeReference<>() {
+                });
     }
 }

@@ -24,15 +24,24 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(c -> c.disable())
-            .cors(Customizer.withDefaults())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**").permitAll()
-                .anyRequest().denyAll()
-            );
+                .csrf(c -> c.disable())
+                .cors(Customizer.withDefaults())
+                .authorizeHttpRequests(auth -> auth
+                        // 1. Auth endpoints
+                        .requestMatchers("/auth/**").permitAll()
+
+                        // 2. Swagger / OpenAPI
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html")
+                        .permitAll()
+
+                        // 3. Everything else must pass the gateway filter
+                        .anyRequest().authenticated());
 
         http.addFilterBefore(apiGatewayFilter, UsernamePasswordAuthenticationFilter.class);
-        
+
         return http.build();
     }
 

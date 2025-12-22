@@ -338,12 +338,13 @@
                 <input type="number" id="productId" placeholder="Nhập ID sản phẩm (vd: 1)" value="1">
             </div>
             <div class="input-group">
-                <label for="userId">User ID</label>
-                <input type="number" id="userId" placeholder="Nhập ID người dùng (vd: 123)" value="123">
+                <label for="userToken">User Token</label>
+                <input type="text" id="userToken" placeholder="Nhập User Token (JWT)" autocomplete="off">
             </div>
             <div class="input-group">
-                <label for="wsUrl">WebSocket URL</label>
-                <input type="text" id="wsUrl" placeholder="ws://localhost:3000/ws" value="ws://localhost:3000/ws">
+                <label for="gatewayUrl">API Gateway WebSocket Info URL</label>
+                <input type="text" id="gatewayUrl" placeholder="http://localhost:8080/api/comments/websocket/abc" value="http://localhost:8080/api/comments/websocket/abc">
+            </div>
             </div>
             <div class="button-group">
                 <button id="connectBtn" class="btn btn-primary">Kết nối</button>
@@ -399,7 +400,7 @@
         const status = document.getElementById('status');
         const productIdInput = document.getElementById('productId');
         const userIdInput = document.getElementById('userId');
-        const wsUrlInput = document.getElementById('wsUrl');
+    const gatewayUrlInput = document.getElementById('gatewayUrl');
         const currentProductIdSpan = document.getElementById('currentProductId');
         const typingIndicator = document.getElementById('typingIndicator');
 
@@ -413,26 +414,49 @@
         });
         messageInput.addEventListener('input', handleTyping);
 
-        function connect() {
+        async function connect() {
             currentProductId = productIdInput.value;
-            currentUserId = userIdInput.value;
-            const wsUrl = wsUrlInput.value;
+            const userToken = document.getElementById('userToken').value.trim();
+            const gatewayUrl = gatewayUrlInput.value.trim();
 
-            if (!currentProductId || !currentUserId) {
-                alert('Vui lòng nhập Product ID và User ID');
+            if (!currentProductId || !userToken || !gatewayUrl) {
+                alert('Vui lòng nhập Product ID, User Token và Gateway URL');
                 return;
             }
 
-            const url = `${wsUrl}?productId=${currentProductId}&userId=${currentUserId}`;
-            
+            // Step 1: Get WebSocket info from API Gateway
+            let wsInfo;
             try {
-                ws = new WebSocket(url);
+                const resp = await fetch(gatewayUrl, {
+                    method: 'GET',
+                    headers: {
+                        'X-User-Token': userToken
+                    }
+                });
+                if (!resp.ok) throw new Error('Không lấy được thông tin WebSocket từ Gateway');
+                wsInfo = await resp.json();
+            } catch (err) {
+                alert('Lỗi lấy thông tin WebSocket: ' + err.message);
+                return;
+            }
+
+            const wsUrl = wsInfo.comment_service_websocket_url;
+            const internalJWT = wsInfo.internal_jwt;
+            if (!wsUrl || !internalJWT) {
+                alert('Thiếu thông tin WebSocket hoặc internal JWT');
+                return;
+            }
+
+            // Step 2: Connect to WebSocket with required query params
+            const wsFullUrl = `${wsUrl}?productId=${currentProductId}&X-User-Token=${encodeURIComponent(userToken)}&X-Internal-JWT=${encodeURIComponent(internalJWT)}`;
+            try {
+                ws = new window.WebSocket(wsFullUrl);
 
                 ws.onopen = () => {
                     console.log('WebSocket connected');
                     updateConnectionStatus(true);
                     currentProductIdSpan.textContent = currentProductId;
-                    loadComments();
+                    loadComments(userToken);
                 };
 
                 ws.onmessage = (event) => {
@@ -442,9 +466,7 @@
                     if (data.type === 'comment') {
                         addComment(data.data);
                     } else if (data.type === 'typing') {
-                        if (data.data.userId != currentUserId) {
-                            showTyping();
-                        }
+                        showTyping();
                     }
                 };
 
@@ -557,18 +579,16 @@
             commentsBox.scrollTop = commentsBox.scrollHeight;
         }
 
-        async function loadComments() {
+        async function loadComments(userToken) {
             try {
-                const response = await fetch(`http://localhost:3000/api/comments/products/${currentProductId}`, {
+                const response = await fetch(`http://localhost:8080/api/comments/history/products/${currentProductId}`, {
                     headers: {
-                        'Authorization': 'Bearer your-token-here'
+                        'X-User-Token': userToken
                     }
                 });
-                
                 if (response.ok) {
                     const comments = await response.json();
                     commentsBox.innerHTML = '';
-                    
                     if (comments && comments.length > 0) {
                         comments.reverse().forEach(comment => addComment(comment));
                     } else {

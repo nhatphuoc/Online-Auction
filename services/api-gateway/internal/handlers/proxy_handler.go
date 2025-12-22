@@ -79,6 +79,20 @@ func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 	}
 }
 
+func (h *ProxyHandler) ProxyWebSocket(c *fiber.Ctx) error {
+	internalJWT := c.Get("X-Internal-JWT")
+	if internalJWT == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Missing X-Internal-JWT header",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"comment_service_websocket_url": h.cfg.CommentServiceWebSocketURL,
+		"internal_jwt":                  internalJWT,
+	})
+}
+
 // Health check
 func (h *ProxyHandler) HealthCheck(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{

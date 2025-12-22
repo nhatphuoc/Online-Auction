@@ -1,24 +1,28 @@
 package handlers
 
 import (
+	"comment_service/internal/config"
+	"comment_service/internal/middleware"
 	"comment_service/internal/models"
 	"comment_service/internal/utils"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/go-pg/pg/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Client represents a connected WebSocket client
 type Client struct {
 	Conn      *websocket.Conn
-	UserID    int64
+	UserID    int
 	ProductID int
 	Send      chan []byte
 }
@@ -145,18 +149,86 @@ func (h *CommentHandler) GetProductComments(c *fiber.Ctx) error {
 func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 	// Get query params
 	productIDStr := c.Query("productId")
-	userIDStr := c.Query("userId")
+	tokenString := c.Query("X-User-Token")
+	internalJWT := c.Query("X-Internal-JWT")
 
-	if productIDStr == "" || userIDStr == "" {
+	if productIDStr == "" || internalJWT == "" {
 		slog.Error("Missing required parameters")
 		c.Close()
 		return
 	}
 
+	// You may want to load config here if needed, or inject via handler struct
+	cfg := config.LoadConfig()
+	ok, err := middleware.VerifyInternalJWT(
+		cfg,
+		internalJWT,
+		cfg.CommentServiceName,
+	)
+	if err != nil || !ok {
+		slog.Error(err.Error())
+		slog.Error("Invalid Internal JWT")
+		c.Close()
+		return
+	}
+
+	if tokenString == "" {
+		slog.Error("Missing X-User-Token header")
+		c.Close()
+		return
+	}
+
+	token, _, err := new(jwt.Parser).ParseUnverified(
+		tokenString,
+		jwt.MapClaims{},
+	)
+	if err != nil {
+		slog.Error("Invalid token format")
+		c.Close()
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		slog.Error("Invalid token claims")
+		c.Close()
+		return
+	}
+
+	// Kiểm tra type == "access"
+	if t, ok := claims["type"].(string); !ok || t != "access" {
+		slog.Error("Token is not access token")
+		c.Close()
+		return
+	}
+
+	// Lấy userId (subject), email, role
+	var userID int
+	if sub, ok := claims["sub"].(float64); ok {
+		userID = int(sub)
+	} else if subStr, ok := claims["sub"].(string); ok {
+		// Try to parse string to int
+		if parsed, err := strconv.Atoi(subStr); err == nil {
+			userID = parsed
+		}
+	}
+	role := ""
+	if r, ok := claims["role"].(string); ok {
+		role = r
+	} else if r, ok := claims["role"].(map[string]interface{}); ok {
+		// Trường hợp role là object (enum)
+		if name, ok := r["name"].(string); ok {
+			role = name
+		}
+	}
+	if role == "" {
+		slog.Error("User role not found in token")
+		c.Close()
+		return
+	}
+
 	var productID int
-	var userID int64
 	fmt.Sscanf(productIDStr, "%d", &productID)
-	fmt.Sscanf(userIDStr, "%d", &userID)
 
 	client := &Client{
 		Conn:      c,
@@ -170,6 +242,7 @@ func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 	// Start goroutines for reading and writing
 	go h.writePump(client)
 	h.readPump(client)
+	return
 }
 
 // readPump reads messages from WebSocket connection
@@ -195,7 +268,7 @@ func (h *CommentHandler) readPump(client *Client) {
 			// Save comment to database
 			comment := &models.Comment{
 				ProductID: client.ProductID,
-				SenderID:  int(client.UserID),
+				SenderID:  client.UserID,
 				Content:   wsMsg.Content,
 				CreatedAt: time.Now(),
 			}

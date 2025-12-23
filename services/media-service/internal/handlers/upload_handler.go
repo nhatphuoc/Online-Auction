@@ -19,14 +19,14 @@ import (
 )
 
 type UploadHandler struct {
-	s3Client   *s3.Client
-	cfg        *config.Config
+	s3Client *s3.Client
+	cfg      *config.Config
 }
 
 func NewUploadHandler(s3Client *s3.Client, cfg *config.Config) *UploadHandler {
 	return &UploadHandler{
-		s3Client:   s3Client,
-		cfg:        cfg,
+		s3Client: s3Client,
+		cfg:      cfg,
 	}
 }
 
@@ -54,7 +54,7 @@ func (h *UploadHandler) UploadSingleFile(c *fiber.Ctx) error {
 	// Validate file size
 	if fileHeader.Size > h.cfg.MaxFileSize {
 		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
-			Error:   fmt.Sprintf("File quá lớn, tối đa %dMB", h.cfg.MaxFileSize/(1024*1024)),
+			Error: fmt.Sprintf("File quá lớn, tối đa %dMB", h.cfg.MaxFileSize/(1024*1024)),
 		})
 	}
 
@@ -232,5 +232,113 @@ func (h *UploadHandler) UploadMultipleFiles(c *fiber.Ctx) error {
 		Total:        len(files),
 		SuccessCount: len(uploadedFiles),
 		FailedCount:  len(failedFiles),
+	})
+}
+
+// Place new handler methods at the end of the file to avoid breaking package structure
+// GetPresignedURL godoc
+// @Summary Get presigned URL for single file upload
+// @Description Get a presigned URL to upload a file directly to S3
+// @Tags media
+// @Accept json
+// @Produce json
+// @Param filename query string true "Tên file muốn upload"
+// @Param folder query string false "Folder path in S3 (default: uploads/)"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /presign [get]
+func (h *UploadHandler) GetPresignedURL(c *fiber.Ctx) error {
+	filename := c.Query("filename")
+	if filename == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error: "Thiếu tên file (filename)",
+		})
+	}
+	folder := c.Query("folder", "uploads/")
+	if folder != "" && !strings.HasSuffix(folder, "/") {
+		folder += "/"
+	}
+	key := folder + utils.GenerateUniqueFilename(filename)
+
+	presignClient := s3.NewPresignClient(h.s3Client)
+	presignParams := &s3.PutObjectInput{
+		Bucket:      aws.String(h.cfg.AWSBucketName),
+		Key:         aws.String(key),
+		ContentType: aws.String(utils.GetContentType(filename)),
+		ACL:         "public-read",
+	}
+	presignDuration := 15 * time.Minute
+	presigned, err := presignClient.PresignPutObject(context.TODO(), presignParams, func(opts *s3.PresignOptions) {
+		opts.Expires = presignDuration
+	})
+	if err != nil {
+		slog.Error("Failed to generate presigned URL", "error", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Error:   "Không tạo được presigned URL",
+			Details: err.Error(),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"url":        presigned.URL,
+		"key":        key,
+		"expires_in": int(presignDuration.Seconds()),
+	})
+}
+
+// GetPresignedURLs godoc
+// @Summary Get presigned URLs for multiple files
+// @Description Get presigned URLs to upload multiple files directly to S3
+// @Tags media
+// @Accept json
+// @Produce json
+// @Param filenames body []string true "Danh sách tên file muốn upload"
+// @Param folder query string false "Folder path in S3 (default: uploads/)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /presign/multiple [post]
+func (h *UploadHandler) GetPresignedURLs(c *fiber.Ctx) error {
+	var filenames []string
+	if err := c.BodyParser(&filenames); err != nil || len(filenames) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(models.ErrorResponse{
+			Error: "Body phải là mảng tên file ([]string)",
+		})
+	}
+	folder := c.Query("folder", "uploads/")
+	if folder != "" && !strings.HasSuffix(folder, "/") {
+		folder += "/"
+	}
+	presignClient := s3.NewPresignClient(h.s3Client)
+	presignDuration := 15 * time.Minute
+	result := make([]map[string]interface{}, 0, len(filenames))
+	for _, filename := range filenames {
+		key := folder + utils.GenerateUniqueFilename(filename)
+		presignParams := &s3.PutObjectInput{
+			Bucket:      aws.String(h.cfg.AWSBucketName),
+			Key:         aws.String(key),
+			ContentType: aws.String(utils.GetContentType(filename)),
+			ACL:         "public-read",
+		}
+		presigned, err := presignClient.PresignPutObject(context.TODO(), presignParams, func(opts *s3.PresignOptions) {
+			opts.Expires = presignDuration
+		})
+		if err != nil {
+			slog.Error("Failed to generate presigned URL", "error", err, "filename", filename)
+			result = append(result, map[string]interface{}{
+				"filename": filename,
+				"error":    err.Error(),
+			})
+			continue
+		}
+		result = append(result, map[string]interface{}{
+			"filename":   filename,
+			"url":        presigned.URL,
+			"key":        key,
+			"expires_in": int(presignDuration.Seconds()),
+		})
+	}
+	return c.JSON(fiber.Map{
+		"presigned": result,
 	})
 }

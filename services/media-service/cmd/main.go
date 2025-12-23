@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"media_service/internal/config"
 	"media_service/internal/handlers"
+	"media_service/internal/middleware"
 	"os"
 
 	_ "media_service/docs"
@@ -83,12 +84,14 @@ func main() {
 	uploadHandler := handlers.NewUploadHandler(s3Client, cfg)
 
 	// API routes
-	api := app.Group("/api")
-	
+	api := app.Group("")
+
 	// Upload endpoints
 	api.Post("/upload", uploadHandler.UploadSingleFile)
 	api.Post("/upload/multiple", uploadHandler.UploadMultipleFiles)
-
+	// Presigned URL endpoints
+	api.Get("/presign", middleware.ExtractUserInfo(cfg), uploadHandler.GetPresignedURL)
+	api.Post("/presign/multiple", middleware.ExtractUserInfo(cfg), uploadHandler.GetPresignedURLs)
 	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -102,7 +105,7 @@ func main() {
 	// Start server
 	slog.Info("Starting media service", "port", cfg.Port, "bucket", cfg.AWSBucketName, "region", cfg.AWSRegion)
 	slog.Info("Swagger documentation", "url", "http://localhost:"+cfg.Port+"/swagger/")
-	
+
 	if err := app.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

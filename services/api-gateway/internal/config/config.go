@@ -55,7 +55,7 @@ type Config struct {
 
 func LoadConfig() *Config {
 	return &Config{
-		Port:                       getEnv("PORT", "8080"),
+		Port:                       getEnv("API_GATEWAY_PORT", "8080"),
 		APIGatewayPrivateKey:       getEnv("API_GATEWAY_SECRET", "api-gateway-secret"),
 		AuthInternalSecret:         getEnv("X_AUTH_INTERNAL_KEY", "internal-auth-secret"),
 		AuthServiceURL:             getEnv("AUTH_SERVICE_URL", "http://localhost:8081/auth"),

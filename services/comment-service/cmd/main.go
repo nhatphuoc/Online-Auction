@@ -3,11 +3,7 @@ package main
 import (
 	"comment_service/internal/config"
 	"comment_service/internal/handlers"
-	"comment_service/internal/logger"
-	"comment_service/internal/metrics"
 	"comment_service/internal/middleware"
-	"comment_service/internal/telemetry"
-	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -47,39 +43,9 @@ import (
 // @description Type "Bearer" followed by a space and JWT token.
 
 func main() {
-	ctx := context.Background()
 
 	// Load config
 	cfg := config.LoadConfig()
-
-	// Initialize logger (without OTel first)
-	logger.InitLogger(cfg.OTelEnvironment)
-	slog.Info("Starting comment_service API", "version", cfg.OTelServiceVersion, "env", cfg.OTelEnvironment)
-
-	// Initialize OpenTelemetry
-	otelShutdown, err := telemetry.InitOTel(ctx, telemetry.OTelConfig{
-		ServiceName:    cfg.OTelServiceName,
-		ServiceVersion: cfg.OTelServiceVersion,
-		Environment:    cfg.OTelEnvironment,
-		OTelEndpoint:   cfg.OTelEndpoint,
-	})
-	if err != nil {
-		log.Fatalf("Lỗi khởi tạo OpenTelemetry: %v", err)
-	}
-	defer func() {
-		if err := otelShutdown(ctx); err != nil {
-			slog.Error("Error shutting down OpenTelemetry", "error", err)
-		}
-	}()
-
-	// Re-initialize logger with OTel bridge
-	logger.InitLoggerWithOTel(cfg.OTelEnvironment)
-	slog.Info("Logger with OpenTelemetry initialized")
-
-	// Initialize metrics
-	if err := metrics.InitMetrics(ctx); err != nil {
-		log.Fatalf("Lỗi khởi tạo metrics: %v", err)
-	}
 
 	// Connect database
 	db := config.ConnectDB(cfg)
@@ -105,7 +71,6 @@ func main() {
 
 	// Middleware
 	app.Use(recover.New())
-	app.Use(middleware.TracingMiddleware()) // OpenTelemetry tracing
 	app.Use(fiberlogger.New(fiberlogger.Config{
 		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
 	}))
@@ -125,13 +90,13 @@ func main() {
 	commentHandler := handlers.NewCommentHandler(db)
 
 	// Routes
-	api := app.Group("/api")
+	api := app.Group("")
 
 	// WebSocket endpoint for comments
 	app.Get("/ws", websocket.New(commentHandler.HandleWebSocket))
 
 	// Comment routes (protected by auth middleware)
-	comments := api.Group("/comments", middleware.AuthMiddleware(cfg))
+	comments := api.Group("", middleware.ExtractUserInfo(cfg))
 	comments.Get("/products/:productId", commentHandler.GetProductComments)
 
 	// Health check

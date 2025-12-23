@@ -149,8 +149,8 @@ func main() {
 	protected.All("/media/*", middleware.ProxyMiddleware(cfg, cfg.MediaServiceName), proxyHandler.ProxyRequest(cfg.MediaServiceURL))
 
 	// Comment service
-	protected.All("/comments/*", middleware.ProxyMiddleware(cfg, cfg.CommentServiceName), proxyHandler.ProxyRequest(cfg.CommentServiceURL))
-
+	protected.All("/comments/history/*", middleware.ProxyMiddleware(cfg, cfg.CommentServiceName), proxyHandler.ProxyRequest(cfg.CommentServiceURL))
+	protected.All("/comments/websocket/*", middleware.ProxyMiddleware(cfg, cfg.CommentServiceName), proxyHandler.ProxyWebSocket)
 	// Search service
 	protected.All("/search/*", middleware.ProxyMiddleware(cfg, cfg.SearchServiceName), proxyHandler.ProxyRequest(cfg.ProductServiceURL))
 

@@ -1,0 +1,61 @@
+{
+  "info": {
+    "name": "Comment Service API",
+    "description": "Postman collection for testing Comment Service endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get WebSocket Info (API Gateway)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/comments/websocket/",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["comments", "websocket", ""]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Comment History",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/comments/history/products/{{productId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "comments", "history", "products", "{{productId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8080/api/comments/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "comments", "health"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    { "key": "user_token", "value": "" },
+    { "key": "productId", "value": "1" }
+  ]
+}

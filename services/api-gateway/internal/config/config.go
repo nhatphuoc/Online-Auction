@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	err := godotenv.Load(".env")
+	err := godotenv.Load("../../shared/.env")
 	if err != nil {
 		// Không panic, có thể dùng environment variables
 	}
@@ -18,17 +18,19 @@ type Config struct {
 	APIGatewayPrivateKey string
 	AuthInternalSecret   string
 
-	AuthServiceURL         string
-	CategoryServiceURL     string
-	ProductServiceURL      string
-	UserServiceURL         string
-	BiddingServiceURL      string
-	OrderServiceURL        string
-	PaymentServiceURL      string
-	NotificationServiceURL string
-	MediaServiceURL        string
-	CommentServiceURL      string
-	AutoBiddingServiceURL  string
+	AuthServiceURL             string
+	CategoryServiceURL         string
+	ProductServiceURL          string
+	UserServiceURL             string
+	BiddingServiceURL          string
+	OrderServiceURL            string
+	PaymentServiceURL          string
+	NotificationServiceURL     string
+	MediaServiceURL            string
+	SearchServiceURL           string
+	CommentServiceURL          string
+	AutoBiddingServiceURL      string
+	CommentServiceWebSocketURL string
 
 	OTelEndpoint            string
 	OTelServiceName         string
@@ -53,20 +55,22 @@ type Config struct {
 
 func LoadConfig() *Config {
 	return &Config{
-		Port:                   getEnv("PORT", "8080"),
-		APIGatewayPrivateKey:   getEnv("API_GATEWAY_SECRET", "api-gateway-secret"),
-		AuthInternalSecret:     getEnv("X_AUTH_INTERNAL_KEY", "internal-auth-secret"),
-		AuthServiceURL:         getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
-		CategoryServiceURL:     getEnv("CATEGORY_SERVICE_URL", "http://localhost:8082"),
-		ProductServiceURL:      getEnv("PRODUCT_SERVICE_URL", "http://localhost:8083"),
-		UserServiceURL:         getEnv("USER_SERVICE_URL", "http://localhost:8084"),
-		BiddingServiceURL:      getEnv("BIDDING_SERVICE_URL", "http://localhost:8085"),
-		OrderServiceURL:        getEnv("ORDER_SERVICE_URL", "http://localhost:8086"),
-		PaymentServiceURL:      getEnv("PAYMENT_SERVICE_URL", "http://localhost:8087"),
-		NotificationServiceURL: getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:8088"),
-		MediaServiceURL:        getEnv("MEDIA_SERVICE_URL", "http://localhost:8089"),
-		CommentServiceURL:      getEnv("COMMENT_SERVICE_URL", "http://localhost:8090"),
-		AutoBiddingServiceURL:  getEnv("AUTO_BIDDING_SERVICE_URL", "http://localhost:8091"),
+		Port:                       getEnv("PORT", "8080"),
+		APIGatewayPrivateKey:       getEnv("API_GATEWAY_SECRET", "api-gateway-secret"),
+		AuthInternalSecret:         getEnv("X_AUTH_INTERNAL_KEY", "internal-auth-secret"),
+		AuthServiceURL:             getEnv("AUTH_SERVICE_URL", "http://localhost:8081/auth"),
+		CategoryServiceURL:         getEnv("CATEGORY_SERVICE_URL", "http://localhost:8082"),
+		ProductServiceURL:          getEnv("PRODUCT_SERVICE_URL", "http://localhost:8083"),
+		UserServiceURL:             getEnv("USER_SERVICE_URL", "http://localhost:8084"),
+		BiddingServiceURL:          getEnv("BIDDING_SERVICE_URL", "http://localhost:8085"),
+		OrderServiceURL:            getEnv("ORDER_SERVICE_URL", "http://localhost:8086"),
+		PaymentServiceURL:          getEnv("PAYMENT_SERVICE_URL", "http://localhost:8087"),
+		NotificationServiceURL:     getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:8088"),
+		MediaServiceURL:            getEnv("MEDIA_SERVICE_URL", "http://localhost:8089"),
+		SearchServiceURL:           getEnv("SEARCH_SERVICE_URL", "http://localhost:8090"),
+		CommentServiceURL:          getEnv("COMMENT_SERVICE_URL", "http://localhost:8091"),
+		AutoBiddingServiceURL:      getEnv("AUTO_BIDDING_SERVICE_URL", "http://localhost:8092"),
+		CommentServiceWebSocketURL: getEnv("COMMENT_SERVICE_WEBSOCKET_URL", "ws://localhost:8091/ws"),
 
 		APIGatewayName:          getEnv("API_GATEWAY_NAME", "api-gateway"),
 		CategoryServiceName:     getEnv("CATEGORY_SERVICE_NAME", "category-service"),

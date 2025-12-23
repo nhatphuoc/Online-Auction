@@ -1,0 +1,222 @@
+{
+  "info": {
+    "name": "Media Service API",
+    "description": "Postman collection for testing Media Service endpoints (qua API Gateway)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+
+  {
+
+  "name": "Upload Single File",
+
+  "request": {
+
+  "method": "POST",
+
+  "header": [
+
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+
+  ],
+
+  "body": {
+
+          "mode": "formdata",
+
+          "formdata": [
+
+            { "key": "file", "type": "file", "src": "" }
+
+          ]
+
+  },
+
+  "url": {
+
+          "raw": "http://localhost:8080/api/media/upload",
+
+          "protocol": "http",
+
+          "host": ["localhost"],
+
+          "port": "8080",
+
+          "path": ["api", "media", "upload"]
+
+  }
+
+  },
+
+  "response": []
+
+  },
+
+  {
+
+  "name": "Upload Multiple Files",
+
+  "request": {
+
+  "method": "POST",
+
+  "header": [
+
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+
+  ],
+
+  "body": {
+
+          "mode": "formdata",
+
+          "formdata": [
+
+            { "key": "files", "type": "file", "src": "", "multiple": true }
+
+          ]
+
+  },
+
+  "url": {
+
+          "raw": "http://localhost:8080/api/media/upload/multiple",
+
+          "protocol": "http",
+
+          "host": ["localhost"],
+
+          "port": "8080",
+
+          "path": ["api", "media", "upload", "multiple"]
+
+  }
+
+  },
+
+  "response": []
+
+  },
+
+  {
+
+  "name": "Get Presigned URL (Single)",
+
+  "request": {
+
+  "method": "GET",
+
+  "header": [
+
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+
+  ],
+
+  "url": {
+
+          "raw": "http://localhost:8080/api/media/presign?filename={{filename}}",
+
+          "protocol": "http",
+
+          "host": ["localhost"],
+
+          "port": "8080",
+
+          "path": ["api", "media", "presign"],
+
+          "query": [
+
+            { "key": "filename", "value": "{{filename}}" }
+
+          ]
+
+  }
+
+  },
+
+  "response": []
+
+  },
+
+  {
+
+  "name": "Get Presigned URLs (Multiple)",
+
+  "request": {
+
+  "method": "POST",
+
+  "header": [
+
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" },
+
+          { "key": "Content-Type", "value": "application/json" }
+
+  ],
+
+  "body": {
+
+          "mode": "raw",
+
+          "raw": "[\n  \"a.jpg\",\n  \"b.png\"\n]"
+
+  },
+
+  "url": {
+
+          "raw": "http://localhost:8080/api/media/presign/multiple",
+
+          "protocol": "http",
+
+          "host": ["localhost"],
+
+          "port": "8080",
+
+          "path": ["api", "media", "presign", "multiple"]
+
+  }
+
+  },
+
+  "response": []
+
+  },
+
+  {
+
+  "name": "Health Check",
+
+  "request": {
+
+  "method": "GET",
+
+  "url": {
+
+          "raw": "http://localhost:8080/api/media/health",
+
+          "protocol": "http",
+
+          "host": ["localhost"],
+
+          "port": "8080",
+
+          "path": ["api", "media", "health"]
+
+  }
+
+  },
+
+  "response": []
+
+  }
+
+  ],
+
+  "variable": [
+
+  { "key": "filename", "value": "test.jpg" }
+
+  ]
+
+}
+

@@ -24,6 +24,115 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/presign": {
+            "get": {
+                "description": "Get a presigned URL to upload a file directly to S3",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "media"
+                ],
+                "summary": "Get presigned URL for single file upload",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tên file muốn upload",
+                        "name": "filename",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Folder path in S3 (default: uploads/)",
+                        "name": "folder",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/presign/multiple": {
+            "post": {
+                "description": "Get presigned URLs to upload multiple files directly to S3",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "media"
+                ],
+                "summary": "Get presigned URLs for multiple files",
+                "parameters": [
+                    {
+                        "description": "Danh sách tên file muốn upload",
+                        "name": "filenames",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Folder path in S3 (default: uploads/)",
+                        "name": "folder",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/upload": {
             "post": {
                 "description": "Upload a file to AWS S3",
@@ -56,19 +165,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/main.UploadResponse"
+                            "$ref": "#/definitions/models.UploadResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -106,20 +215,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/models.MultipleUploadResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/main.ErrorResponse"
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -127,7 +235,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "main.ErrorResponse": {
+        "models.ErrorResponse": {
             "type": "object",
             "properties": {
                 "details": {
@@ -140,7 +248,53 @@ const docTemplate = `{
                 }
             }
         },
-        "main.UploadResponse": {
+        "models.FailedUpload": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "File quá lớn (max 50MB)"
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "large_file.jpg"
+                }
+            }
+        },
+        "models.MultipleUploadResponse": {
+            "type": "object",
+            "properties": {
+                "failed": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.FailedUpload"
+                    }
+                },
+                "failed_count": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Uploaded 8/10 files successfully"
+                },
+                "success_count": {
+                    "type": "integer",
+                    "example": 8
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "uploaded": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.UploadResponse"
+                    }
+                }
+            }
+        },
+        "models.UploadResponse": {
             "type": "object",
             "properties": {
                 "filename": {

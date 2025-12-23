@@ -1,6 +1,6 @@
 basePath: /api
 definitions:
-  main.ErrorResponse:
+  models.ErrorResponse:
     properties:
       details:
         example: Missing file parameter
@@ -9,7 +9,39 @@ definitions:
         example: Invalid request
         type: string
     type: object
-  main.UploadResponse:
+  models.FailedUpload:
+    properties:
+      error:
+        example: File quá lớn (max 50MB)
+        type: string
+      filename:
+        example: large_file.jpg
+        type: string
+    type: object
+  models.MultipleUploadResponse:
+    properties:
+      failed:
+        items:
+          $ref: '#/definitions/models.FailedUpload'
+        type: array
+      failed_count:
+        example: 2
+        type: integer
+      message:
+        example: Uploaded 8/10 files successfully
+        type: string
+      success_count:
+        example: 8
+        type: integer
+      total:
+        example: 10
+        type: integer
+      uploaded:
+        items:
+          $ref: '#/definitions/models.UploadResponse'
+        type: array
+    type: object
+  models.UploadResponse:
     properties:
       filename:
         example: image.jpg
@@ -44,6 +76,78 @@ info:
   title: Media Service API
   version: "1.0"
 paths:
+  /presign:
+    get:
+      consumes:
+      - application/json
+      description: Get a presigned URL to upload a file directly to S3
+      parameters:
+      - description: Tên file muốn upload
+        in: query
+        name: filename
+        required: true
+        type: string
+      - description: 'Folder path in S3 (default: uploads/)'
+        in: query
+        name: folder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get presigned URL for single file upload
+      tags:
+      - media
+  /presign/multiple:
+    post:
+      consumes:
+      - application/json
+      description: Get presigned URLs to upload multiple files directly to S3
+      parameters:
+      - description: Danh sách tên file muốn upload
+        in: body
+        name: filenames
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      - description: 'Folder path in S3 (default: uploads/)'
+        in: query
+        name: folder
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Get presigned URLs for multiple files
+      tags:
+      - media
   /upload:
     post:
       consumes:
@@ -65,15 +169,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/main.UploadResponse'
+            $ref: '#/definitions/models.UploadResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/main.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
       summary: Upload a single file
       tags:
       - media
@@ -98,16 +202,15 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/models.MultipleUploadResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/main.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/main.ErrorResponse'
+            $ref: '#/definitions/models.ErrorResponse'
       summary: Upload multiple files
       tags:
       - media

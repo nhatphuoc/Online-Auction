@@ -24,6 +24,73 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/orders": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all orders in the system (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Get all orders",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Order"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/orders": {
             "get": {
                 "security": [
@@ -44,17 +111,15 @@ const docTemplate = `{
                 "summary": "Get user orders",
                 "parameters": [
                     {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
+                        "type": "string",
+                        "description": "Filter by role: buyer or seller",
+                        "name": "role",
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Page size",
-                        "name": "page_size",
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
                         "in": "query"
                     }
                 ],
@@ -62,7 +127,10 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.OrderListResponse"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Order"
+                            }
                         }
                     },
                     "401": {
@@ -182,13 +250,6 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
                     }
                 }
             }
@@ -200,7 +261,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Cancel an order (buyer or seller can cancel)",
+                "description": "Seller can cancel order at any time before completion",
                 "consumes": [
                     "application/json"
                 ],
@@ -220,15 +281,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Cancel reason",
-                        "name": "data",
+                        "description": "Cancel data",
+                        "name": "cancel",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/models.CancelOrderRequest"
                         }
                     }
                 ],
@@ -236,8 +294,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/models.Order"
                         }
                     },
                     "400": {
@@ -254,15 +311,80 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
+                    }
+                }
+            }
+        },
+        "/orders/{id}/confirm-delivery": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Buyer confirms that they received the product",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Confirm delivery",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Order"
+                        }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -278,7 +400,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get all messages for an order chat",
+                "description": "Get all chat messages for an order",
                 "consumes": [
                     "application/json"
                 ],
@@ -288,7 +410,7 @@ const docTemplate = `{
                 "tags": [
                     "orders"
                 ],
-                "summary": "Get order messages",
+                "summary": "Get messages",
                 "parameters": [
                     {
                         "type": "integer",
@@ -296,6 +418,20 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Limit",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset",
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -322,15 +458,15 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -344,7 +480,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Send a message in order chat (buyer or seller)",
+                "description": "Send a chat message between buyer and seller",
                 "consumes": [
                     "application/json"
                 ],
@@ -377,8 +513,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/models.OrderMessage"
                         }
                     },
                     "400": {
@@ -395,15 +530,89 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
+                    }
+                }
+            }
+        },
+        "/orders/{id}/pay": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Buyer pays for the order",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Pay for order",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    {
+                        "description": "Payment data",
+                        "name": "payment",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.PaymentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Order"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -419,7 +628,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Rate an order (buyer rates seller or seller rates buyer)",
+                "description": "Buyer or seller rates the transaction",
                 "consumes": [
                     "application/json"
                 ],
@@ -452,8 +661,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/models.OrderRating"
                         }
                     },
                     "400": {
@@ -470,15 +678,15 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -489,7 +697,7 @@ const docTemplate = `{
         },
         "/orders/{id}/rating": {
             "get": {
-                "description": "Get rating for an order",
+                "description": "Get rating information for an order",
                 "consumes": [
                     "application/json"
                 ],
@@ -499,7 +707,7 @@ const docTemplate = `{
                 "tags": [
                     "orders"
                 ],
-                "summary": "Get order rating",
+                "summary": "Get rating",
                 "parameters": [
                     {
                         "type": "integer",
@@ -516,22 +724,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.OrderRating"
                         }
                     },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
                     "404": {
                         "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -540,14 +734,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/orders/{id}/status": {
-            "patch": {
+        "/orders/{id}/shipping-address": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update order status (buyer or seller depending on status)",
+                "description": "Buyer provides shipping address",
                 "consumes": [
                     "application/json"
                 ],
@@ -557,7 +751,7 @@ const docTemplate = `{
                 "tags": [
                     "orders"
                 ],
-                "summary": "Update order status",
+                "summary": "Provide shipping address",
                 "parameters": [
                     {
                         "type": "integer",
@@ -567,12 +761,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Status update data",
-                        "name": "status",
+                        "description": "Shipping address data",
+                        "name": "address",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.UpdateOrderStatusRequest"
+                            "$ref": "#/definitions/models.ShippingAddressRequest"
                         }
                     }
                 ],
@@ -580,8 +774,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/models.Order"
                         }
                     },
                     "400": {
@@ -598,15 +791,129 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
+                    }
+                }
+            }
+        },
+        "/orders/{id}/shipping-invoice": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Seller sends shipping invoice and tracking number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Send shipping invoice",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Order ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    {
+                        "description": "Shipping invoice data",
+                        "name": "invoice",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ShippingInvoiceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Order"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}/rating": {
+            "get": {
+                "description": "Get a user's rating statistics (total reviews and good reviews)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Get user rating",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -617,6 +924,19 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.CancelOrderRequest": {
+            "type": "object",
+            "required": [
+                "cancel_reason"
+            ],
+            "properties": {
+                "cancel_reason": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 10
+                }
+            }
+        },
         "models.CreateOrderRequest": {
             "type": "object",
             "required": [
@@ -680,6 +1000,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.OrderMessage"
                     }
                 },
+                "paid_at": {
+                    "description": "Thời gian thanh toán",
+                    "type": "string"
+                },
                 "payment_method": {
                     "description": "Phương thức thanh toán",
                     "type": "string"
@@ -724,29 +1048,6 @@ const docTemplate = `{
                 },
                 "winner_id": {
                     "description": "Người thắng (buyer)",
-                    "type": "integer"
-                }
-            }
-        },
-        "models.OrderListResponse": {
-            "type": "object",
-            "properties": {
-                "orders": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Order"
-                    }
-                },
-                "page": {
-                    "type": "integer"
-                },
-                "page_size": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                },
-                "total_pages": {
                     "type": "integer"
                 }
             }
@@ -816,9 +1117,9 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "PENDING_PAYMENT",
-                "PAYMENT_CONFIRMED",
+                "PAID",
                 "ADDRESS_PROVIDED",
-                "INVOICE_SENT",
+                "SHIPPING",
                 "DELIVERED",
                 "COMPLETED",
                 "CANCELLED"
@@ -828,28 +1129,50 @@ const docTemplate = `{
                 "OrderStatusCancelled": "Đã hủy",
                 "OrderStatusCompleted": "Hoàn thành",
                 "OrderStatusDelivered": "Đã giao hàng",
-                "OrderStatusInvoiceSent": "Người bán đã gửi hóa đơn vận chuyển",
-                "OrderStatusPaymentConfirmed": "Người mua đã thanh toán",
-                "OrderStatusPendingPayment": "Chờ người mua thanh toán"
+                "OrderStatusPaid": "Đã thanh toán",
+                "OrderStatusPendingPayment": "Chờ người mua thanh toán",
+                "OrderStatusShipping": "Đang vận chuyển"
             },
             "x-enum-descriptions": [
                 "Chờ người mua thanh toán",
-                "Người mua đã thanh toán",
+                "Đã thanh toán",
                 "Người mua đã gửi địa chỉ",
-                "Người bán đã gửi hóa đơn vận chuyển",
+                "Đang vận chuyển",
                 "Đã giao hàng",
                 "Hoàn thành",
                 "Đã hủy"
             ],
             "x-enum-varnames": [
                 "OrderStatusPendingPayment",
-                "OrderStatusPaymentConfirmed",
+                "OrderStatusPaid",
                 "OrderStatusAddressProvided",
-                "OrderStatusInvoiceSent",
+                "OrderStatusShipping",
                 "OrderStatusDelivered",
                 "OrderStatusCompleted",
                 "OrderStatusCancelled"
             ]
+        },
+        "models.PaymentRequest": {
+            "type": "object",
+            "required": [
+                "payment_method"
+            ],
+            "properties": {
+                "payment_method": {
+                    "type": "string",
+                    "enum": [
+                        "MOMO",
+                        "ZALOPAY",
+                        "VNPAY",
+                        "STRIPE",
+                        "PAYPAL"
+                    ]
+                },
+                "payment_proof": {
+                    "description": "Optional: URL to payment proof image",
+                    "type": "string"
+                }
+            }
         },
         "models.RateOrderRequest": {
             "type": "object",
@@ -858,6 +1181,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "comment": {
+                    "description": "Optional comment",
                     "type": "string",
                     "maxLength": 500
                 },
@@ -884,35 +1208,39 @@ const docTemplate = `{
                 }
             }
         },
-        "models.UpdateOrderStatusRequest": {
+        "models.ShippingAddressRequest": {
             "type": "object",
             "required": [
-                "status"
+                "shipping_address",
+                "shipping_phone"
             ],
             "properties": {
-                "cancel_reason": {
-                    "type": "string"
-                },
-                "payment_method": {
-                    "type": "string"
-                },
-                "payment_proof": {
-                    "type": "string"
-                },
                 "shipping_address": {
-                    "type": "string"
-                },
-                "shipping_invoice": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 500,
+                    "minLength": 10
                 },
                 "shipping_phone": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "minLength": 10
+                }
+            }
+        },
+        "models.ShippingInvoiceRequest": {
+            "type": "object",
+            "required": [
+                "tracking_number"
+            ],
+            "properties": {
+                "shipping_invoice": {
+                    "description": "Optional: URL to shipping invoice document",
                     "type": "string"
-                },
-                "status": {
-                    "$ref": "#/definitions/models.OrderStatus"
                 },
                 "tracking_number": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 5
                 }
             }
         }

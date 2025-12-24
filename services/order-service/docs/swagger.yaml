@@ -1,5 +1,14 @@
 basePath: /api
 definitions:
+  models.CancelOrderRequest:
+    properties:
+      cancel_reason:
+        maxLength: 500
+        minLength: 10
+        type: string
+    required:
+    - cancel_reason
+    type: object
   models.CreateOrderRequest:
     properties:
       auction_id:
@@ -45,6 +54,9 @@ definitions:
         items:
           $ref: '#/definitions/models.OrderMessage'
         type: array
+      paid_at:
+        description: Thời gian thanh toán
+        type: string
       payment_method:
         description: Phương thức thanh toán
         type: string
@@ -76,21 +88,6 @@ definitions:
         type: string
       winner_id:
         description: Người thắng (buyer)
-        type: integer
-    type: object
-  models.OrderListResponse:
-    properties:
-      orders:
-        items:
-          $ref: '#/definitions/models.Order'
-        type: array
-      page:
-        type: integer
-      page_size:
-        type: integer
-      total:
-        type: integer
-      total_pages:
         type: integer
     type: object
   models.OrderMessage:
@@ -138,9 +135,9 @@ definitions:
   models.OrderStatus:
     enum:
     - PENDING_PAYMENT
-    - PAYMENT_CONFIRMED
+    - PAID
     - ADDRESS_PROVIDED
-    - INVOICE_SENT
+    - SHIPPING
     - DELIVERED
     - COMPLETED
     - CANCELLED
@@ -150,28 +147,45 @@ definitions:
       OrderStatusCancelled: Đã hủy
       OrderStatusCompleted: Hoàn thành
       OrderStatusDelivered: Đã giao hàng
-      OrderStatusInvoiceSent: Người bán đã gửi hóa đơn vận chuyển
-      OrderStatusPaymentConfirmed: Người mua đã thanh toán
+      OrderStatusPaid: Đã thanh toán
       OrderStatusPendingPayment: Chờ người mua thanh toán
+      OrderStatusShipping: Đang vận chuyển
     x-enum-descriptions:
     - Chờ người mua thanh toán
-    - Người mua đã thanh toán
+    - Đã thanh toán
     - Người mua đã gửi địa chỉ
-    - Người bán đã gửi hóa đơn vận chuyển
+    - Đang vận chuyển
     - Đã giao hàng
     - Hoàn thành
     - Đã hủy
     x-enum-varnames:
     - OrderStatusPendingPayment
-    - OrderStatusPaymentConfirmed
+    - OrderStatusPaid
     - OrderStatusAddressProvided
-    - OrderStatusInvoiceSent
+    - OrderStatusShipping
     - OrderStatusDelivered
     - OrderStatusCompleted
     - OrderStatusCancelled
+  models.PaymentRequest:
+    properties:
+      payment_method:
+        enum:
+        - MOMO
+        - ZALOPAY
+        - VNPAY
+        - STRIPE
+        - PAYPAL
+        type: string
+      payment_proof:
+        description: 'Optional: URL to payment proof image'
+        type: string
+    required:
+    - payment_method
+    type: object
   models.RateOrderRequest:
     properties:
       comment:
+        description: Optional comment
         maxLength: 500
         type: string
       rating:
@@ -192,26 +206,31 @@ definitions:
     required:
     - message
     type: object
-  models.UpdateOrderStatusRequest:
+  models.ShippingAddressRequest:
     properties:
-      cancel_reason:
-        type: string
-      payment_method:
-        type: string
-      payment_proof:
-        type: string
       shipping_address:
-        type: string
-      shipping_invoice:
+        maxLength: 500
+        minLength: 10
         type: string
       shipping_phone:
-        type: string
-      status:
-        $ref: '#/definitions/models.OrderStatus'
-      tracking_number:
+        maxLength: 20
+        minLength: 10
         type: string
     required:
-    - status
+    - shipping_address
+    - shipping_phone
+    type: object
+  models.ShippingInvoiceRequest:
+    properties:
+      shipping_invoice:
+        description: 'Optional: URL to shipping invoice document'
+        type: string
+      tracking_number:
+        maxLength: 100
+        minLength: 5
+        type: string
+    required:
+    - tracking_number
     type: object
 host: localhost:3000
 info:
@@ -228,21 +247,25 @@ info:
   title: Order Service API
   version: "1.0"
 paths:
-  /orders:
+  /admin/orders:
     get:
       consumes:
       - application/json
-      description: Get all orders for current user (as buyer or seller)
+      description: Get all orders in the system (admin only)
       parameters:
-      - default: 1
-        description: Page number
+      - description: Filter by status
         in: query
-        name: page
+        name: status
+        type: string
+      - default: 50
+        description: Limit
+        in: query
+        name: limit
         type: integer
-      - default: 10
-        description: Page size
+      - default: 0
+        description: Offset
         in: query
-        name: page_size
+        name: offset
         type: integer
       produces:
       - application/json
@@ -250,7 +273,47 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.OrderListResponse'
+            items:
+              $ref: '#/definitions/models.Order'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all orders
+      tags:
+      - orders
+  /orders:
+    get:
+      consumes:
+      - application/json
+      description: Get all orders for current user (as buyer or seller)
+      parameters:
+      - description: 'Filter by role: buyer or seller'
+        in: query
+        name: role
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Order'
+            type: array
         "401":
           description: Unauthorized
           schema:
@@ -330,11 +393,6 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
       security:
       - BearerAuth: []
       summary: Get order by ID
@@ -344,29 +402,26 @@ paths:
     post:
       consumes:
       - application/json
-      description: Cancel an order (buyer or seller can cancel)
+      description: Seller can cancel order at any time before completion
       parameters:
       - description: Order ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Cancel reason
+      - description: Cancel data
         in: body
-        name: data
+        name: cancel
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/models.CancelOrderRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/models.Order'
         "400":
           description: Bad Request
           schema:
@@ -377,13 +432,13 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "404":
-          description: Not Found
+        "403":
+          description: Forbidden
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
+        "404":
+          description: Not Found
           schema:
             additionalProperties: true
             type: object
@@ -392,16 +447,69 @@ paths:
       summary: Cancel order
       tags:
       - orders
-  /orders/{id}/messages:
-    get:
+  /orders/{id}/confirm-delivery:
+    post:
       consumes:
       - application/json
-      description: Get all messages for an order chat
+      description: Buyer confirms that they received the product
       parameters:
       - description: Order ID
         in: path
         name: id
         required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Confirm delivery
+      tags:
+      - orders
+  /orders/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Get all chat messages for an order
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 50
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
         type: integer
       produces:
       - application/json
@@ -422,25 +530,25 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
         "404":
           description: Not Found
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
       security:
       - BearerAuth: []
-      summary: Get order messages
+      summary: Get messages
       tags:
       - orders
     post:
       consumes:
       - application/json
-      description: Send a message in order chat (buyer or seller)
+      description: Send a chat message between buyer and seller
       parameters:
       - description: Order ID
         in: path
@@ -459,8 +567,7 @@ paths:
         "201":
           description: Created
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/models.OrderMessage'
         "400":
           description: Bad Request
           schema:
@@ -471,13 +578,13 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "404":
-          description: Not Found
+        "403":
+          description: Forbidden
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
+        "404":
+          description: Not Found
           schema:
             additionalProperties: true
             type: object
@@ -486,11 +593,60 @@ paths:
       summary: Send message
       tags:
       - orders
+  /orders/{id}/pay:
+    post:
+      consumes:
+      - application/json
+      description: Buyer pays for the order
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Payment data
+        in: body
+        name: payment
+        required: true
+        schema:
+          $ref: '#/definitions/models.PaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Pay for order
+      tags:
+      - orders
   /orders/{id}/rate:
     post:
       consumes:
       - application/json
-      description: Rate an order (buyer rates seller or seller rates buyer)
+      description: Buyer or seller rates the transaction
       parameters:
       - description: Order ID
         in: path
@@ -509,8 +665,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/models.OrderRating'
         "400":
           description: Bad Request
           schema:
@@ -521,13 +676,13 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "404":
-          description: Not Found
+        "403":
+          description: Forbidden
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
+        "404":
+          description: Not Found
           schema:
             additionalProperties: true
             type: object
@@ -540,7 +695,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get rating for an order
+      description: Get rating information for an order
       parameters:
       - description: Order ID
         in: path
@@ -554,49 +709,38 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/models.OrderRating'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
         "404":
           description: Not Found
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Get order rating
+      summary: Get rating
       tags:
       - orders
-  /orders/{id}/status:
-    patch:
+  /orders/{id}/shipping-address:
+    post:
       consumes:
       - application/json
-      description: Update order status (buyer or seller depending on status)
+      description: Buyer provides shipping address
       parameters:
       - description: Order ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Status update data
+      - description: Shipping address data
         in: body
-        name: status
+        name: address
         required: true
         schema:
-          $ref: '#/definitions/models.UpdateOrderStatusRequest'
+          $ref: '#/definitions/models.ShippingAddressRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/models.Order'
         "400":
           description: Bad Request
           schema:
@@ -607,21 +751,97 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
         "404":
           description: Not Found
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Provide shipping address
+      tags:
+      - orders
+  /orders/{id}/shipping-invoice:
+    post:
+      consumes:
+      - application/json
+      description: Seller sends shipping invoice and tracking number
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Shipping invoice data
+        in: body
+        name: invoice
+        required: true
+        schema:
+          $ref: '#/definitions/models.ShippingInvoiceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
           schema:
             additionalProperties: true
             type: object
       security:
       - BearerAuth: []
-      summary: Update order status
+      summary: Send shipping invoice
       tags:
       - orders
+  /users/{id}/rating:
+    get:
+      consumes:
+      - application/json
+      description: Get a user's rating statistics (total reviews and good reviews)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get user rating
+      tags:
+      - users
 schemes:
 - http
 - https

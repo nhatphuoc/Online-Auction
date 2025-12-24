@@ -279,10 +279,15 @@ func (h *UploadHandler) GetPresignedURL(c *fiber.Ctx) error {
 			Details: err.Error(),
 		})
 	}
+	
+	// Generate the final image URL
+	imageURL := config.GetS3URL(h.cfg, key)
+	
 	return c.JSON(fiber.Map{
-		"url":        presigned.URL,
-		"key":        key,
-		"expires_in": int(presignDuration.Seconds()),
+		"presigned_url": presigned.URL,
+		"image_url":     imageURL,
+		"key":           key,
+		"expires_in":    int(presignDuration.Seconds()),
 	})
 }
 
@@ -331,11 +336,16 @@ func (h *UploadHandler) GetPresignedURLs(c *fiber.Ctx) error {
 			})
 			continue
 		}
+		
+		// Generate the final image URL
+		imageURL := config.GetS3URL(h.cfg, key)
+		
 		result = append(result, map[string]interface{}{
-			"filename":   filename,
-			"url":        presigned.URL,
-			"key":        key,
-			"expires_in": int(presignDuration.Seconds()),
+			"filename":      filename,
+			"presigned_url": presigned.URL,
+			"image_url":     imageURL,
+			"key":           key,
+			"expires_in":    int(presignDuration.Seconds()),
 		})
 	}
 	return c.JSON(fiber.Map{

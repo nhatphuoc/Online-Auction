@@ -65,11 +65,16 @@ http://<api-gateway-host>/api/media
 - **Response:**
 ```json
 {
-  "url": "https://...",
+  "presigned_url": "https://s3.amazonaws.com/...",
+  "image_url": "https://your-bucket.s3.region.amazonaws.com/uploads/abc123.jpg",
   "key": "uploads/abc123.jpg",
   "expires_in": 900
 }
 ```
+- **Cách sử dụng:**
+  1. Gọi API này để lấy `presigned_url` và `image_url`
+  2. Dùng `presigned_url` để upload file trực tiếp lên S3 (PUT request với file content)
+  3. Sau khi upload thành công, lưu `image_url` vào database để hiển thị ảnh
 
 ---
 
@@ -85,11 +90,28 @@ http://<api-gateway-host>/api/media
 ```json
 {
   "presigned": [
-    { "filename": "a.jpg", "url": "...", "key": "...", "expires_in": 900 },
-    { "filename": "b.png", "url": "...", "key": "...", "expires_in": 900 }
+    { 
+      "filename": "a.jpg", 
+      "presigned_url": "https://s3.amazonaws.com/...", 
+      "image_url": "https://your-bucket.s3.region.amazonaws.com/uploads/a.jpg",
+      "key": "uploads/a.jpg", 
+      "expires_in": 900 
+    },
+    { 
+      "filename": "b.png", 
+      "presigned_url": "https://s3.amazonaws.com/...", 
+      "image_url": "https://your-bucket.s3.region.amazonaws.com/uploads/b.png",
+      "key": "uploads/b.png", 
+      "expires_in": 900 
+    }
   ]
 }
 ```
+- **Cách sử dụng:**
+  1. Gọi API này với danh sách tên file
+  2. Nhận về mảng chứa `presigned_url` và `image_url` cho từng file
+  3. Upload từng file lên S3 bằng `presigned_url` tương ứng
+  4. Lưu các `image_url` vào database
 
 ---
 

@@ -5,218 +5,112 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
-
-  {
-
-  "name": "Upload Single File",
-
-  "request": {
-
-  "method": "POST",
-
-  "header": [
-
+    {
+      "name": "Upload Single File",
+      "request": {
+        "method": "POST",
+        "header": [
           { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
-
-  ],
-
-  "body": {
-
+        ],
+        "body": {
           "mode": "formdata",
-
           "formdata": [
-
             { "key": "file", "type": "file", "src": "" }
-
           ]
-
-  },
-
-  "url": {
-
+        },
+        "url": {
           "raw": "http://localhost:8080/api/media/upload",
-
           "protocol": "http",
-
           "host": ["localhost"],
-
           "port": "8080",
-
           "path": ["api", "media", "upload"]
-
-  }
-
-  },
-
-  "response": []
-
-  },
-
-  {
-
-  "name": "Upload Multiple Files",
-
-  "request": {
-
-  "method": "POST",
-
-  "header": [
-
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Upload Multiple Files",
+      "request": {
+        "method": "POST",
+        "header": [
           { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
-
-  ],
-
-  "body": {
-
+        ],
+        "body": {
           "mode": "formdata",
-
           "formdata": [
-
             { "key": "files", "type": "file", "src": "", "multiple": true }
-
           ]
-
-  },
-
-  "url": {
-
+        },
+        "url": {
           "raw": "http://localhost:8080/api/media/upload/multiple",
-
           "protocol": "http",
-
           "host": ["localhost"],
-
           "port": "8080",
-
           "path": ["api", "media", "upload", "multiple"]
-
-  }
-
-  },
-
-  "response": []
-
-  },
-
-  {
-
-  "name": "Get Presigned URL (Single)",
-
-  "request": {
-
-  "method": "GET",
-
-  "header": [
-
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Presigned URL (Single)",
+      "request": {
+        "method": "GET",
+        "header": [
           { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
-
-  ],
-
-  "url": {
-
+        ],
+        "url": {
           "raw": "http://localhost:8080/api/media/presign?filename={{filename}}",
-
           "protocol": "http",
-
           "host": ["localhost"],
-
           "port": "8080",
-
           "path": ["api", "media", "presign"],
-
           "query": [
-
             { "key": "filename", "value": "{{filename}}" }
-
           ]
-
-  }
-
-  },
-
-  "response": []
-
-  },
-
-  {
-
-  "name": "Get Presigned URLs (Multiple)",
-
-  "request": {
-
-  "method": "POST",
-
-  "header": [
-
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Presigned URLs (Multiple)",
+      "request": {
+        "method": "POST",
+        "header": [
           { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" },
-
           { "key": "Content-Type", "value": "application/json" }
-
-  ],
-
-  "body": {
-
+        ],
+        "body": {
           "mode": "raw",
-
           "raw": "[\n  \"a.jpg\",\n  \"b.png\"\n]"
-
-  },
-
-  "url": {
-
+        },
+        "url": {
           "raw": "http://localhost:8080/api/media/presign/multiple",
-
           "protocol": "http",
-
           "host": ["localhost"],
-
           "port": "8080",
-
           "path": ["api", "media", "presign", "multiple"]
-
-  }
-
-  },
-
-  "response": []
-
-  },
-
-  {
-
-  "name": "Health Check",
-
-  "request": {
-
-  "method": "GET",
-
-  "url": {
-
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": {
           "raw": "http://localhost:8080/api/media/health",
-
           "protocol": "http",
-
           "host": ["localhost"],
-
           "port": "8080",
-
           "path": ["api", "media", "health"]
-
-  }
-
-  },
-
-  "response": []
-
-  }
-
+        }
+      },
+      "response": []
+    }
   ],
-
   "variable": [
-
-  { "key": "filename", "value": "test.jpg" }
-
+    { "key": "filename", "value": "test.jpg" },
+    { "key": "user_token", "value": "your_jwt_token_here" }
   ]
-
 }
 

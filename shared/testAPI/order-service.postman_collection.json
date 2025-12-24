@@ -1,0 +1,177 @@
+{
+  "info": {
+    "_postman_id": "order-service-collection-2025",
+    "name": "Order Service API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Test API cho Order Service"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/health", "host": ["{{base_url}}"], "path": ["api", "health"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Tạo đơn hàng mới",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"auction_id\": 1,\n  \"winner_id\": 6,\n  \"seller_id\": 2,\n  \"final_price\": 2500000\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/orders", "host": ["{{base_url}}"], "path": ["api", "orders"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Lấy danh sách đơn hàng của user",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": { "raw": "{{base_url}}/api/orders?role=buyer", "host": ["{{base_url}}"], "path": ["api", "orders"], "query": [ { "key": "role", "value": "buyer" } ] }
+      },
+      "response": []
+    },
+    {
+      "name": "Lấy chi tiết đơn hàng",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": { "raw": "{{base_url}}/api/orders/1", "host": ["{{base_url}}"], "path": ["api", "orders", "1"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Thanh toán đơn hàng",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"payment_method\": \"MOMO\",\n  \"payment_proof\": \"https://example.com/payment.jpg\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/orders/1/pay", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "pay"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Cung cấp địa chỉ giao hàng",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shipping_address\": \"123 Đường ABC, Quận 1, TP.HCM\",\n  \"shipping_phone\": \"0901234567\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/orders/1/shipping-address", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "shipping-address"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Gửi hóa đơn vận chuyển (seller)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tracking_number\": \"VN123456789\",\n  \"shipping_invoice\": \"https://example.com/invoice.pdf\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/orders/1/shipping-invoice", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "shipping-invoice"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Xác nhận đã nhận hàng (buyer)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": { "raw": "{{base_url}}/api/orders/1/confirm-delivery", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "confirm-delivery"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Hủy đơn hàng (seller)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cancel_reason\": \"Lý do hủy đơn\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/orders/1/cancel", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "cancel"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Gửi tin nhắn chat",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Xin chào, tôi đã thanh toán!\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/orders/1/messages", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "messages"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Lấy danh sách tin nhắn chat",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": { "raw": "{{base_url}}/api/orders/1/messages?limit=50&offset=0", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "messages"], "query": [ { "key": "limit", "value": "50" }, { "key": "offset", "value": "0" } ] }
+      },
+      "response": []
+    },
+    {
+      "name": "Đánh giá đơn hàng",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"rating\": 1,\n  \"comment\": \"Rất tốt!\"\n}"
+        },
+        "url": { "raw": "{{base_url}}/api/orders/1/rate", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "rate"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Lấy đánh giá đơn hàng",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/orders/1/rating", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "rating"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Lấy thống kê rating của user",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/api/users/6/rating", "host": ["{{base_url}}"], "path": ["api", "users", "6", "rating"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Lấy tất cả đơn hàng (admin)",
+      "request": {
+        "method": "GET",
+        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+        "url": { "raw": "{{base_url}}/api/admin/orders?status=PAID&limit=50&offset=0", "host": ["{{base_url}}"], "path": ["api", "admin", "orders"], "query": [ { "key": "status", "value": "PAID" }, { "key": "limit", "value": "50" }, { "key": "offset", "value": "0" } ] }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8086" },
+    { "key": "token", "value": "<JWT_TOKEN>" }
+  ]
+}

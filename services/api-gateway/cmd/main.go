@@ -101,7 +101,7 @@ func main() {
 	}))
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization, X-User-Token, X-Api-Gateway, X-Auth-Internal-Service",
+		AllowHeaders: "*",
 		AllowMethods: "GET, POST, PUT, DELETE, PATCH",
 	}))
 
@@ -138,6 +138,7 @@ func main() {
 
 	// Order service
 	protected.All("/orders/*", middleware.ProxyMiddleware(cfg, cfg.OrderServiceName), proxyHandler.ProxyRequest(cfg.OrderServiceURL))
+	protected.All("/order-websocket/*", middleware.ProxyMiddleware(cfg, cfg.OrderServiceName), proxyHandler.OrderProxyWebSocket)
 
 	// Payment service
 	protected.All("/payments/*", middleware.ProxyMiddleware(cfg, cfg.PaymentServiceName), proxyHandler.ProxyRequest(cfg.PaymentServiceURL))

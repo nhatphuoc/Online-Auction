@@ -7,9 +7,9 @@ import (
 )
 
 func init() {
-	err := godotenv.Load(".env")
+	err := godotenv.Load("../../shared/.env")
 	if err != nil {
-		// Không panic, có thể dùng environment variables
+		panic("Error loading .env file")
 	}
 }
 
@@ -71,7 +71,7 @@ type Config struct {
 
 func LoadConfig() *Config {
 	return &Config{
-		Port: getEnv("PORT", "8080"),
+		Port: getEnv("CATEGORY_SERVICE_PORT", "8082"),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),

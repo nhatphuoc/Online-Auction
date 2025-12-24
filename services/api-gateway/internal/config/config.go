@@ -31,6 +31,7 @@ type Config struct {
 	CommentServiceURL          string
 	AutoBiddingServiceURL      string
 	CommentServiceWebSocketURL string
+	OrderServiceWebSocketURL   string
 
 	OTelEndpoint            string
 	OTelServiceName         string
@@ -71,6 +72,7 @@ func LoadConfig() *Config {
 		CommentServiceURL:          getEnv("COMMENT_SERVICE_URL", "http://localhost:8091"),
 		AutoBiddingServiceURL:      getEnv("AUTO_BIDDING_SERVICE_URL", "http://localhost:8092"),
 		CommentServiceWebSocketURL: getEnv("COMMENT_SERVICE_WEBSOCKET_URL", "ws://localhost:8091/ws"),
+		OrderServiceWebSocketURL:   getEnv("ORDER_SERVICE_WEBSOCKET_URL", "ws://localhost:8086/ws"),
 
 		APIGatewayName:          getEnv("API_GATEWAY_NAME", "api-gateway"),
 		CategoryServiceName:     getEnv("CATEGORY_SERVICE_NAME", "category-service"),

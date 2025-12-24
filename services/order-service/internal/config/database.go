@@ -48,13 +48,14 @@ func InitSchema(db *pg.DB) error {
 			shipping_phone VARCHAR(20),
 			tracking_number VARCHAR(100),
 			shipping_invoice TEXT,
+			paid_at TIMESTAMP,
 			delivered_at TIMESTAMP,
 			completed_at TIMESTAMP,
 			cancelled_at TIMESTAMP,
 			cancel_reason TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			CONSTRAINT orders_status_check CHECK (status IN ('PENDING_PAYMENT', 'PAYMENT_CONFIRMED', 'ADDRESS_PROVIDED', 'INVOICE_SENT', 'DELIVERED', 'COMPLETED', 'CANCELLED'))
+			CONSTRAINT orders_status_check CHECK (status IN ('PENDING_PAYMENT', 'PAID', 'ADDRESS_PROVIDED', 'SHIPPING', 'DELIVERED', 'COMPLETED', 'CANCELLED'))
 		)
 	`)
 	if err != nil {

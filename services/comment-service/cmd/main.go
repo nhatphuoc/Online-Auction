@@ -14,7 +14,6 @@ import (
 	_ "comment_service/docs"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
@@ -69,15 +68,20 @@ func main() {
 		},
 	})
 
+	// app.Use(cors.New(cors.Config{
+	// 	AllowOrigins: "*",
+	// 	// Cho phép tất cả các Header tùy chỉnh từ trình duyệt
+	// 	AllowHeaders: "*",
+	// 	// Thêm OPTIONS vào danh sách phương thức để trình duyệt có thể thực hiện Preflight check
+	// 	AllowMethods: "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+	// 	// Tùy chọn: Cho phép trình duyệt lưu kết quả Preflight trong một khoảng thời gian (giây)
+	// 	MaxAge: 86400,
+	// }))
+
 	// Middleware
 	app.Use(recover.New())
 	app.Use(fiberlogger.New(fiberlogger.Config{
 		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
-	}))
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET, POST, PUT, DELETE, PATCH",
 	}))
 
 	// Swagger route

@@ -6,8 +6,6 @@ import (
 	"order_service/internal/config"
 	"order_service/internal/handlers"
 	"order_service/internal/middleware"
-	"order_service/internal/repository"
-	"order_service/internal/service"
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,10 +14,10 @@ import (
 	_ "order_service/docs"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
+	"github.com/gofiber/websocket/v2"
 )
 
 // @title Order Service API
@@ -48,9 +46,6 @@ func main() {
 	// Load config
 	cfg := config.LoadConfig()
 
-	// Initialize logger (without OTel first)
-	slog.Info("Starting order_service API", "version", cfg.OTelServiceVersion, "env", cfg.OTelEnvironment)
-
 	// Connect database
 	db := config.ConnectDB(cfg)
 	defer db.Close()
@@ -58,6 +53,11 @@ func main() {
 	// Init schema
 	if err := config.InitSchema(db); err != nil {
 		log.Fatalf("Lỗi khởi tạo schema: %v", err)
+	}
+
+	// Seed sample data
+	if err := config.SeedData(db); err != nil {
+		log.Fatalf("Lỗi seeding dữ liệu: %v", err)
 	}
 
 	// Create Fiber app
@@ -78,37 +78,48 @@ func main() {
 	app.Use(fiberlogger.New(fiberlogger.Config{
 		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
 	}))
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET, POST, PUT, DELETE, PATCH",
-	}))
+	// app.Use(cors.New(cors.Config{
+	// 	AllowOrigins: "*",
+	// 	AllowHeaders: "*",
+	// 	AllowMethods: "GET, POST, PUT, DELETE, PATCH",
+	// }))
 
 	// Swagger route
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	// Initialize handlers
-	orderRepo := repository.NewOrderRepository(db)
-	orderService := service.NewOrderService(orderRepo)
-	orderHandler := handlers.NewOrderHandler(orderService)
+	// Serve static files for testing
+	app.Static("/", "./public")
 
-	// Auth middleware (extracts user info from headers set by API Gateway)
-	authMiddleware := middleware.AuthMiddleware()
+	// Initialize handlers
+	orderHandler := handlers.NewOrderHandler(db, cfg)
+	app.Get("/ws", websocket.New(orderHandler.HandleWebSocket))
 
 	// Routes
-	api := app.Group("/api")
+	api := app.Group("", middleware.ExtractUserInfo(cfg))
 
 	// Order routes
-	orders := api.Group("/orders")
-	orders.Post("/", orderHandler.CreateOrder)                                    // Create order (internal use, no auth)
-	orders.Get("/", authMiddleware, orderHandler.GetUserOrders)                   // Get user's orders (requires auth)
-	orders.Get("/:id", authMiddleware, orderHandler.GetOrderByID)                 // Get order by ID (requires auth)
-	orders.Patch("/:id/status", authMiddleware, orderHandler.UpdateOrderStatus)   // Update order status (requires auth)
-	orders.Post("/:id/cancel", authMiddleware, orderHandler.CancelOrder)          // Cancel order (requires auth)
-	orders.Post("/:id/messages", authMiddleware, orderHandler.SendMessage)        // Send message (requires auth)
-	orders.Get("/:id/messages", authMiddleware, orderHandler.GetMessages)         // Get messages (requires auth)
-	orders.Post("/:id/rate", authMiddleware, orderHandler.RateOrder)              // Rate order (requires auth)
-	orders.Get("/:id/rating", orderHandler.GetRating)                             // Get rating (public)
+	orders := api.Group("orders")
+	orders.Post("/", orderHandler.CreateOrder)                                // Create order (no auth - called by auction service)
+	orders.Get("/", orderHandler.GetUserOrders)                               // Get user's orders
+	orders.Get("/:id", orderHandler.GetOrderByID)                             // Get order by ID
+	orders.Post("/:id/pay", orderHandler.PayOrder)                            // Pay for order
+	orders.Post("/:id/shipping-address", orderHandler.ProvideShippingAddress) // Provide shipping address
+	orders.Post("/:id/shipping-invoice", orderHandler.SendShippingInvoice)    // Send shipping invoice
+	orders.Post("/:id/confirm-delivery", orderHandler.ConfirmDelivery)        // Confirm delivery
+	orders.Post("/:id/cancel", orderHandler.CancelOrder)                      // Cancel order
+	orders.Post("/:id/messages", orderHandler.SendMessage)                    // Send message
+	orders.Get("/:id/messages", orderHandler.GetMessages)                     // Get messages
+	orders.Post("/:id/rate", orderHandler.RateOrder)                          // Rate order
+	orders.Get("/:id/rating", orderHandler.GetRating)                         // Get rating (public)
+
+	// User rating routes
+	api.Get("/users/:id/rating", orderHandler.GetUserRating) // Get user rating stats (public)
+
+	// Admin routes
+	admin := api.Group("/admin", middleware.AdminMiddleware())
+	admin.Get("/orders", orderHandler.GetAllOrders) // Get all orders (admin only)
+
+	// WebSocket endpoint for order chat
 
 	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {
@@ -121,7 +132,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	// Start HTTP server trong goroutine
+	// Start HTTP server
 	go func() {
 		slog.Info("HTTP Server started", "port", cfg.Port, "swagger", "http://localhost:"+cfg.Port+"/swagger/")
 		if err := app.Listen(":" + cfg.Port); err != nil {

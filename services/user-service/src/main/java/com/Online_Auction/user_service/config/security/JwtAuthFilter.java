@@ -53,6 +53,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // 2. Parse JWT từ header X-User-Token
         String token = request.getHeader("X-User-Token");
         if (!StringUtils.isBlank(token)) {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // remove "Bearer "
+            }
+
             Claims claims = tokenParser.parseClaims(token);
 
             // Lấy role từ claim

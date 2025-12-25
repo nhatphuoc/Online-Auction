@@ -1,13 +1,25 @@
+
 # Auth Service API Documentation
+
+## Sử dụng qua API Gateway
+
+**Tất cả các endpoint của Auth Service đều được truy cập qua API Gateway:**
+
+- **Base URL:** `http://localhost:8080/api/auth`
+- **Ví dụ:** Đăng ký: `POST http://localhost:8080/api/auth/register`
+
+> **Lưu ý:** Không gọi trực tiếp `/auth` mà luôn gọi qua `/api/auth` trên API Gateway (port 8080).
+
+---
 
 Dành cho Frontend: Danh sách các endpoint của Auth Service
 
-Base URL: `/auth`
+Base URL: `/api/auth` (qua API Gateway)
 
 ---
 
 ## 1. Đăng ký tài khoản
-**POST** `/auth/register`
+**POST** `/api/auth/register`
 - **Request Body:**
 ```json
 {
@@ -30,7 +42,7 @@ Base URL: `/auth`
 ---
 
 ## 2. Xác thực OTP
-**POST** `/auth/verify-otp`
+**POST** `/api/auth/verify-otp`
 - **Request Body:**
 ```json
 {
@@ -50,7 +62,7 @@ Base URL: `/auth`
 ---
 
 ## 3. Đăng nhập
-**POST** `/auth/sign-in`
+**POST** `/api/auth/sign-in`
 - **Request Body:**
 ```json
 {
@@ -70,7 +82,7 @@ Base URL: `/auth`
 ---
 
 ## 4. Xác thực JWT
-**POST** `/auth/validate-jwt`
+**POST** `/api/auth/validate-jwt`
 - **Request Body:**
 ```json
 {
@@ -87,7 +99,7 @@ Base URL: `/auth`
 ---
 
 ## 5. Đăng nhập với Google
-**POST** `/auth/sign-in/google`
+**POST** `/api/auth/sign-in/google`
 - **Request Body:**
 ```json
 {

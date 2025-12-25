@@ -119,7 +119,7 @@ func main() {
 
 	// Auth service routes (no auth required for login/register)
 	auth := api.Group("/auth")
-	auth.All("/*", proxyHandler.ProxyRequest(cfg.AuthServiceURL))
+	auth.All("/*", middleware.ProxyMiddlewareForAuthenService(cfg), proxyHandler.ProxyRequest(cfg.AuthServiceURL))
 
 	// Protected routes - require authentication
 	protected := api.Group("", middleware.AuthMiddleware(cfg))

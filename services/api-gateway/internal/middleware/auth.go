@@ -129,6 +129,16 @@ func ProxyMiddleware(cfg *config.Config, serviceName string) fiber.Handler {
 	}
 }
 
+func ProxyMiddlewareForAuthenService(cfg *config.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+
+		c.Request().Header.Set("X-Api-Gateway", cfg.APIGatewayPrivateKey)
+		c.Request().Header.Set("X-Auth-Internal-Service", cfg.AuthInternalSecret)
+
+		return c.Next()
+	}
+}
+
 // generateInternalJWT tạo JWT ký bằng private key của API Gateway
 func generateInternalJWT(cfg *config.Config, aud string) (string, error) {
 	privPem := cfg.JWTPrivateKey

@@ -18,6 +18,9 @@ type Config struct {
 	APIGatewayPrivateKey string
 	AuthInternalSecret   string
 
+	PublicKeys  map[string]string
+	ServiceURLs map[string]string
+
 	AuthServiceURL             string
 	CategoryServiceURL         string
 	ProductServiceURL          string
@@ -94,6 +97,36 @@ func LoadConfig() *Config {
 
 		JWTPublicKeyAuthService: getEnv("JWT_PUBLIC_KEY_AUTH_SERVICE", ""),
 		JWTPrivateKey:           getEnv("JWT_PRIVATE_KEY", ""),
+
+		PublicKeys: map[string]string{
+			"api-gateway":          getEnv("JWT_PUBLIC_KEY_API_GATEWAY", ""),
+			"auth-service":         getEnv("JWT_PUBLIC_KEY_AUTH_SERVICE", ""),
+			"category-service":     getEnv("JWT_PUBLIC_KEY_CATEGORY_SERVICE", ""),
+			"product-service":      getEnv("JWT_PUBLIC_KEY_PRODUCT_SERVICE", ""),
+			"user-service":         getEnv("JWT_PUBLIC_KEY_USER_SERVICE", ""),
+			"bidding-service":      getEnv("JWT_PUBLIC_KEY_BIDDING_SERVICE", ""),
+			"order-service":        getEnv("JWT_PUBLIC_KEY_ORDER_SERVICE", ""),
+			"payment-service":      getEnv("JWT_PUBLIC_KEY_PAYMENT_SERVICE", ""),
+			"notification-service": getEnv("JWT_PUBLIC_KEY_NOTIFICATION_SERVICE", ""),
+			"media-service":        getEnv("JWT_PUBLIC_KEY_MEDIA_SERVICE", ""),
+			"search-service":       getEnv("JWT_PUBLIC_KEY_SEARCH_SERVICE", ""),
+			"comment-service":      getEnv("JWT_PUBLIC_KEY_COMMENT_SERVICE", ""),
+			"auto-bidding-service": getEnv("JWT_PUBLIC_KEY_AUTO_BIDDING_SERVICE", ""),
+		},
+
+		ServiceURLs: map[string]string{
+			"auth-service":         getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
+			"category-service":     getEnv("CATEGORY_SERVICE_URL", "http://localhost:8082"),
+			"product-service":      getEnv("PRODUCT_SERVICE_URL", "http://localhost:8083"),
+			"user-service":         getEnv("USER_SERVICE_URL", "http://localhost:8084"),
+			"bidding-service":      getEnv("BIDDING_SERVICE_URL", "http://localhost:8085"),
+			"order-service":        getEnv("ORDER_SERVICE_URL", "http://localhost:8086"),
+			"payment-service":      getEnv("PAYMENT_SERVICE_URL", "http://localhost:8087"),
+			"notification-service": getEnv("NOTIFICATION_SERVICE_URL", "http://localhost:8088"),
+			"media-service":        getEnv("MEDIA_SERVICE_URL", "http://localhost:8089"),
+			"comment-service":      getEnv("COMMENT_SERVICE_URL", "http://localhost:8090"),
+			"auto-bidding-service": getEnv("AUTO_BIDDING_SERVICE_URL", "http://localhost:8091"),
+		},
 	}
 }
 

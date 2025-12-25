@@ -99,7 +99,7 @@ func main() {
 
 	// Order routes
 	orders := api.Group("orders")
-	orders.Post("/", middleware.ExtractUserInfoNoInternalJWT(cfg), orderHandler.CreateOrder)                   // Create order (no auth - called by auction service)
+	orders.Post("/", orderHandler.CreateOrder)                                                                 // Create order (no auth - called by auction service)
 	orders.Get("/", middleware.ExtractUserInfo(cfg), orderHandler.GetUserOrders)                               // Get user's orders
 	orders.Get("/:id", middleware.ExtractUserInfo(cfg), orderHandler.GetOrderByID)                             // Get order by ID
 	orders.Post("/:id/pay", middleware.ExtractUserInfo(cfg), orderHandler.PayOrder)                            // Pay for order

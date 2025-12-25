@@ -1,0 +1,68 @@
+{
+  "info": {
+    "name": "Bidding Service API Test Collection",
+    "description": "Postman collection for Bidding Service APIs via API Gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Search Bidding History",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "<YOUR_TOKEN>", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/bids/search?productId=&userId=&page=0&size=10",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "bids", "search"],
+          "query": [
+            { "key": "productId", "value": "" },
+            { "key": "userId", "value": "" },
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Place a Bid",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Token", "value": "<YOUR_TOKEN>", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"\",\n  \"bidAmount\": 1000\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/bids",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "bids"]
+        }
+      }
+    },
+    {
+      "name": "Get Bidding History for Product",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "<YOUR_TOKEN>", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/bids/product/:productId",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "bids", "product", ":productId"]
+        }
+      }
+    }
+  ]
+}

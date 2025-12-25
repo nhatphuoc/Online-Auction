@@ -134,7 +134,7 @@ func main() {
 	protected.All("/users/*", middleware.ProxyMiddleware(cfg, cfg.UserServiceName), proxyHandler.ProxyRequest(cfg.UserServiceURL))
 
 	// Bidding service
-	protected.All("/bidding/*", middleware.ProxyMiddleware(cfg, cfg.BiddingServiceName), proxyHandler.ProxyRequest(cfg.BiddingServiceURL))
+	protected.All("/bids/*", middleware.ProxyMiddleware(cfg, cfg.BiddingServiceName), proxyHandler.ProxyRequest(cfg.BiddingServiceURL))
 
 	// Order service
 	protected.All("/orders/*", middleware.ProxyMiddleware(cfg, cfg.OrderServiceName), proxyHandler.ProxyRequest(cfg.OrderServiceURL))

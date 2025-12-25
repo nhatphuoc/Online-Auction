@@ -19,7 +19,7 @@ spring:
     password: admin123
 
 server:
-  port: 8086
+  port: ${BIDDING_SERVICE_PORT}
   
 internal:
   key: ${X_AUTH_INTERNAL_KEY}

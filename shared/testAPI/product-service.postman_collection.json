@@ -1,0 +1,145 @@
+{
+  "info": {
+    "name": "product-service",
+    "description": "Test API collection for Product Service via API Gateway",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Top Most Bids",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/products/top-most-bids",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "top-most-bids"]
+        }
+      }
+    },
+    {
+      "name": "Get Product By ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/products/{{productId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "Create Product",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Sample Product\",\n  \"categoryId\": 1,\n  \"description\": \"Description here\",\n  \"price\": 10000\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/products",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products"]
+        }
+      }
+    },
+    {
+      "name": "Update Product",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Updated Product\",\n  \"description\": \"Updated description\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/products/{{productId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "Delete Product",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/products/{{productId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "List Products",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "http://localhost:8080/api/products?categoryId=1&page=0&size=10",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products"],
+          "query": [
+            { "key": "categoryId", "value": "1" },
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Batch Update Products",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json", "type": "text" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "[\n  {\n    \"id\": 1,\n    \"name\": \"Batch Product 1\"\n  },\n  {\n    \"id\": 2,\n    \"name\": \"Batch Product 2\"\n  }\n]"
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/products/batch-update",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "products", "batch-update"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "user_token", "value": "" },
+    { "key": "productId", "value": "1" }
+  ]
+}

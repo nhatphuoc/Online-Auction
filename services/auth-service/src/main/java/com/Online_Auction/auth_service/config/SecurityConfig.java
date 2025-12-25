@@ -2,6 +2,7 @@ package com.Online_Auction.auth_service.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -28,7 +29,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         // 1. Auth endpoints
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/auth/**").permitAll()
 
                         // 2. Swagger / OpenAPI
                         .requestMatchers(

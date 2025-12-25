@@ -13,7 +13,7 @@ spring:
       ddl-auto: update
 
 server:
-  port: 8081
+  port: ${AUTH_SERVICE_PORT}
 
 internal:
   key: ${X_AUTH_INTERNAL_KEY}

@@ -29,11 +29,10 @@ public class AuthServiceImpl implements AuthService {
     private final GoogleIdTokenVerifier googleIdTokenVerifier;
 
     public AuthServiceImpl(
-        RestTemplateNotificationService notificationService,
-        OtpTokenRepository otpTokenRepository,
-        UserServiceClient userServiceClient,
-        GoogleIdTokenVerifier googleIdTokenVerifier
-    ) {
+            RestTemplateNotificationService notificationService,
+            OtpTokenRepository otpTokenRepository,
+            UserServiceClient userServiceClient,
+            GoogleIdTokenVerifier googleIdTokenVerifier) {
         this.notificationService = notificationService;
         this.otpTokenRepository = otpTokenRepository;
         this.userServiceClient = userServiceClient;
@@ -47,34 +46,33 @@ public class AuthServiceImpl implements AuthService {
         ApiResponse<Void> responseRegisterUser = userServiceClient.registerUser(request);
         if (!responseRegisterUser.isSuccess()) {
             return new ApiResponse<Void>(
-                false,
-                responseRegisterUser.getMessage(),
-                null
-            );
+                    false,
+                    responseRegisterUser.getMessage(),
+                    null);
         }
 
         // 2. Tạo OTP
         String otpCode = generateOtp();
-        OtpToken otpToken = new OtpToken();
+        OtpToken otpToken = otpTokenRepository.findByEmail(request.email())
+                .orElse(new OtpToken());
         otpToken.setEmail(request.email());
         otpToken.setOtpCode(otpCode);
         otpToken.setExpiredAt(LocalDateTime.now().plus(10, ChronoUnit.MINUTES));
         otpTokenRepository.save(otpToken);
-        
+
         // 4. Gọi NotificationService
         if (notificationService != null) {
-                notificationService.sendEmail(
-                request.email(),
-                "Xác nhận đăng ký",
-                "Mã OTP của bạn là: " + otpCode + "\nHạn dùng: 10 phút"
-            );
+            notificationService.sendEmail(
+                    request.email(),
+                    "Xác nhận đăng ký",
+                    "Mã OTP của bạn là: " + otpCode + "\nHạn dùng: 10 phút");
         }
 
         return responseRegisterUser;
     }
 
     private String generateOtp() {
-        int otp = (int)(Math.random() * 900000) + 100000;
+        int otp = (int) (Math.random() * 900000) + 100000;
         return String.valueOf(otp);
     }
 
@@ -145,8 +143,7 @@ public class AuthServiceImpl implements AuthService {
                 email,
                 null,
                 null,
-                true
-        );
+                true);
 
         ApiResponse<Void> status = userServiceClient.registerUser(req);
         if (!status.isSuccess()) {

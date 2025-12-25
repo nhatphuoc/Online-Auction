@@ -195,6 +195,19 @@ func ExtractUserInfo(cfg *config.Config) fiber.Handler {
 	}
 }
 
+func ExtractUserInfoNoInternalJWT(cfg *config.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		userID := c.Get("X-User-ID")
+		email := c.Get("X-User-Email")
+		role := c.Get("X-User-Role")
+
+		c.Locals("userID", userID)
+		c.Locals("email", email)
+		c.Locals("role", role)
+		return c.Next()
+	}
+}
+
 // RequireAdminRole middleware: requires ROLE_ADMIN
 func RequireAdminRole() fiber.Handler {
 	return func(c *fiber.Ctx) error {

@@ -95,28 +95,28 @@ func main() {
 	app.Get("/ws", websocket.New(orderHandler.HandleWebSocket))
 
 	// Routes
-	api := app.Group("", middleware.ExtractUserInfo(cfg))
+	api := app.Group("")
 
 	// Order routes
 	orders := api.Group("orders")
-	orders.Post("/", orderHandler.CreateOrder)                                // Create order (no auth - called by auction service)
-	orders.Get("/", orderHandler.GetUserOrders)                               // Get user's orders
-	orders.Get("/:id", orderHandler.GetOrderByID)                             // Get order by ID
-	orders.Post("/:id/pay", orderHandler.PayOrder)                            // Pay for order
-	orders.Post("/:id/shipping-address", orderHandler.ProvideShippingAddress) // Provide shipping address
-	orders.Post("/:id/shipping-invoice", orderHandler.SendShippingInvoice)    // Send shipping invoice
-	orders.Post("/:id/confirm-delivery", orderHandler.ConfirmDelivery)        // Confirm delivery
-	orders.Post("/:id/cancel", orderHandler.CancelOrder)                      // Cancel order
-	orders.Post("/:id/messages", orderHandler.SendMessage)                    // Send message
-	orders.Get("/:id/messages", orderHandler.GetMessages)                     // Get messages
-	orders.Post("/:id/rate", orderHandler.RateOrder)                          // Rate order
-	orders.Get("/:id/rating", orderHandler.GetRating)                         // Get rating (public)
+	orders.Post("/", middleware.ExtractUserInfoNoInternalJWT(cfg), orderHandler.CreateOrder)                   // Create order (no auth - called by auction service)
+	orders.Get("/", middleware.ExtractUserInfo(cfg), orderHandler.GetUserOrders)                               // Get user's orders
+	orders.Get("/:id", middleware.ExtractUserInfo(cfg), orderHandler.GetOrderByID)                             // Get order by ID
+	orders.Post("/:id/pay", middleware.ExtractUserInfo(cfg), orderHandler.PayOrder)                            // Pay for order
+	orders.Post("/:id/shipping-address", middleware.ExtractUserInfo(cfg), orderHandler.ProvideShippingAddress) // Provide shipping address
+	orders.Post("/:id/shipping-invoice", middleware.ExtractUserInfo(cfg), orderHandler.SendShippingInvoice)    // Send shipping invoice
+	orders.Post("/:id/confirm-delivery", middleware.ExtractUserInfo(cfg), orderHandler.ConfirmDelivery)        // Confirm delivery
+	orders.Post("/:id/cancel", middleware.ExtractUserInfo(cfg), orderHandler.CancelOrder)                      // Cancel order
+	orders.Post("/:id/messages", middleware.ExtractUserInfo(cfg), orderHandler.SendMessage)                    // Send message
+	orders.Get("/:id/messages", middleware.ExtractUserInfo(cfg), orderHandler.GetMessages)                     // Get messages
+	orders.Post("/:id/rate", middleware.ExtractUserInfo(cfg), orderHandler.RateOrder)                          // Rate order
+	orders.Get("/:id/rating", middleware.ExtractUserInfo(cfg), orderHandler.GetRating)                         // Get rating (public)
 
 	// User rating routes
-	api.Get("/users/:id/rating", orderHandler.GetUserRating) // Get user rating stats (public)
+	api.Get("/users/:id/rating", middleware.ExtractUserInfo(cfg), orderHandler.GetUserRating) // Get user rating stats (public)
 
 	// Admin routes
-	admin := api.Group("/admin", middleware.AdminMiddleware())
+	admin := api.Group("/admin", middleware.ExtractUserInfo(cfg), middleware.AdminMiddleware())
 	admin.Get("/orders", orderHandler.GetAllOrders) // Get all orders (admin only)
 
 	// WebSocket endpoint for order chat

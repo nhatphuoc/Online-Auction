@@ -81,25 +81,6 @@ This document describes the API endpoints for the Bidding Service as accessed vi
 }
 ```
 
-### 3. Get Bidding History for a Product
-- **Endpoint:** `GET /api/bids/product/{productId}`
-- **Description:** Get all bidding history for a specific product.
-- **Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "string",
-      "productId": "string",
-      "userId": "string",
-      "bidAmount": 1000,
-      "bidTime": "2024-01-01T12:00:00Z"
-    }
-  ],
-  "message": "Fetched successfully"
-}
-```
 
 ---
 

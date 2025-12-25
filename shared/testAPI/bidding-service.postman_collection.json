@@ -47,22 +47,6 @@
           "path": ["api", "bids"]
         }
       }
-    },
-    {
-      "name": "Get Bidding History for Product",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "X-User-Token", "value": "<YOUR_TOKEN>", "type": "text" }
-        ],
-        "url": {
-          "raw": "http://localhost:8080/api/bids/product/:productId",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
-          "path": ["api", "bids", "product", ":productId"]
-        }
-      }
     }
   ]
 }

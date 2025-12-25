@@ -18,5 +18,8 @@ server:
 internal:
   key: ${X_AUTH_INTERNAL_KEY}
 
+gateway:
+  key: ${API_GATEWAY_SECRET}
+
 google:
   client-id: ${GOOGLE_CLIENT_ID}

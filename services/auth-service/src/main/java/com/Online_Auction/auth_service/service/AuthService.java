@@ -8,7 +8,10 @@ import com.Online_Auction.auth_service.external.response.SimpleUserResponse;
 
 public interface AuthService {
     ApiResponse<Void> register(RegisterUserRequest request);
+
     ApiResponse<Void> verifyOtp(String email, String otpCode);
+
     SimpleUserResponse authenticate(SignInRequest request);
+
     SimpleUserResponse loginWithGoogle(GoogleTokenRequest request);
 }

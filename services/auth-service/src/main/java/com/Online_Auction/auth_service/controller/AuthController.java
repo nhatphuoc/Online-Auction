@@ -27,7 +27,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    public AuthController(AuthService authService, RestTemplate restTemplate) { 
+    public AuthController(AuthService authService, RestTemplate restTemplate) {
         this.authService = authService;
     }
 
@@ -48,14 +48,14 @@ public class AuthController {
         SimpleUserResponse user = authService.authenticate(request);
 
         if (user == null) {
-            return ResponseEntity.badRequest().body(new JwtResponse(false,"",""));
-        };
+            return ResponseEntity.badRequest().body(new JwtResponse(false, "", ""));
+        }
+        ;
 
         JwtResponse jwtResponse = new JwtResponse(
-            true,
-            JwtUtils.generateAccessToken(user.getId(), user.getEmail(), user.getUserRole()),
-            JwtUtils.generateRefreshToken(user.getId())
-        );
+                true,
+                JwtUtils.generateAccessToken(user.getId(), user.getEmail(), user.getUserRole()),
+                JwtUtils.generateRefreshToken(user.getId()));
         return ResponseEntity.ok(jwtResponse);
     }
 
@@ -73,23 +73,21 @@ public class AuthController {
     }
 
     @PostMapping("/sign-in/google")
-    public ResponseEntity<JwtResponse> loginWithGoogle(@RequestBody GoogleTokenRequest request) throws GeneralSecurityException, IOException {
+    public ResponseEntity<JwtResponse> loginWithGoogle(@RequestBody GoogleTokenRequest request)
+            throws GeneralSecurityException, IOException {
         SimpleUserResponse user = authService.loginWithGoogle(request);
 
         if (user == null) {
             return ResponseEntity.badRequest().body(
-                new JwtResponse(
-                    false, 
-                    "", 
-                    ""
-                )
-            );
+                    new JwtResponse(
+                            false,
+                            "",
+                            ""));
         }
         JwtResponse jwtResponse = new JwtResponse(
-            true,
-            JwtUtils.generateAccessToken(user.getId(), user.getEmail(), user.getUserRole()),
-            JwtUtils.generateRefreshToken(user.getId())
-        );
+                true,
+                JwtUtils.generateAccessToken(user.getId(), user.getEmail(), user.getUserRole()),
+                JwtUtils.generateRefreshToken(user.getId()));
         return ResponseEntity.ok(jwtResponse);
     }
 

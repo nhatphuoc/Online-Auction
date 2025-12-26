@@ -25,9 +25,7 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tokenString := c.Get("X-User-Token")
 		if tokenString == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing X-User-Token header",
-			})
+			return c.Next()
 		}
 
 		token, _, err := new(jwt.Parser).ParseUnverified(

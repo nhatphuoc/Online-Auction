@@ -3,7 +3,6 @@ package com.Online_Auction.product_service.mapper;
 import org.springframework.stereotype.Component;
 
 import com.Online_Auction.product_service.domain.Product;
-import com.Online_Auction.product_service.domain.Product.ProductStatus;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
 import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
@@ -15,7 +14,8 @@ import java.util.stream.Collectors;
 public class ProductMapper {
 
     public ProductDTO toProductDTO(Product product, SimpleUserInfo seller, SimpleUserInfo highestBidder) {
-        if (product == null) return null;
+        if (product == null)
+            return null;
 
         return ProductDTO.builder()
                 .id(product.getId())
@@ -33,12 +33,12 @@ public class ProductMapper {
                 .autoExtend(product.isAutoExtend())
                 .sellerInfo(seller)
                 .highestBidder(highestBidder)
-                .status(product.getStatus() != null ? product.getStatus() : ProductStatus.ACTIVE)
                 .build();
     }
 
     public Product toEntity(ProductDTO dto) {
-        if (dto == null) return null;
+        if (dto == null)
+            return null;
 
         Product product = new Product();
         product.setId(dto.getId());
@@ -55,7 +55,6 @@ public class ProductMapper {
         product.setEndAt(dto.getEndAt());
         product.setAutoExtend(dto.isAutoExtend());
         product.setSellerId(dto.getSellerId());
-        product.setStatus(dto.getStatus());
         return product;
     }
 
@@ -67,21 +66,20 @@ public class ProductMapper {
 
     public static ProductListItemResponse toListItem(Product p) {
         return new ProductListItemResponse(
-            p.getId(),
-            p.getThumbnailUrl(),
-            p.getName(),
-            p.getCurrentPrice(),
-            p.getBuyNowPrice(),
-            p.getCreatedAt(),
-            p.getEndAt(),
-            p.getBidCount(),
+                p.getId(),
+                p.getThumbnailUrl(),
+                p.getName(),
+                p.getCurrentPrice(),
+                p.getBuyNowPrice(),
+                p.getCreatedAt(),
+                p.getEndAt(),
+                p.getBidCount(),
 
-            // NEW FIELDS
-            p.getParentCategoryId(),
-            p.getParentCategoryName(),
-            p.getCategoryId(),
-            p.getCategoryName()
-        );
+                // NEW FIELDS
+                p.getParentCategoryId(),
+                p.getParentCategoryName(),
+                p.getCategoryId(),
+                p.getCategoryName());
     }
 
 }

@@ -29,11 +29,7 @@ public class ProductBidService {
         if (product == null)
             return ApiResponse.fail("Product not found");
 
-        // ====== 2. Kiểm tra trạng thái ======
-        if (product.getStatus() != Product.ProductStatus.ACTIVE)
-            return ApiResponse.fail("Product is not active");
-
-        // ====== 3. Kiểm tra thời gian kết thúc ======
+        // ====== 2. Kiểm tra thời gian kết thúc ======
         if (LocalDateTime.now().isAfter(product.getEndAt()))
             return ApiResponse.fail("Auction has already ended");
 
@@ -54,13 +50,11 @@ public class ProductBidService {
 
                 return ApiResponse.success(
                         new ProductBidSuccessData(bidAmount, null),
-                        "Bid placed successfully"
-                );
+                        "Bid placed successfully");
             }
 
             return ApiResponse.fail(
-                    "Bid amount must be equal or higher than starting price"
-            );
+                    "Bid amount must be equal or higher than starting price");
         }
 
         // ====== CASE 2: Đã có người đặt giá ======
@@ -81,12 +75,10 @@ public class ProductBidService {
         // 8. Lưu DB
         productRepository.save(product);
 
-
         // ====== 8. Trả về data success ======
         ProductBidSuccessData data = new ProductBidSuccessData(
                 bidAmount,
-                previousHighestBidder
-        );
+                previousHighestBidder);
 
         return ApiResponse.success(data, "Bid placed successfully");
     }

@@ -7,8 +7,6 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -71,19 +69,15 @@ public class Product {
 
     private boolean autoExtend; // có hỗ trợ tự động gia hạn không
 
-    // ===== OTHER =====
-    @Enumerated(EnumType.STRING)
-    private ProductStatus status;
-
     @Builder.Default
+    @Column(nullable = false)
     private Long bidCount = 0L;
 
     private Long currentBidder;
 
-    public enum ProductStatus {
-        ACTIVE, // đang đấu giá
-        FINISHED, // đã kết thúc
-        PENDING, // đang chờ duyệt
-        REJECTED
-    }
+    @Builder.Default
+    private boolean orderCreated = false;
+
+    @Builder.Default
+    private boolean sentEmail = false;
 }

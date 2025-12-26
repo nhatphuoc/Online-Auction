@@ -14,7 +14,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.Online_Auction.product_service.client.RestTemplateUserServiceClient;
 import com.Online_Auction.product_service.domain.Product;
-import com.Online_Auction.product_service.domain.Product.ProductStatus;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
 import com.Online_Auction.product_service.dto.request.UpdateCategoryRequest;
@@ -61,7 +60,6 @@ public class ProductService {
                 .endAt(request.getEndAt())
                 .autoExtend(request.isAutoExtend())
                 .sellerId(sellerId)
-                .status(ProductStatus.ACTIVE)
                 .build();
 
         productRepository.save(product);
@@ -140,24 +138,27 @@ public class ProductService {
     // HOMEPAGE
     // =================================
     public List<ProductListItemResponse> topEndingSoon() {
-        return productRepository
-                .findTop5ByStatusOrderByEndAtAsc(ProductStatus.ACTIVE)
+        return productRepository.findTop5EndingSoon(
+                LocalDateTime.now(),
+                PageRequest.of(0, 5))
                 .stream()
                 .map(ProductMapper::toListItem)
                 .toList();
     }
 
     public List<ProductListItemResponse> topMostBids() {
-        return productRepository
-                .findTop5ByStatusOrderByBidCountDesc(ProductStatus.ACTIVE)
+        return productRepository.findTop5MostBids(
+                LocalDateTime.now(),
+                PageRequest.of(0, 5))
                 .stream()
                 .map(ProductMapper::toListItem)
                 .toList();
     }
 
     public List<ProductListItemResponse> topHighestPrice() {
-        return productRepository
-                .findTop5ByStatusOrderByCurrentPriceDesc(ProductStatus.ACTIVE)
+        return productRepository.findTop5HighestPrice(
+                LocalDateTime.now(),
+                PageRequest.of(0, 5))
                 .stream()
                 .map(ProductMapper::toListItem)
                 .toList();
@@ -176,8 +177,7 @@ public class ProductService {
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by("createdAt").descending());
 
         Specification<Product> spec = Specification
-                .where(ProductSpecs.isActive())
-                .and(ProductSpecs.hasParentCategory(parentCategoryId))
+                .where(ProductSpecs.hasParentCategory(parentCategoryId))
                 .and(ProductSpecs.hasCategory(categoryId))
                 .and(ProductSpecs.hasNamePrefix(query));
 

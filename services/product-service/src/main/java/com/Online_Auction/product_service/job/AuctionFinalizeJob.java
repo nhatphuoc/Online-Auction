@@ -13,8 +13,9 @@ public class AuctionFinalizeJob {
 
     private final AuctionFinalizeHandler auctionFinalizeHandler;
 
-    @Scheduled(cron = "0 */15 * * * *")
+    @Scheduled(cron = "0 */5 * * * *")
     public void run() {
+        log.info("Auction finalize job triggered");
         int processed = auctionFinalizeHandler.finalizeExpiredAuctions();
         log.info("Auction finalize job processed {} auctions", processed);
     }

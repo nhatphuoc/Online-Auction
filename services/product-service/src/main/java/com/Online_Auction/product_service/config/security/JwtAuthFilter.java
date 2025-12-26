@@ -12,6 +12,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.Online_Auction.product_service.config.security.UserPrincipal.UserRole;
 
 import io.jsonwebtoken.Claims;
+import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,33 +52,46 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // 2. Parse JWT từ header X-User-Token
         String token = request.getHeader("X-User-Token");
-        if (token == null) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or missing JWT");
-            return;
+        if (!StringUtils.isBlank(token)) {
+            if (token.startsWith("Bearer ")) {
+                token = token.substring(7); // remove "Bearer "
+            }
+
+            Claims claims = tokenParser.parseClaims(token);
+
+            // Lấy role từ claim
+            String role = claims.get("role", String.class); // nếu role là List<String>
+
+            // Chuyển sang GrantedAuthority
+            List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
+
+            // Tạo principal
+            UserPrincipal principal = new UserPrincipal(
+                    Long.parseLong(claims.getSubject()),
+                    claims.get("email", String.class),
+                    UserRole.valueOf(role));
+
+            // Tạo Authentication với authorities
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    principal,
+                    null,
+                    authorities);
+
+            // Set vào context
+            SecurityContextHolder.getContext().setAuthentication(auth);
+        } else {
+            // Chuyển sang GrantedAuthority
+            List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_TRUSTED_SOURCE"));
+
+            // Tạo Authentication với authorities
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    null,
+                    null,
+                    authorities);
+
+            // Set vào context
+            SecurityContextHolder.getContext().setAuthentication(auth);
         }
-
-        Claims claims = tokenParser.parseClaims(token);
-
-        // Lấy role từ claim
-        String role = claims.get("role", String.class); // nếu role là List<String>
-
-        // Chuyển sang GrantedAuthority
-        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
-
-        // Tạo principal
-        UserPrincipal principal = new UserPrincipal(
-                Long.parseLong(claims.getSubject()),
-                claims.get("email", String.class),
-                UserRole.valueOf(role));
-
-        // Tạo Authentication với authorities
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                principal,
-                null,
-                authorities);
-
-        // Set vào context
-        SecurityContextHolder.getContext().setAuthentication(auth);
 
         filterChain.doFilter(request, response);
     }

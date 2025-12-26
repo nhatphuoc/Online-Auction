@@ -24,7 +24,7 @@ spring:
     password: admin123
 
 server:
-  port: 8082
+  port: ${NOTIFICATION_SERVICE_PORT}
 
 internal:
   key: ${X_AUTH_INTERNAL_KEY}

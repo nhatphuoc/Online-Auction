@@ -1,10 +1,10 @@
 package scripts
 
 import (
+	"category_service/internal/handlers"
 	"category_service/internal/models"
 	"context"
 	"log"
-	"time"
 
 	"github.com/go-pg/pg/v10"
 )
@@ -24,8 +24,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        1,
 			IsActive:     true,
 			DisplayOrder: 1,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 		{
 			Name:         "Thời trang",
@@ -34,8 +34,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        1,
 			IsActive:     true,
 			DisplayOrder: 2,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 		{
 			Name:         "Gia dụng",
@@ -44,8 +44,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        1,
 			IsActive:     true,
 			DisplayOrder: 3,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 	}
 
@@ -83,8 +83,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        2,
 			IsActive:     true,
 			DisplayOrder: 1,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 		{
 			Name:         "Máy tính xách tay",
@@ -94,8 +94,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        2,
 			IsActive:     true,
 			DisplayOrder: 2,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 		{
 			Name:         "Máy tính bảng",
@@ -105,8 +105,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        2,
 			IsActive:     true,
 			DisplayOrder: 3,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 		// Thời trang children
 		{
@@ -117,8 +117,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        2,
 			IsActive:     true,
 			DisplayOrder: 1,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 		{
 			Name:         "Đồng hồ",
@@ -128,8 +128,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        2,
 			IsActive:     true,
 			DisplayOrder: 2,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 		{
 			Name:         "Túi xách",
@@ -139,8 +139,8 @@ func SeedInitialData(db *pg.DB) error {
 			Level:        2,
 			IsActive:     true,
 			DisplayOrder: 3,
-			CreatedAt:    time.Now(),
-			UpdatedAt:    time.Now(),
+			CreatedAt:    handlers.FixedTimeNow(),
+			UpdatedAt:    handlers.FixedTimeNow(),
 		},
 	}
 

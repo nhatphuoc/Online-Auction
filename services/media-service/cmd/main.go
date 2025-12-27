@@ -87,8 +87,8 @@ func main() {
 	api := app.Group("")
 
 	// Upload endpoints
-	api.Post("/upload", uploadHandler.UploadSingleFile)
-	api.Post("/upload/multiple", uploadHandler.UploadMultipleFiles)
+	// api.Post("/upload", uploadHandler.UploadSingleFile)
+	// api.Post("/upload/multiple", uploadHandler.UploadMultipleFiles)
 	// Presigned URL endpoints
 	api.Get("/presign", middleware.ExtractUserInfo(cfg), uploadHandler.GetPresignedURL)
 	api.Post("/presign/multiple", middleware.ExtractUserInfo(cfg), uploadHandler.GetPresignedURLs)

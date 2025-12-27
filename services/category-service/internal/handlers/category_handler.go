@@ -11,6 +11,26 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+var locVN = mustLoad("Asia/Ho_Chi_Minh")
+
+func mustLoad(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
+func FixedTimeNow() time.Time {
+	nowVN := time.Now().In(locVN)
+	return time.Date(
+		nowVN.Year(), nowVN.Month(), nowVN.Day(),
+		nowVN.Hour(), nowVN.Minute(), nowVN.Second(),
+		nowVN.Nanosecond(),
+		time.UTC,
+	)
+}
+
 type CategoryHandler struct {
 	db *pg.DB
 }
@@ -56,14 +76,11 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 			return utils.ErrorResponse(c, fiber.StatusBadRequest, "Maximum category depth is 2 levels")
 		}
 	}
-
-	createdAt := time.Now()
-	updatedAt := createdAt
 	var id int64
 	query := `INSERT INTO categories (name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
 	_, err := h.db.QueryOneContext(ctx, pg.Scan(&id), query,
-		req.Name, req.Slug, req.Description, req.ParentID, level, true, req.DisplayOrder, createdAt, updatedAt)
+		req.Name, req.Slug, req.Description, req.ParentID, level, true, req.DisplayOrder, FixedTimeNow(), FixedTimeNow())
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to create category: "+err.Error())
 	}
@@ -77,8 +94,8 @@ func (h *CategoryHandler) CreateCategory(c *fiber.Ctx) error {
 		"level":         level,
 		"is_active":     true,
 		"display_order": req.DisplayOrder,
-		"created_at":    createdAt,
-		"updated_at":    updatedAt,
+		"created_at":    FixedTimeNow(),
+		"updated_at":    FixedTimeNow(),
 	})
 }
 

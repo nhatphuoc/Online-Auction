@@ -4,6 +4,7 @@ import (
 	"category_service/internal/config"
 	"category_service/internal/handlers"
 	"category_service/internal/middleware"
+	"category_service/scripts"
 	"log"
 	"log/slog"
 	"os"
@@ -56,9 +57,9 @@ func main() {
 	}
 
 	// Seed initial data
-	// if err := scripts.SeedInitialData(db); err != nil {
-	// 	log.Fatalf("Lỗi seed dữ liệu ban đầu: %v", err)
-	// }
+	if err := scripts.SeedInitialData(db); err != nil {
+		log.Fatalf("Lỗi seed dữ liệu ban đầu: %v", err)
+	}
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{

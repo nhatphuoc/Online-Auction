@@ -44,8 +44,8 @@ func InitSchema(db *pg.DB) error {
 			level INT NOT NULL DEFAULT 1,
 			is_active BOOLEAN NOT NULL DEFAULT true,
 			display_order INT DEFAULT 0,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			created_at TIMESTAMP ,
+			updated_at TIMESTAMP ,
 			FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
 		)
 	`)

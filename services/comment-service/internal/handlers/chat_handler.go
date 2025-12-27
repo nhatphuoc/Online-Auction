@@ -245,6 +245,26 @@ func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 	return
 }
 
+var locVN = mustLoad("Asia/Ho_Chi_Minh")
+
+func mustLoad(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
+func FixedTimeNow() time.Time {
+	nowVN := time.Now().In(locVN)
+	return time.Date(
+		nowVN.Year(), nowVN.Month(), nowVN.Day(),
+		nowVN.Hour(), nowVN.Minute(), nowVN.Second(),
+		nowVN.Nanosecond(),
+		time.UTC,
+	)
+}
+
 // readPump reads messages from WebSocket connection
 func (h *CommentHandler) readPump(client *Client) {
 	defer func() {
@@ -270,7 +290,7 @@ func (h *CommentHandler) readPump(client *Client) {
 				ProductID: client.ProductID,
 				SenderID:  client.UserID,
 				Content:   wsMsg.Content,
-				CreatedAt: time.Now(),
+				CreatedAt: FixedTimeNow(),
 			}
 
 			ctx := context.Background()

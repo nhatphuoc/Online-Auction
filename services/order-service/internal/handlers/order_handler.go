@@ -20,6 +20,26 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var locVN = mustLoad("Asia/Ho_Chi_Minh")
+
+func mustLoad(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
+func FixedTimeNow() time.Time {
+	nowVN := FixedTimeNow().In(locVN)
+	return time.Date(
+		nowVN.Year(), nowVN.Month(), nowVN.Day(),
+		nowVN.Hour(), nowVN.Minute(), nowVN.Second(),
+		nowVN.Nanosecond(),
+		time.UTC,
+	)
+}
+
 // Client represents a connected WebSocket client
 type Client struct {
 	Conn    *websocket.Conn
@@ -148,8 +168,8 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		SellerID:   req.SellerID,
 		FinalPrice: req.FinalPrice,
 		Status:     models.OrderStatusPendingPayment,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		CreatedAt:  FixedTimeNow(),
+		UpdatedAt:  FixedTimeNow(),
 	}
 
 	_, err := h.db.ModelContext(ctx, order).Insert()
@@ -163,8 +183,8 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	// Create rating record
 	rating := &models.OrderRating{
 		OrderID:   order.ID,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: FixedTimeNow(),
+		UpdatedAt: FixedTimeNow(),
 	}
 	_, err = h.db.ModelContext(ctx, rating).Insert()
 	if err != nil {
@@ -363,7 +383,7 @@ func (h *OrderHandler) PayOrder(c *fiber.Ctx) error {
 	}
 
 	// Update order with payment info (Mock payment - always successful)
-	now := time.Now()
+	now := FixedTimeNow()
 	order.PaymentMethod = req.PaymentMethod
 	order.PaymentProof = req.PaymentProof
 	order.Status = models.OrderStatusPaid
@@ -461,7 +481,7 @@ func (h *OrderHandler) ProvideShippingAddress(c *fiber.Ctx) error {
 	order.ShippingAddress = req.ShippingAddress
 	order.ShippingPhone = req.ShippingPhone
 	order.Status = models.OrderStatusAddressProvided
-	order.UpdatedAt = time.Now()
+	order.UpdatedAt = FixedTimeNow()
 
 	_, err = h.db.ModelContext(ctx, order).
 		Column("shipping_address", "shipping_phone", "status", "updated_at").
@@ -554,7 +574,7 @@ func (h *OrderHandler) SendShippingInvoice(c *fiber.Ctx) error {
 	order.TrackingNumber = req.TrackingNumber
 	order.ShippingInvoice = req.ShippingInvoice
 	order.Status = models.OrderStatusShipping
-	order.UpdatedAt = time.Now()
+	order.UpdatedAt = FixedTimeNow()
 
 	_, err = h.db.ModelContext(ctx, order).
 		Column("tracking_number", "shipping_invoice", "status", "updated_at").
@@ -630,7 +650,7 @@ func (h *OrderHandler) ConfirmDelivery(c *fiber.Ctx) error {
 	}
 
 	// Update order
-	now := time.Now()
+	now := FixedTimeNow()
 	order.Status = models.OrderStatusDelivered
 	order.DeliveredAt = &now
 	order.UpdatedAt = now
@@ -723,7 +743,7 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 	}
 
 	// Update order
-	now := time.Now()
+	now := FixedTimeNow()
 	order.Status = models.OrderStatusCancelled
 	order.CancelReason = req.CancelReason
 	order.CancelledAt = &now
@@ -746,7 +766,7 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 	err = h.db.ModelContext(ctx, rating).Where("order_id = ?", order.ID).Select()
 	if err == nil {
 		negativeOne := -1
-		now := time.Now()
+		now := FixedTimeNow()
 		rating.SellerRating = &negativeOne
 		rating.SellerComment = fmt.Sprintf("Order cancelled by seller. Reason: %s", req.CancelReason)
 		rating.SellerRatedAt = &now
@@ -838,7 +858,7 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 		OrderID:   id,
 		SenderID:  userID,
 		Message:   req.Message,
-		CreatedAt: time.Now(),
+		CreatedAt: FixedTimeNow(),
 	}
 
 	_, err = h.db.ModelContext(ctx, message).Insert()
@@ -1010,7 +1030,7 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	now := time.Now()
+	now := FixedTimeNow()
 	var targetUserID int64
 	var oldRating *int
 
@@ -1056,7 +1076,7 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 
 	// Check if both parties have rated, if yes, mark order as completed
 	if rating.BuyerRating != nil && rating.SellerRating != nil && order.Status == models.OrderStatusDelivered {
-		now := time.Now()
+		now := FixedTimeNow()
 		order.Status = models.OrderStatusCompleted
 		order.CompletedAt = &now
 		order.UpdatedAt = now
@@ -1368,7 +1388,7 @@ func (h *OrderHandler) readPump(client *Client) {
 				OrderID:   client.OrderID,
 				SenderID:  client.UserID,
 				Message:   wsMsg.Content,
-				CreatedAt: time.Now(),
+				CreatedAt: FixedTimeNow(),
 			}
 
 			ctx := context.Background()

@@ -1,5 +1,6 @@
 package com.Online_Auction.product_service.job;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -28,7 +29,8 @@ public class AuctionFinalizeHandler {
 
     @Transactional
     public int finalizeExpiredAuctions() {
-        List<Product> products = productRepository.findExpiredAuctionsForProcessing();
+        LocalDateTime now = LocalDateTime.now();
+        List<Product> products = productRepository.findExpiredAuctionsForProcessing(now);
 
         if (products.isEmpty()) {
             return 0;

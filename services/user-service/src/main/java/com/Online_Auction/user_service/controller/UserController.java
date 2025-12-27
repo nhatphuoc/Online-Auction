@@ -2,6 +2,7 @@ package com.Online_Auction.user_service.controller;
 
 import org.springframework.web.bind.annotation.RestController;
 
+import com.Online_Auction.user_service.domain.UpgradeUser;
 import com.Online_Auction.user_service.domain.User;
 import com.Online_Auction.user_service.dto.request.RegisterUserRequest;
 import com.Online_Auction.user_service.dto.request.SignInRequest;
@@ -12,6 +13,7 @@ import com.Online_Auction.user_service.dto.response.UserProfileResponse;
 import com.Online_Auction.user_service.dto.response.UserSearchResponse;
 import com.Online_Auction.user_service.mapper.UserMapper;
 import com.Online_Auction.user_service.service.UserService;
+import com.Online_Auction.user_service.service.UserUpgradeService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -125,5 +127,46 @@ public class UserController {
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         return userService.searchUsers(keyword, role, pageable);
+    }
+
+    private final UserUpgradeService userUpgradeService;
+
+    @PostMapping("/upgrade-to-seller")
+    @PreAuthorize("hasAnyRole('BIDDER')")
+    public ResponseEntity<?> requestUpgrade(@RequestParam String reason) {
+        User user = userService.getCurrentUser();
+        if (user == null)
+            return ResponseEntity.badRequest().body(ApiResponse.fail("User not authenticated"));
+        userUpgradeService.requestUpgradeToSeller(user.getId(), reason);
+        return ResponseEntity.ok("Upgrade request submitted");
+    }
+
+    @PostMapping("/{requestId}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<?> approve(@PathVariable Long requestId) {
+        User admin = userService.getCurrentUser();
+
+        if (admin == null)
+            return ResponseEntity.badRequest().body(ApiResponse.fail("User not authenticated"));
+
+        userUpgradeService.approveUpgrade(requestId, admin.getId());
+        return ResponseEntity.ok("User upgraded to SELLER");
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<UpgradeUser>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
+        Sort sortOrder = Sort.by(
+                direction.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC,
+                sort);
+
+        Pageable pageable = PageRequest.of(page, size, sortOrder);
+
+        Page<UpgradeUser> result = userUpgradeService.getAllUpgradeRequests(pageable);
+
+        return ResponseEntity.ok(result);
     }
 }

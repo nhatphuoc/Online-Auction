@@ -85,10 +85,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     /* ================= EMAIL CRON-JOB ================= */
     @Query("""
                 SELECT p FROM Product p
-                WHERE p.endAt <= CURRENT_TIMESTAMP
-                  AND (p.orderCreated = false
-                  OR p.sentEmail = false)
+                WHERE p.endAt <= :now
+                  AND (p.orderCreated = false OR p.sentEmail = false)
             """)
-    List<Product> findExpiredAuctionsForProcessing();
+    List<Product> findExpiredAuctionsForProcessing(
+            @Param("now") LocalDateTime now);
 
 }

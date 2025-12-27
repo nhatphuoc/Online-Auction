@@ -24,8 +24,12 @@ public class ProductDTO {
     private List<String> images;
     private String description;
 
-    // CATEGORY
+    // ===== CATEGORY =====
+    private Long parentCategoryId;
+    private String parentCategoryName;
+
     private Long categoryId;
+    private String categoryName;
 
     // PRICING
     private Double startingPrice;

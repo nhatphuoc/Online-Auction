@@ -209,18 +209,35 @@ func (h *CategoryHandler) UpdateCategory(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid category ID")
 	}
-	// Kiểm tra tồn tại
-	var exists int
-	_, err = h.db.QueryOneContext(ctx, pg.Scan(&exists), "SELECT COUNT(*) FROM categories WHERE id = ?", id)
-	if err != nil || exists == 0 {
-		return utils.ErrorResponse(c, fiber.StatusNotFound, "Category not found")
+
+	// Start transaction for data consistency
+	tx, err := h.db.Begin()
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to start transaction")
 	}
-	// Xây dựng câu lệnh update động
+	defer tx.Rollback()
+
+	// Get current category info
+	var currentCategory models.Category
+	_, err = tx.QueryOneContext(ctx, &currentCategory,
+		"SELECT id, name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at FROM categories WHERE id = ?", id)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			return utils.ErrorResponse(c, fiber.StatusNotFound, "Category not found")
+		}
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Database error")
+	}
+
+	// Build update query dynamically
 	setFields := ""
 	args := []interface{}{}
-	if req.Name != nil {
+	categoryNameChanged := false
+	var newLevel int = currentCategory.Level
+
+	if req.Name != nil && *req.Name != currentCategory.Name {
 		setFields += "name = ?, "
 		args = append(args, *req.Name)
+		categoryNameChanged = true
 	}
 	if req.Slug != nil {
 		setFields += "slug = ?, "
@@ -239,33 +256,59 @@ func (h *CategoryHandler) UpdateCategory(c *fiber.Ctx) error {
 		args = append(args, *req.DisplayOrder)
 	}
 	if req.ParentID != nil {
-		var parentLevel int
-		_, err := h.db.QueryOneContext(ctx, pg.Scan(&parentLevel), "SELECT level FROM categories WHERE id = ? AND is_active = true", *req.ParentID)
+		var parentCategory models.Category
+		_, err := tx.QueryOneContext(ctx, &parentCategory, 
+			"SELECT id, name, level, parent_id FROM categories WHERE id = ? AND is_active = true", *req.ParentID)
 		if err != nil {
-			return utils.ErrorResponse(c, fiber.StatusBadRequest, "Parent category not found")
+			if err == pg.ErrNoRows {
+				return utils.ErrorResponse(c, fiber.StatusBadRequest, "Parent category not found")
+			}
+			return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Database error")
 		}
-		if parentLevel+1 > 2 {
+		if parentCategory.Level+1 > 2 {
 			return utils.ErrorResponse(c, fiber.StatusBadRequest, "Maximum category depth is 2 levels")
 		}
+		newLevel = parentCategory.Level + 1
 		setFields += "parent_id = ?, level = ?, "
-		args = append(args, *req.ParentID, parentLevel+1)
+		args = append(args, *req.ParentID, newLevel)
+		categoryNameChanged = true // Parent changed, need to update products
 	}
+
+	if setFields == "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "No fields to update")
+	}
+
 	setFields += "updated_at = ?"
-	args = append(args, time.Now())
+	args = append(args, FixedTimeNow())
 	updateQuery := "UPDATE categories SET " + setFields + " WHERE id = ?"
 	args = append(args, id)
-	_, err = h.db.ExecContext(ctx, updateQuery, args...)
+	
+	_, err = tx.ExecContext(ctx, updateQuery, args...)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update category: "+err.Error())
 	}
-	// Trả về bản ghi đã cập nhật
-	var category models.Category
-	_, err = h.db.QueryOneContext(ctx, &category,
+
+	// Get updated category
+	var updatedCategory models.Category
+	_, err = tx.QueryOneContext(ctx, &updatedCategory,
 		"SELECT id, name, slug, description, parent_id, level, is_active, display_order, created_at, updated_at FROM categories WHERE id = ?", id)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to fetch updated category")
 	}
-	return c.JSON(category)
+
+	// Update products table if category name or parent changed
+	if categoryNameChanged {
+		if err := h.updateProductsAfterCategoryChange(ctx, tx, id, &updatedCategory); err != nil {
+			return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update products: "+err.Error())
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to commit transaction")
+	}
+
+	return c.JSON(updatedCategory)
 }
 
 // DeleteCategory godoc
@@ -286,24 +329,124 @@ func (h *CategoryHandler) DeleteCategory(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid category ID")
 	}
-	var count int
-	_, err = h.db.QueryOneContext(ctx, pg.Scan(&count), "SELECT COUNT(*) FROM categories WHERE parent_id = ? AND is_active = true", id)
+
+	// Check if category exists
+	var categoryExists int
+	_, err = h.db.QueryOneContext(ctx, pg.Scan(&categoryExists), 
+		"SELECT COUNT(*) FROM categories WHERE id = ? AND is_active = true", id)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Database error")
 	}
-	if count > 0 {
-		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Cannot delete category with active children")
+	if categoryExists == 0 {
+		return utils.ErrorResponse(c, fiber.StatusNotFound, "Category not found")
 	}
-	_, err = h.db.ExecContext(ctx, "UPDATE categories SET is_active = false, updated_at = ? WHERE id = ?", time.Now(), id)
+
+	// Check for active children categories
+	var childrenCount int
+	_, err = h.db.QueryOneContext(ctx, pg.Scan(&childrenCount), 
+		"SELECT COUNT(*) FROM categories WHERE parent_id = ? AND is_active = true", id)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Database error")
+	}
+	if childrenCount > 0 {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Cannot delete category with active children categories")
+	}
+
+	// Check for products using this category
+	var productsCount int
+	_, err = h.db.QueryOneContext(ctx, pg.Scan(&productsCount), 
+		"SELECT COUNT(*) FROM products WHERE category_id = ?", id)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Database error checking products")
+	}
+	if productsCount > 0 {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, 
+			"Cannot delete category with existing products. Please reassign or remove products first")
+	}
+
+	// Soft delete category
+	_, err = h.db.ExecContext(ctx, 
+		"UPDATE categories SET is_active = false, updated_at = ? WHERE id = ?", 
+		FixedTimeNow(), id)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to delete category: "+err.Error())
 	}
+
 	return c.JSON(fiber.Map{
 		"message": "Category deleted successfully",
 	})
 }
 
 // Helper functions
+
+// updateProductsAfterCategoryChange updates products table when category name or hierarchy changes
+func (h *CategoryHandler) updateProductsAfterCategoryChange(ctx context.Context, tx *pg.Tx, categoryID int64, updatedCategory *models.Category) error {
+	// Get parent category info if exists
+	var parentCategoryName *string
+	var parentCategoryID *int64
+	
+	if updatedCategory.ParentID != nil && *updatedCategory.ParentID != 0 {
+		var parentCategory models.Category
+		_, err := tx.QueryOneContext(ctx, &parentCategory,
+			"SELECT id, name FROM categories WHERE id = ? AND is_active = true", *updatedCategory.ParentID)
+		if err == nil {
+			parentCategoryName = &parentCategory.Name
+			parentCategoryID = &parentCategory.ID
+		}
+	}
+
+	// Update products that belong to this category
+	var updateQuery string
+	var args []interface{}
+	
+	if updatedCategory.Level == 1 {
+		// Level 1 category: update category_name and clear parent info
+		updateQuery = `UPDATE products 
+			SET category_name = ?, 
+			    parent_category_id = NULL, 
+			    parent_category_name = NULL 
+			WHERE category_id = ?`
+		args = []interface{}{updatedCategory.Name, categoryID}
+	} else {
+		// Level 2 category: update both category_name and parent info
+		updateQuery = `UPDATE products 
+			SET category_name = ?, 
+			    parent_category_id = ?, 
+			    parent_category_name = ? 
+			WHERE category_id = ?`
+		args = []interface{}{updatedCategory.Name, parentCategoryID, parentCategoryName, categoryID}
+	}
+
+	_, err := tx.ExecContext(ctx, updateQuery, args...)
+	if err != nil {
+		return err
+	}
+
+	// Also update products in child categories if this is a level 1 category
+	if updatedCategory.Level == 1 {
+		var childCategories []*models.Category
+		_, err := tx.QueryContext(ctx, &childCategories,
+			"SELECT id, name FROM categories WHERE parent_id = ? AND is_active = true", categoryID)
+		if err != nil {
+			return err
+		}
+
+		for _, child := range childCategories {
+			_, err := tx.ExecContext(ctx,
+				`UPDATE products 
+				SET parent_category_id = ?, 
+				    parent_category_name = ? 
+				WHERE category_id = ?`,
+				categoryID, updatedCategory.Name, child.ID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (h *CategoryHandler) buildCategoryTree(ctx interface{}, categories []*models.Category) []*models.CategoryResponse {
 	categoryMap := make(map[int64]*models.CategoryResponse)
 	var roots []*models.CategoryResponse

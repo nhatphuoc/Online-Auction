@@ -33,11 +33,6 @@ public class RestTemplateUserServiceClient {
         this.restTemplate = restTemplate;
     }
 
-    @PostConstruct
-    public void init() {
-        userServiceBaseUrl = userServiceBaseUrl + "/api/users";
-    }
-
     /**
      * Get SimpleUserResponse by id from user-service
      */

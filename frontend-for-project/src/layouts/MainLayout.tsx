@@ -1,14 +1,25 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navigation/Navbar';
 import Toast from '../components/Common/Toast';
+import { CategoryMenu } from '../components/Category/CategoryMenu';
 
 const MainLayout = () => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-      <main className="flex-1">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex">
+        {/* Sidebar with Categories */}
+        <aside className="hidden lg:block w-64 bg-gray-50 border-r border-gray-200">
+          <div className="sticky top-20 p-4">
+            <CategoryMenu />
+          </div>
+        </aside>
+        
+        {/* Main Content */}
+        <main className="flex-1">
+          <Outlet />
+        </main>
+      </div>
       <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

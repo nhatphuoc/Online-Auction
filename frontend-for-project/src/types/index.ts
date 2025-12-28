@@ -169,3 +169,108 @@ export interface ApiResponse<T> {
   data?: T;
   message?: string;
 }
+
+export interface UserProfile extends User {
+  address?: string;
+  dateOfBirth?: string;
+  rating?: UserRating;
+}
+
+export interface UserRating {
+  totalRatings: number;
+  positiveRatings: number;
+  negativeRatings: number;
+  ratingPercentage: number;
+  reviews: RatingReview[];
+}
+
+export interface RatingReview {
+  id: number;
+  fromUserId: number;
+  fromUserName: string;
+  rating: 1 | -1; // +1 or -1
+  comment: string;
+  createdAt: string;
+}
+
+export interface UpgradeRequest {
+  id: number;
+  userId: number;
+  userEmail: string;
+  userName: string;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WatchlistItem {
+  id: number;
+  userId: number;
+  productId: number;
+  product: ProductListItem;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: number;
+  userId: number;
+  type: 'BID_PLACED' | 'BID_OUTBID' | 'AUCTION_WON' | 'AUCTION_ENDED' | 'QUESTION_RECEIVED' | 'ANSWER_RECEIVED';
+  title: string;
+  message: string;
+  read: boolean;
+  link?: string;
+  createdAt: string;
+}
+
+export interface ProductQuestion {
+  id: number;
+  productId: number;
+  askerId: number;
+  askerName: string;
+  question: string;
+  answer?: string;
+  answeredAt?: string;
+  createdAt: string;
+}
+
+export interface OrderDetail extends Order {
+  productName: string;
+  productImage: string;
+  sellerInfo: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+  };
+  buyerInfo: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+  };
+  shippingAddress?: string;
+  trackingNumber?: string;
+}
+
+export interface MediaUploadResponse {
+  message: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  image_url: string;
+  uploaded_at: string;
+}
+
+export interface PresignedUrlResponse {
+  presigned_url: string;
+  image_url: string;
+  file_name: string;
+  expires_in: number;
+}
+
+export interface WebSocketMessage {
+  type: 'BID_UPDATE' | 'COMMENT' | 'ORDER_UPDATE' | 'NOTIFICATION';
+  data: Record<string, unknown>;
+  timestamp: string;
+}

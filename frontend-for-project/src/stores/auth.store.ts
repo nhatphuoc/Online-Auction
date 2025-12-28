@@ -18,6 +18,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
 
   setUser: (user) => {
+    console.log('AuthStore - Setting user:', user);
+    console.log('AuthStore - User role:', user?.userRole);
     set({ user, isAuthenticated: !!user });
   },
 

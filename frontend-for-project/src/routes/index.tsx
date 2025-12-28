@@ -7,6 +7,9 @@ import VerifyOtpPage from '../pages/auth/VerifyOtpPage';
 import ProductListPage from '../pages/products/ProductListPage';
 import ProductDetailPage from '../pages/products/ProductDetailPage';
 import SearchPage from '../pages/products/SearchPage';
+import ProfilePage from '../pages/profile/ProfilePage';
+import WatchlistPage from '../pages/bidder/WatchlistPage';
+import MyBidsPage from '../pages/bidder/MyBidsPage';
 import NotFoundPage from '../pages/common/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -29,6 +32,18 @@ export const router = createBrowserRouter([
       {
         path: 'search',
         element: <SearchPage />,
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
+      },
+      {
+        path: 'watchlist',
+        element: <WatchlistPage />,
+      },
+      {
+        path: 'my-bids',
+        element: <MyBidsPage />,
       },
     ],
   },

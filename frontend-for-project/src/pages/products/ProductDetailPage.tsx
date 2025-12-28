@@ -157,16 +157,32 @@ const ProductDetailPage = () => {
 
   useEffect(() => {
     loadProductDetail();
-    loadBidHistory();
-    loadComments();
-    setupWebSocket();
+  }, [loadProductDetail]);
+
+  useEffect(() => {
+    if (activeTab === 'bidHistory' && (!bidHistory || bidHistory.length === 0)) {
+      loadBidHistory();
+    }
+  }, [activeTab, bidHistory, loadBidHistory]);
+
+  useEffect(() => {
+    if (activeTab === 'questions' && (!comments || comments.length === 0)) {
+      loadComments();
+    }
+  }, [activeTab, comments, loadComments]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'questions') {
+      setupWebSocket();
+    }
 
     return () => {
       if (ws) {
         ws.close();
       }
     };
-  }, [id, loadProductDetail, loadBidHistory, loadComments, setupWebSocket, ws]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, activeTab]);
 
   const handlePlaceBid = async () => {
     if (!product || !isAuthenticated) {
@@ -230,14 +246,14 @@ const ProductDetailPage = () => {
   };
 
   const nextImage = () => {
-    if (product && product.images.length > 0) {
+    if (product && product.images && product.images.length > 0) {
       const total = [product.thumbnailUrl, ...product.images].length;
       setCurrentImageIndex((prev) => (prev + 1) % total);
     }
   };
 
   const prevImage = () => {
-    if (product && product.images.length > 0) {
+    if (product && product.images && product.images.length > 0) {
       const total = [product.thumbnailUrl, ...product.images].length;
       setCurrentImageIndex((prev) => (prev - 1 + total) % total);
     }
@@ -268,7 +284,7 @@ const ProductDetailPage = () => {
     );
   }
 
-  const allImages = [product.thumbnailUrl, ...product.images];
+  const allImages = [product.thumbnailUrl, ...(product.images || [])];
   const isAuctionEnded = new Date(product.endAt) < new Date();
   const isSeller = user?.id === product.sellerId;
   const suggestedBid = product.currentPrice + product.stepPrice;

@@ -30,11 +30,18 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
 
   getParentCategories: () => {
     const { categories } = get();
+    // API returns categories with children already nested
     return categories.filter((cat) => cat.level === 1 && cat.is_active);
   },
 
   getChildCategories: (parentId) => {
     const { categories } = get();
+    // First try to find in the parent's children array
+    const parent = categories.find((cat) => cat.id === parentId);
+    if (parent && parent.children) {
+      return parent.children.filter((child) => child.is_active);
+    }
+    // Fallback to flat structure
     return categories.filter(
       (cat) => cat.parent_id === parentId && cat.level === 2 && cat.is_active
     );

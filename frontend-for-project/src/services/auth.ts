@@ -85,12 +85,29 @@ export const authService = {
 
   async getCurrentUser() {
     try {
-      const response = await apiClient.get<{ success: boolean; data: User }>(endpoints.users.profile);
-      if (response.data.success) {
-        return response.data.data;
+      const response = await apiClient.get<{ success: boolean; data: any }>(endpoints.users.profile);
+      if (response.data.success && response.data.data) {
+        const backendUser = response.data.data;
+        console.log('Backend user data:', backendUser);
+        
+        // Map backend response to User interface
+        const user: User = {
+          id: backendUser.id,
+          email: backendUser.email,
+          fullName: backendUser.fullName,
+          phoneNumber: backendUser.phoneNumber || '',
+          userRole: backendUser.role, // Backend uses 'role', we use 'userRole'
+          isEmailVerified: backendUser.emailVerified,
+          createdAt: backendUser.createdAt || new Date().toISOString(),
+          updatedAt: backendUser.updatedAt || new Date().toISOString(),
+        };
+        
+        console.log('Mapped user with role:', user.userRole);
+        return user;
       }
       return null;
-    } catch {
+    } catch (error) {
+      console.error('Error fetching current user:', error);
       return null;
     }
   },

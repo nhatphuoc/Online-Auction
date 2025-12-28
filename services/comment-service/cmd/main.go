@@ -97,7 +97,7 @@ func main() {
 	app.Static("/", "./public")
 
 	// Initialize handlers
-	commentHandler := handlers.NewCommentHandler(db)
+	commentHandler := handlers.NewCommentHandler(db, cfg)
 
 	// Routes
 	api := app.Group("")

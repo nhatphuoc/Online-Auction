@@ -23,8 +23,10 @@ import (
 type Client struct {
 	Conn      *websocket.Conn
 	UserID    int
+	UserName  string // Masked username for display
 	ProductID int
 	Send      chan []byte
+	Token     string // X-User-Token for user-service calls
 }
 
 // Hub manages WebSocket connections and message broadcasting
@@ -100,11 +102,15 @@ func (h *Hub) Run() {
 }
 
 type CommentHandler struct {
-	db *pg.DB
+	db  *pg.DB
+	cfg *config.Config
 }
 
-func NewCommentHandler(db *pg.DB) *CommentHandler {
-	return &CommentHandler{db: db}
+func NewCommentHandler(db *pg.DB, cfg *config.Config) *CommentHandler {
+	return &CommentHandler{
+		db:  db,
+		cfg: cfg,
+	}
 }
 
 // GetProductComments godoc
@@ -122,27 +128,65 @@ func NewCommentHandler(db *pg.DB) *CommentHandler {
 // @Router /api/comments/products/{productId} [get]
 func (h *CommentHandler) GetProductComments(c *fiber.Ctx) error {
 	ctx := context.Background()
+
 	productID, err := c.ParamsInt("productId")
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid product ID")
 	}
+
 	limit := c.QueryInt("limit", 50)
 	offset := c.QueryInt("offset", 0)
 
-	var comments []models.Comment
-	err = h.db.ModelContext(ctx, &comments).
-		Where("product_id = ?", productID).
-		Order("created_at DESC").
+	// Struct map thêm full_name
+	type CommentWithUser struct {
+		models.Comment
+		FullName string `pg:"full_name"`
+	}
+
+	var commentsWithUsers []CommentWithUser
+
+	err = h.db.ModelContext(ctx, (*models.Comment)(nil)).
+		Column("comment.*").
+		ColumnExpr("users.full_name AS full_name").
+		Join("LEFT JOIN users ON users.id = comment.sender_id").
+		Where("comment.product_id = ?", productID).
+		Order("comment.created_at DESC"). // lấy mới nhất trước
 		Limit(limit).
 		Offset(offset).
-		Select()
+		Select(&commentsWithUsers)
 
 	if err != nil {
 		slog.Error("Failed to get comments", "error", err)
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Lỗi lấy bình luận")
 	}
 
-	return c.JSON(comments)
+	for i, j := 0, len(commentsWithUsers)-1; i < j; i, j = i+1, j-1 {
+		commentsWithUsers[i], commentsWithUsers[j] =
+			commentsWithUsers[j], commentsWithUsers[i]
+	}
+
+	// Build response
+	responses := make([]models.CommentResponse, 0, len(commentsWithUsers))
+
+	for _, cw := range commentsWithUsers {
+		userName := ""
+		if cw.FullName != "" {
+			userName = utils.MaskUserName(cw.FullName)
+		} else {
+			userName = fmt.Sprintf("Người dùng #%d", cw.SenderID)
+		}
+
+		responses = append(responses, models.CommentResponse{
+			ID:         cw.ID,
+			ProductID:  cw.ProductID,
+			SenderID:   cw.SenderID,
+			SenderName: userName,
+			Content:    cw.Content,
+			CreatedAt:  cw.CreatedAt,
+		})
+	}
+
+	return utils.SuccessResponse(c, responses)
 }
 
 // HandleWebSocket handles WebSocket connections
@@ -230,11 +274,26 @@ func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 	var productID int
 	fmt.Sscanf(productIDStr, "%d", &productID)
 
+	// Fetch user's name from database (not user-service)
+	userName := ""
+	var user models.User
+	err = h.db.Model(&user).Where("id = ?", userID).Select()
+	if err != nil {
+		slog.Warn("Failed to get user from database", "userID", userID, "error", err)
+		userName = fmt.Sprintf("Người dùng #%d", userID)
+	} else if user.FullName != "" {
+		userName = utils.MaskUserName(user.FullName)
+	} else {
+		userName = fmt.Sprintf("Người dùng #%d", userID)
+	}
+
 	client := &Client{
 		Conn:      c,
 		UserID:    userID,
+		UserName:  userName,
 		ProductID: productID,
 		Send:      make(chan []byte, 256),
+		Token:     tokenString,
 	}
 
 	hub.register <- client
@@ -300,11 +359,20 @@ func (h *CommentHandler) readPump(client *Client) {
 				continue
 			}
 
-			// Broadcast to all clients connected to this product
+			// Broadcast to all clients with full comment response including username
+			commentResp := models.CommentResponse{
+				ID:         comment.ID,
+				ProductID:  comment.ProductID,
+				SenderID:   comment.SenderID,
+				SenderName: client.UserName, // Use cached username from client
+				Content:    comment.Content,
+				CreatedAt:  comment.CreatedAt,
+			}
+
 			responseMsg := models.WebSocketMessage{
 				Type:      "comment",
 				ProductID: client.ProductID,
-				Data:      comment,
+				Data:      commentResp,
 			}
 
 			msgBytes, _ := json.Marshal(responseMsg)

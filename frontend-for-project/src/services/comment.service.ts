@@ -11,10 +11,11 @@ export const commentService = {
     queryParams.append('limit', (params.limit || 50).toString());
     queryParams.append('offset', (params.offset || 0).toString());
 
-    const response = await apiClient.get<Comment[]>(
+    const response = await apiClient.get<{ data: Comment[] | null }>(
       `${endpoints.comments.history(productId)}?${queryParams.toString()}`
     );
-    return response.data;
+    // Handle null response from API when no comments exist
+    return response.data.data || [];
   },
 
   async getWebSocketInfo() {

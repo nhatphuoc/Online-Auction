@@ -117,7 +117,7 @@ const ProductDetailPage = () => {
     setIsLoadingComments(true);
     try {
       const data = await commentService.getProductComments(parseInt(id), {
-        limit: 100,
+        limit: 5,
       });
       setComments(data);
     } catch (error) {
@@ -140,8 +140,10 @@ const ProductDetailPage = () => {
 
       websocket.onmessage = (event) => {
         const message = JSON.parse(event.data);
-        if (message.type === 'comment') {
-          setComments(prev => [...prev, message]);
+        console.log('WebSocket message received:', message);
+        if (message.type === 'comment' && message.data) {
+          // Backend sends: { type: 'comment', data: CommentResponse }
+          setComments(prev => [...prev, message.data]);
         }
       };
 
@@ -159,17 +161,21 @@ const ProductDetailPage = () => {
     loadProductDetail();
   }, [loadProductDetail]);
 
+  // Load bid history only once when tab is activated
   useEffect(() => {
-    if (activeTab === 'bidHistory' && (!bidHistory || bidHistory.length === 0)) {
+    if (activeTab === 'bidHistory' && bidHistory.length === 0) {
       loadBidHistory();
     }
-  }, [activeTab, bidHistory, loadBidHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, loadBidHistory]);
 
+  // Load comments only once when tab is activated
   useEffect(() => {
-    if (activeTab === 'questions' && (!comments || comments.length === 0)) {
+    if (activeTab === 'questions' && comments.length === 0) {
       loadComments();
     }
-  }, [activeTab, comments, loadComments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, loadComments]);
 
   useEffect(() => {
     if (isAuthenticated && activeTab === 'questions') {
@@ -232,10 +238,9 @@ const ProductDetailPage = () => {
       const message = {
         type: 'comment',
         content: newQuestion.trim(),
-        product_id: parseInt(id!),
-        sender_id: user!.id,
       };
       
+      console.log('Sending WebSocket message:', message);
       ws.send(JSON.stringify(message));
       setNewQuestion('');
       addToast('success', 'Câu hỏi của bạn đã được gửi!');
@@ -549,7 +554,7 @@ const ProductDetailPage = () => {
                     : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Câu hỏi ({comments.length})
+                Câu hỏi ({comments?.length || 0})
               </button>
             </nav>
           </div>
@@ -660,7 +665,7 @@ const ProductDetailPage = () => {
                     )}
 
                     {/* Comments List */}
-                    {comments.length === 0 ? (
+                    {!comments || comments.length === 0 ? (
                       <div className="text-center py-12 text-gray-500">
                         <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-30" />
                         <p>Chưa có câu hỏi nào</p>
@@ -684,7 +689,7 @@ const ProductDetailPage = () => {
                               <div className="flex-1">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="font-semibold text-gray-900">
-                                    Người dùng #{comment.sender_id}
+                                    {comment.sender_name}
                                   </span>
                                   <span className="text-sm text-gray-500">
                                     {formatDate(comment.created_at)}

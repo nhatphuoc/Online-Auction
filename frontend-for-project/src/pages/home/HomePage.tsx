@@ -1,13 +1,17 @@
-import { useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAsync } from '../../hooks/useAsync';
 import { apiClient } from '../../services/api/client';
 import { endpoints } from '../../services/api/endpoints';
 import { ProductListItem, ApiResponse } from '../../types';
-import { LoadingSpinner, ProductSkeleton } from '../../components/Common/Loading';
-import { formatCurrency, formatTimeRemaining, formatRelativeTime } from '../../utils/formatters';
+import { ProductSkeleton } from '../../components/Common/Loading';
+import { formatCurrency } from '../../utils/formatters';
 import { TrendingUp, Clock, DollarSign } from 'lucide-react';
 
 const HomePage = () => {
+  const navigate = useNavigate();
+  const [heroSearchQuery, setHeroSearchQuery] = useState('');
+  
   const topEnding = useAsync<ApiResponse<ProductListItem[]>>(
     () => apiClient.get(endpoints.products.topEnding),
     true,
@@ -108,13 +112,15 @@ const HomePage = () => {
           </p>
           <form onSubmit={(e) => {
             e.preventDefault();
-            const query = (e.target as any).search.value;
-            window.location.href = `/search?q=${encodeURIComponent(query)}`;
+            if (heroSearchQuery.trim()) {
+              navigate(`/search?q=${encodeURIComponent(heroSearchQuery.trim())}`);
+            }
           }} className="max-w-2xl mx-auto">
             <div className="relative">
               <input
                 type="text"
-                name="search"
+                value={heroSearchQuery}
+                onChange={(e) => setHeroSearchQuery(e.target.value)}
                 placeholder="Tìm kiếm sản phẩm..."
                 className="w-full px-6 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
               />

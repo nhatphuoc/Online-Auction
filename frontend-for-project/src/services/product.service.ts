@@ -70,8 +70,10 @@ export const productService = {
     thumbnailUrl: string;
     images: string[];
     description: string;
-    parentCategoryId: number;
     categoryId: number;
+    categoryName: string;
+    parentCategoryId: number;
+    parentCategoryName: string;
     startingPrice: number;
     buyNowPrice?: number;
     stepPrice: number;

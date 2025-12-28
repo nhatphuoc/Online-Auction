@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ProductListItem } from '../../types';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { Clock, Gavel, Eye } from 'lucide-react';
+import { ProductImage } from '../Common/Image';
 
 interface ProductCardProps {
   product: ProductListItem;
@@ -25,13 +26,10 @@ export const ProductCard = ({ product, showCategory = true, isNew = false }: Pro
       )}
       
       <div className="relative h-48 bg-gray-200 overflow-hidden">
-        <img
-          src={product.thumbnailUrl || '/placeholder-image.jpg'}
+        <ProductImage
+          src={product.thumbnailUrl}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-          onError={(e) => {
-            e.currentTarget.src = '/placeholder-image.jpg';
-          }}
         />
         {product.buyNowPrice && (
           <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded-md">

@@ -1,28 +1,34 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, Search, Gavel, LogOut, User, LogIn } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { 
+  Menu, X, Search, Gavel, LogOut, User, LogIn, 
+  Heart, Package, ShoppingCart, Settings, TrendingUp 
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { useUIStore } from '../../stores/ui.store';
+import { useRole } from '../../hooks/useRole';
+import { RoleBased } from '../Common/RoleBased';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-  const location = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
-  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const { isAdmin, isSeller } = useRole();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
       setSearchQuery('');
+      setMobileMenuOpen(false);
     }
   };
 
   const handleLogout = () => {
     logout();
     setMobileMenuOpen(false);
+    setProfileMenuOpen(false);
     navigate('/');
   };
 
@@ -31,16 +37,61 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2 font-bold text-2xl text-blue-600">
               <Gavel className="w-8 h-8" />
-              <span>Đấu Giá</span>
+              <span className="hidden sm:inline">Đấu Giá</span>
             </Link>
+
+            {/* Desktop Navigation Links */}
+            {isAuthenticated && (
+              <div className="hidden lg:flex items-center gap-4">
+                <RoleBased allowedRoles={['ROLE_BIDDER', 'ROLE_SELLER']}>
+                  <Link
+                    to="/watchlist"
+                    className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Heart className="w-4 h-4" />
+                    <span className="text-sm font-medium">Yêu thích</span>
+                  </Link>
+                </RoleBased>
+
+                <RoleBased allowedRoles={['ROLE_SELLER']}>
+                  <Link
+                    to="/seller/products"
+                    className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Package className="w-4 h-4" />
+                    <span className="text-sm font-medium">Sản phẩm của tôi</span>
+                  </Link>
+                </RoleBased>
+
+                <RoleBased allowedRoles={['ROLE_BIDDER', 'ROLE_SELLER']}>
+                  <Link
+                    to="/orders"
+                    className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span className="text-sm font-medium">Đơn hàng</span>
+                  </Link>
+                </RoleBased>
+
+                <RoleBased allowedRoles={['ROLE_ADMIN']}>
+                  <Link
+                    to="/admin"
+                    className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span className="text-sm font-medium">Quản trị</span>
+                  </Link>
+                </RoleBased>
+              </div>
+            )}
           </div>
 
           {/* Search bar - Desktop */}
           <div className="hidden md:flex items-center flex-1 mx-8">
-            <form onSubmit={handleSearch} className="w-full">
+            <form onSubmit={handleSearch} className="w-full max-w-2xl">
               <div className="relative">
                 <input
                   type="text"
@@ -60,40 +111,70 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-4">
             {!isAuthenticated ? (
               <>
                 <Link
                   to="/login"
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 font-medium"
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 font-medium transition-colors"
                 >
                   <LogIn className="w-5 h-5" />
                   Đăng nhập
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
                 >
                   Đăng ký
                 </Link>
               </>
             ) : (
-              <>
-                <Link
-                  to="/profile"
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 font-medium"
+              <div className="relative">
+                <button
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-colors"
                 >
                   <User className="w-5 h-5" />
-                  {user?.fullName}
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-red-600 font-medium"
-                >
-                  <LogOut className="w-5 h-5" />
-                  Đăng xuất
+                  <span className="max-w-32 truncate">{user?.fullName}</span>
+                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                    {isAdmin ? 'Admin' : isSeller ? 'Seller' : 'Bidder'}
+                  </span>
                 </button>
-              </>
+
+                {profileMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-blue-50 transition-colors"
+                      onClick={() => setProfileMenuOpen(false)}
+                    >
+                      <User className="w-4 h-4" />
+                      Hồ sơ cá nhân
+                    </Link>
+                    
+                    <RoleBased allowedRoles={['ROLE_BIDDER']}>
+                      <Link
+                        to="/my-bids"
+                        className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-blue-50 transition-colors"
+                        onClick={() => setProfileMenuOpen(false)}
+                      >
+                        <TrendingUp className="w-4 h-4" />
+                        Đấu giá của tôi
+                      </Link>
+                    </RoleBased>
+                    
+                    <div className="border-t border-gray-200 my-2"></div>
+                    
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

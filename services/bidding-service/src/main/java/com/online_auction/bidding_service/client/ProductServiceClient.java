@@ -1,5 +1,6 @@
 package com.online_auction.bidding_service.client;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -20,8 +21,10 @@ import lombok.RequiredArgsConstructor;
 public class ProductServiceClient {
 
     private final RestTemplate restTemplate;
-    
-    private String productServiceUrl = "http://localhost:8085/api";
+
+    @Value("${PRODUCT_SERVICE_URL}")
+    private String productServiceUrl; // e.g., http://localhost:8085/api/products
+
     /**
      * Gửi yêu cầu đặt giá tới Product-Service.
      * Luôn forward X-User-Token sang cho product-service.
@@ -29,10 +32,9 @@ public class ProductServiceClient {
     public ApiResponse<ProductBidSuccessData> placeBidToProductService(
             Long productId,
             ProductBidRequest request,
-            String userJwt
-    ) {
+            String userJwt) {
 
-        String url = productServiceUrl + "/products/" + productId + "/bids";
+        String url = productServiceUrl + "/" + productId + "/bids";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -43,17 +45,15 @@ public class ProductServiceClient {
         HttpEntity<ProductBidRequest> entity = new HttpEntity<>(request, headers);
 
         try {
-            ResponseEntity<ApiResponse<ProductBidSuccessData>> response =
-                    restTemplate.exchange(
-                            url,
-                            HttpMethod.POST,
-                            entity,
-                            new ParameterizedTypeReference<ApiResponse<ProductBidSuccessData>>() {}
-                    );
+            ResponseEntity<ApiResponse<ProductBidSuccessData>> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<ApiResponse<ProductBidSuccessData>>() {
+                    });
             System.out.println("Receive: " + response.getBody());
             return response.getBody(); // Có thể null → BiddingService xử lý tiếp
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             // Trả về lỗi theo format ApiResponse
             return ApiResponse.fail("PRODUCT_SERVICE_ERROR: " + ex.getMessage());
         }

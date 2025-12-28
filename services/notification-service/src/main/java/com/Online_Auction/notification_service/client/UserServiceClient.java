@@ -23,15 +23,18 @@ public class UserServiceClient {
     @Value("${internal.key}")
     private String internalKey;
 
-    private static final String BASE_URL = "http://localhost:8081/api/users";
+    @Value("${USER_SERVICE_URL}")
+    private String userServiceUrl; // Injected from application.yaml
 
     public UserServiceClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
 
-    /* ---------------------------------------------------------
-     *  COMMON HEADER BUILDER
-     * --------------------------------------------------------- */
+    /*
+     * ---------------------------------------------------------
+     * COMMON HEADER BUILDER
+     * ---------------------------------------------------------
+     */
     private HttpHeaders buildHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Auth-Internal-Service", internalKey);
@@ -39,32 +42,31 @@ public class UserServiceClient {
         return headers;
     }
 
-    /* ---------------------------------------------------------
-     *  GENERIC CALLER — dùng chung cho mọi API
-     * --------------------------------------------------------- */
+    /*
+     * ---------------------------------------------------------
+     * GENERIC CALLER — dùng chung cho mọi API
+     * ---------------------------------------------------------
+     */
     private <T> ApiResponse<T> callApi(
             String url,
             HttpMethod method,
             Object body,
             ParameterizedTypeReference<ApiResponse<T>> typeRef,
-            Object... uriVars
-    ) {
+            Object... uriVars) {
         try {
             HttpEntity<Object> entity = new HttpEntity<>(body, buildHeaders());
 
-            ResponseEntity<ApiResponse<T>> response =
-                    restTemplate.exchange(url, method, entity, typeRef, uriVars);
+            ResponseEntity<ApiResponse<T>> response = restTemplate.exchange(url, method, entity, typeRef, uriVars);
 
             return response.getBody();
 
         } catch (RestClientResponseException ex) {
-            // ❗ Server trả về JSON error → parse ApiResponse từ response body
+            // Server trả về JSON error → parse ApiResponse từ response body
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 return mapper.readValue(
                         ex.getResponseBodyAsString(),
-                        mapper.getTypeFactory().constructParametricType(ApiResponse.class, Object.class)
-                );
+                        mapper.getTypeFactory().constructParametricType(ApiResponse.class, Object.class));
             } catch (Exception e) {
                 return ApiResponse.fail("Failed to parse error response from user-service");
             }
@@ -74,20 +76,22 @@ public class UserServiceClient {
         }
     }
 
-    /* ---------------------------------------------------------
-     *  API IMPLEMENTATION
-     * --------------------------------------------------------- */
+    /*
+     * ---------------------------------------------------------
+     * API IMPLEMENTATION
+     * ---------------------------------------------------------
+     */
 
     /**
-     * GET Simple User by Email
+     * GET Simple User by ID
      */
     public ApiResponse<SimpleUserResponse> getUserById(Long id) {
         return callApi(
-                BASE_URL + "/{id}/simple",
+                userServiceUrl + "/{id}/simple", // Use injected URL
                 HttpMethod.GET,
                 null,
-                new ParameterizedTypeReference<>() {},
-                id
-        );
+                new ParameterizedTypeReference<>() {
+                },
+                id);
     }
 }

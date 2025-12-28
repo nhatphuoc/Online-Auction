@@ -2,7 +2,6 @@ package com.Online_Auction.auth_service.external.client;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
@@ -20,7 +19,10 @@ import com.Online_Auction.auth_service.external.response.ApiResponse;
 import com.Online_Auction.auth_service.external.response.SimpleUserResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Service
+@Slf4j
 public class UserServiceClient {
 
     private final RestTemplate restTemplate;
@@ -32,7 +34,7 @@ public class UserServiceClient {
 
     public UserServiceClient(RestTemplate restTemplate, @Value("${USER_SERVICE_URL}") String userServiceUrl) {
         this.restTemplate = restTemplate;
-        this.baseUrl = userServiceUrl + "/api/users";
+        this.baseUrl = userServiceUrl;
     }
 
     /*
@@ -59,9 +61,21 @@ public class UserServiceClient {
             ParameterizedTypeReference<ApiResponse<T>> typeRef,
             Object... uriVars) {
         try {
-            HttpEntity<Object> entity = new HttpEntity<>(body, buildHeaders());
+            HttpHeaders headers = buildHeaders();
+            HttpEntity<Object> entity = new HttpEntity<>(body, headers);
+
+            // Log request details
+            log.info("Making API request:");
+            log.info("URL: {}", url);
+            log.info("HTTP Method: {}", method);
+            log.info("Headers: {}", headers);
+            log.info("Body: {}", body);
 
             ResponseEntity<ApiResponse<T>> response = restTemplate.exchange(url, method, entity, typeRef, uriVars);
+
+            // Optionally, log response
+            log.info("Response status: {}", response.getStatusCode());
+            log.info("Response body: {}", response.getBody());
 
             return response.getBody();
 

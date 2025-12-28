@@ -47,7 +47,9 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="flex flex-col gap-1 mt-2">
           <div className="flex justify-between items-baseline">
             <span className="text-zinc-400 text-sm">Current Bid</span>
-            <span className="text-white font-bold text-xl">${product.currentPrice.toLocaleString()}</span>
+            <span className="text-white font-bold text-xl">
+              ${product.currentPrice?.toLocaleString() ?? "-"}
+            </span>
           </div>
           {product.buyNowPrice && (
             <div className="flex justify-between items-baseline opacity-60">

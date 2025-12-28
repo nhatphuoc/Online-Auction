@@ -1,0 +1,62 @@
+export const endpoints = {
+  auth: {
+    register: '/auth/register',
+    verifyOtp: '/auth/verify-otp',
+    signIn: '/auth/sign-in',
+    signInGoogle: '/auth/sign-in/google',
+    validateJwt: '/auth/validate-jwt',
+  },
+  users: {
+    profile: '/users/profile/me',
+    simple: (email: string) => `/users/simple?email=${email}`,
+    simpleById: (id: number) => `/users/${id}/simple`,
+    search: '/users/search',
+    upgradeToSeller: (reason: string) => `/users/upgrade-to-seller?reason=${reason}`,
+    approveUpgrade: (requestId: number) => `/users/${requestId}/approve`,
+    upgradeRequests: '/users',
+    verifyEmail: '/users/verify-email',
+  },
+  categories: {
+    list: '/categories',
+    create: '/categories',
+    detail: (id: number) => `/categories/${id}`,
+    update: (id: number) => `/categories/${id}`,
+    delete: (id: number) => `/categories/${id}`,
+    byParent: (parentId: number) => `/categories/parent/${parentId}`,
+  },
+  products: {
+    create: '/products',
+    list: '/products',
+    search: '/products/search',
+    detail: (id: number) => `/products/${id}`,
+    update: (id: number) => `/products/${id}`,
+    delete: (id: number) => `/products/${id}`,
+    updateDescription: (id: number) => `/products/${id}/description`,
+    bySeller: (sellerId: number) => `/products/seller/${sellerId}`,
+    topEnding: '/products/top-ending',
+    topMostBids: '/products/top-most-bids',
+    topHighestPrice: '/products/top-highest-price',
+  },
+  bids: {
+    place: '/bids',
+    search: '/bids/search',
+  },
+  orders: {
+    create: '/orders',
+    list: '/orders',
+    detail: (id: number) => `/orders/${id}`,
+    websocket: '/order-websocket/abc',
+  },
+  comments: {
+    history: (productId: number) => `/comments/history/products/${productId}`,
+    websocket: '/comments/websocket/abc',
+  },
+  media: {
+    upload: '/media/upload',
+    uploadMultiple: '/media/upload/multiple',
+    presign: '/media/presign',
+  },
+  notifications: {
+    sendEmail: '/notifications/email',
+  },
+};

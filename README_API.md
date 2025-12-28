@@ -60,7 +60,7 @@
 
 ## 🔐 Headers Chung
 
-Hầu hết các endpoint (trừ Auth Service) yêu cầu:
+Hầu hết các endpoint (trừ Auth Service) yêu cầu: X-User-Token chứa JWT Access Token trong header (không có "Bearer" prefix) và Content-Type là application/json.
 
 ```
 X-User-Token: <JWT_ACCESS_TOKEN>

@@ -16,7 +16,6 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
@@ -55,7 +54,23 @@ func main() {
 	app := fiber.New()
 	app.Use(recover.New())
 	app.Use(fiberlogger.New())
-	app.Use(cors.New())
+	
+	// CORS middleware - Must handle OPTIONS properly
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("Access-Control-Allow-Origin", "*")
+		c.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-User-Token, X-Internal-JWT")
+		c.Set("Access-Control-Allow-Credentials", "true")
+		c.Set("Access-Control-Max-Age", "86400")
+		
+		// Handle preflight OPTIONS request
+		if c.Method() == "OPTIONS" {
+			return c.SendStatus(fiber.StatusOK)
+		}
+		
+		return c.Next()
+	})
+	
 	app.Use(middleware.TracingMiddleware())
 
 	api := app.Group("/api")

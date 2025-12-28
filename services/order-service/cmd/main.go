@@ -73,16 +73,27 @@ func main() {
 		},
 	})
 
+	// CORS middleware - Must be enabled for frontend to work
+	app.Use(func(c *fiber.Ctx) error {
+		c.Set("Access-Control-Allow-Origin", "*")
+		c.Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-User-Token, X-Internal-JWT, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version")
+		c.Set("Access-Control-Allow-Credentials", "true")
+		c.Set("Access-Control-Max-Age", "86400")
+		
+		// Handle preflight OPTIONS request
+		if c.Method() == "OPTIONS" {
+			return c.SendStatus(fiber.StatusOK)
+		}
+		
+		return c.Next()
+	})
+
 	// Middleware
 	app.Use(recover.New())
 	app.Use(fiberlogger.New(fiberlogger.Config{
 		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
 	}))
-	// app.Use(cors.New(cors.Config{
-	// 	AllowOrigins: "*",
-	// 	AllowHeaders: "*",
-	// 	AllowMethods: "GET, POST, PUT, DELETE, PATCH",
-	// }))
 
 	// Swagger route
 	app.Get("/swagger/*", swagger.HandlerDefault)

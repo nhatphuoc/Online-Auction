@@ -18,7 +18,6 @@ import (
 	_ "api_gateway/docs"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
@@ -99,11 +98,11 @@ func main() {
 	app.Use(fiberlogger.New(fiberlogger.Config{
 		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
 	}))
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "*",
-		AllowMethods: "GET, POST, PUT, DELETE, PATCH",
-	}))
+	// app.Use(cors.New(cors.Config{
+	// 	AllowOrigins: "*",
+	// 	AllowHeaders: "*",
+	// 	AllowMethods: "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+	// }))
 
 	// Swagger
 	app.Get("/swagger/*", swagger.HandlerDefault)

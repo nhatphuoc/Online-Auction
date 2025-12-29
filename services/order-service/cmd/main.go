@@ -56,9 +56,9 @@ func main() {
 	}
 
 	// Seed sample data (commented out - uncomment to seed database)
-	if err := config.SeedData(db); err != nil {
-		log.Fatalf("Lỗi seeding dữ liệu: %v", err)
-	}
+	// if err := config.SeedData(db); err != nil {
+	// 	log.Fatalf("Lỗi seeding dữ liệu: %v", err)
+	// }
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{

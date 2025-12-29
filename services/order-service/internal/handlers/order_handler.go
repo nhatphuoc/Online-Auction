@@ -160,18 +160,13 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// Create order
-	order := &models.Order{
-		AuctionID:  req.AuctionID,
-		WinnerID:   req.WinnerID,
-		SellerID:   req.SellerID,
-		FinalPrice: req.FinalPrice,
-		Status:     models.OrderStatusPendingPayment,
-		CreatedAt:  FixedTimeNow(),
-		UpdatedAt:  FixedTimeNow(),
-	}
-
-	_, err := h.db.ModelContext(ctx, order).Insert()
+	// Create order using raw query
+	var orderID int64
+	now := FixedTimeNow()
+	query := `INSERT INTO orders (auction_id, winner_id, seller_id, final_price, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`
+	_, err := h.db.QueryOneContext(ctx, pg.Scan(&orderID), query,
+		req.AuctionID, req.WinnerID, req.SellerID, req.FinalPrice, models.OrderStatusPendingPayment, now, now)
 	if err != nil {
 		slog.Error("Failed to create order", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -180,14 +175,22 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	}
 
 	// Create rating record
-	rating := &models.OrderRating{
-		OrderID:   order.ID,
-		CreatedAt: FixedTimeNow(),
-		UpdatedAt: FixedTimeNow(),
-	}
-	_, err = h.db.ModelContext(ctx, rating).Insert()
+	ratingQuery := `INSERT INTO order_ratings (order_id, created_at, updated_at) VALUES (?, ?, ?)`
+	_, err = h.db.ExecContext(ctx, ratingQuery, orderID, now, now)
 	if err != nil {
 		slog.Error("Failed to create rating record", "error", err)
+	}
+
+	// Return created order
+	order := &models.Order{
+		ID:         orderID,
+		AuctionID:  req.AuctionID,
+		WinnerID:   req.WinnerID,
+		SellerID:   req.SellerID,
+		FinalPrice: req.FinalPrice,
+		Status:     models.OrderStatusPendingPayment,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(order)
@@ -222,13 +225,13 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).
-		Relation("Rating").
-		Where("order.id = ?", id).
-		Select()
-
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -243,11 +246,22 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 
 	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 
+	fmt.Println("UserID:", userIDInt64, "WinnerID:", order.WinnerID, "SellerID:", order.SellerID)
 	// Check if user is buyer or seller
 	if order.WinnerID != userIDInt64 && order.SellerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
 		})
+	}
+
+	// Get rating if exists
+	var rating models.OrderRating
+	ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
+		buyer_rated_at, seller_rated_at, created_at, updated_at 
+		FROM order_ratings WHERE order_id = ?`
+	_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, id)
+	if err == nil {
+		order.Rating = &rating
 	}
 
 	return c.JSON(order)
@@ -292,29 +306,33 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 	}
 	offset := (page - 1) * limit
 
-	query := h.db.ModelContext(ctx, &[]models.Order{}).Relation("Rating")
-
+	// Build query based on role filter
+	var whereClause string
+	var args []interface{}
+	
 	// Filter by role (accepts both "buyer"/"seller" and "ROLE_BIDDER"/"ROLE_SELLER")
-	if role == "ROLE_SELLER" || role == "ROLE_BIDDER" {
-		query = query.Where("winner_id = ?", userID)
-	} else if role == "seller" || role == "ROLE_SELLER" {
-		query = query.Where("seller_id = ?", userID)
+	if role == "ROLE_BIDDER" || role == "buyer" {
+		whereClause = "winner_id = ?"
+		args = append(args, userID)
+	} else if role == "ROLE_SELLER" || role == "seller" {
+		whereClause = "seller_id = ?"
+		args = append(args, userID)
 	} else {
 		// Get all orders where user is either buyer or seller
-		query = query.WhereGroup(func(q *pg.Query) (*pg.Query, error) {
-			q = q.WhereOr("winner_id = ?", userID).
-				WhereOr("seller_id = ?", userID)
-			return q, nil
-		})
+		whereClause = "(winner_id = ? OR seller_id = ?)"
+		args = append(args, userID, userID)
 	}
 
 	// Filter by status
 	if status != "" {
-		query = query.Where("status = ?", status)
+		whereClause += " AND status = ?"
+		args = append(args, status)
 	}
 
 	// Get total count
-	total, err := query.Count()
+	countQuery := "SELECT COUNT(*) FROM orders WHERE " + whereClause
+	var total int
+	_, err := h.db.QueryOneContext(ctx, pg.Scan(&total), countQuery, args...)
 	if err != nil {
 		slog.Error("Failed to count orders", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -322,13 +340,32 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 		})
 	}
 
-	orders := []models.Order{}
-	err = query.Order("created_at DESC").Limit(limit).Offset(offset).Select(&orders)
+	// Get orders with pagination
+	ordersQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders WHERE ` + whereClause + ` ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+	
+	var orders []models.Order
+	_, err = h.db.QueryContext(ctx, &orders, ordersQuery, args...)
 	if err != nil {
 		slog.Error("Failed to get orders", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get orders",
 		})
+	}
+
+	// Get ratings for each order
+	for i := range orders {
+		var rating models.OrderRating
+		ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
+			buyer_rated_at, seller_rated_at, created_at, updated_at 
+			FROM order_ratings WHERE order_id = ?`
+		_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, orders[i].ID)
+		if err == nil {
+			orders[i].Rating = &rating
+		}
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -388,9 +425,13 @@ func (h *OrderHandler) PayOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -401,6 +442,7 @@ func (h *OrderHandler) PayOrder(c *fiber.Ctx) error {
 			"error": "Failed to get order",
 		})
 	}
+	
 	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 	// Check if user is buyer
 	if order.WinnerID != userIDInt64 {
@@ -418,23 +460,22 @@ func (h *OrderHandler) PayOrder(c *fiber.Ctx) error {
 
 	// Update order with payment info (Mock payment - always successful)
 	now := FixedTimeNow()
-	order.PaymentMethod = req.PaymentMethod
-	order.PaymentProof = req.PaymentProof
-	order.Status = models.OrderStatusPaid
-	order.PaidAt = &now
-	order.UpdatedAt = now
-
-	_, err = h.db.ModelContext(ctx, order).
-		Column("payment_method", "payment_proof", "status", "paid_at", "updated_at").
-		WherePK().
-		Update()
-
+	updateQuery := `UPDATE orders SET payment_method = ?, payment_proof = ?, status = ?, paid_at = ?, updated_at = ? 
+		WHERE id = ?`
+	_, err = h.db.ExecContext(ctx, updateQuery, req.PaymentMethod, req.PaymentProof, models.OrderStatusPaid, now, now, id)
 	if err != nil {
 		slog.Error("Failed to update order", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update order",
 		})
 	}
+
+	// Update local object for response
+	order.PaymentMethod = req.PaymentMethod
+	order.PaymentProof = req.PaymentProof
+	order.Status = models.OrderStatusPaid
+	order.PaidAt = &now
+	order.UpdatedAt = now
 
 	return c.JSON(order)
 }
@@ -483,9 +524,13 @@ func (h *OrderHandler) ProvideShippingAddress(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -513,22 +558,21 @@ func (h *OrderHandler) ProvideShippingAddress(c *fiber.Ctx) error {
 	}
 
 	// Update order
-	order.ShippingAddress = req.ShippingAddress
-	order.ShippingPhone = req.ShippingPhone
-	order.Status = models.OrderStatusAddressProvided
-	order.UpdatedAt = FixedTimeNow()
-
-	_, err = h.db.ModelContext(ctx, order).
-		Column("shipping_address", "shipping_phone", "status", "updated_at").
-		WherePK().
-		Update()
-
+	now := FixedTimeNow()
+	updateQuery := `UPDATE orders SET shipping_address = ?, shipping_phone = ?, status = ?, updated_at = ? WHERE id = ?`
+	_, err = h.db.ExecContext(ctx, updateQuery, req.ShippingAddress, req.ShippingPhone, models.OrderStatusAddressProvided, now, id)
 	if err != nil {
 		slog.Error("Failed to update order", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update order",
 		})
 	}
+
+	// Update local object for response
+	order.ShippingAddress = req.ShippingAddress
+	order.ShippingPhone = req.ShippingPhone
+	order.Status = models.OrderStatusAddressProvided
+	order.UpdatedAt = now
 
 	return c.JSON(order)
 }
@@ -577,9 +621,13 @@ func (h *OrderHandler) SendShippingInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -608,22 +656,21 @@ func (h *OrderHandler) SendShippingInvoice(c *fiber.Ctx) error {
 	}
 
 	// Update order
-	order.TrackingNumber = req.TrackingNumber
-	order.ShippingInvoice = req.ShippingInvoice
-	order.Status = models.OrderStatusShipping
-	order.UpdatedAt = FixedTimeNow()
-
-	_, err = h.db.ModelContext(ctx, order).
-		Column("tracking_number", "shipping_invoice", "status", "updated_at").
-		WherePK().
-		Update()
-
+	now := FixedTimeNow()
+	updateQuery := `UPDATE orders SET tracking_number = ?, shipping_invoice = ?, status = ?, updated_at = ? WHERE id = ?`
+	_, err = h.db.ExecContext(ctx, updateQuery, req.TrackingNumber, req.ShippingInvoice, models.OrderStatusShipping, now, id)
 	if err != nil {
 		slog.Error("Failed to update order", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update order",
 		})
 	}
+
+	// Update local object for response
+	order.TrackingNumber = req.TrackingNumber
+	order.ShippingInvoice = req.ShippingInvoice
+	order.Status = models.OrderStatusShipping
+	order.UpdatedAt = now
 
 	return c.JSON(order)
 }
@@ -658,9 +705,13 @@ func (h *OrderHandler) ConfirmDelivery(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -689,21 +740,19 @@ func (h *OrderHandler) ConfirmDelivery(c *fiber.Ctx) error {
 
 	// Update order
 	now := FixedTimeNow()
-	order.Status = models.OrderStatusDelivered
-	order.DeliveredAt = &now
-	order.UpdatedAt = now
-
-	_, err = h.db.ModelContext(ctx, order).
-		Column("status", "delivered_at", "updated_at").
-		WherePK().
-		Update()
-
+	updateQuery := `UPDATE orders SET status = ?, delivered_at = ?, updated_at = ? WHERE id = ?`
+	_, err = h.db.ExecContext(ctx, updateQuery, models.OrderStatusDelivered, now, now, id)
 	if err != nil {
 		slog.Error("Failed to update order", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update order",
 		})
 	}
+
+	// Update local object for response
+	order.Status = models.OrderStatusDelivered
+	order.DeliveredAt = &now
+	order.UpdatedAt = now
 
 	return c.JSON(order)
 }
@@ -752,9 +801,13 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -783,16 +836,8 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 
 	// Update order
 	now := FixedTimeNow()
-	order.Status = models.OrderStatusCancelled
-	order.CancelReason = req.CancelReason
-	order.CancelledAt = &now
-	order.UpdatedAt = now
-
-	_, err = h.db.ModelContext(ctx, order).
-		Column("status", "cancel_reason", "cancelled_at", "updated_at").
-		WherePK().
-		Update()
-
+	updateQuery := `UPDATE orders SET status = ?, cancel_reason = ?, cancelled_at = ?, updated_at = ? WHERE id = ?`
+	_, err = h.db.ExecContext(ctx, updateQuery, models.OrderStatusCancelled, req.CancelReason, now, now, id)
 	if err != nil {
 		slog.Error("Failed to update order", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -800,22 +845,23 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 		})
 	}
 
+	// Update local object for response
+	order.Status = models.OrderStatusCancelled
+	order.CancelReason = req.CancelReason
+	order.CancelledAt = &now
+	order.UpdatedAt = now
+
 	// Auto-rate buyer with -1 when seller cancels
-	rating := &models.OrderRating{}
-	err = h.db.ModelContext(ctx, rating).Where("order_id = ?", order.ID).Select()
+	var rating models.OrderRating
+	ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
+		buyer_rated_at, seller_rated_at, created_at, updated_at 
+		FROM order_ratings WHERE order_id = ?`
+	_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, order.ID)
 	if err == nil {
 		negativeOne := -1
-		now := FixedTimeNow()
-		rating.SellerRating = &negativeOne
-		rating.SellerComment = fmt.Sprintf("Order cancelled by seller. Reason: %s", req.CancelReason)
-		rating.SellerRatedAt = &now
-		rating.UpdatedAt = now
-
-		_, err = h.db.ModelContext(ctx, rating).
-			Column("seller_rating", "seller_comment", "seller_rated_at", "updated_at").
-			WherePK().
-			Update()
-
+		updateRatingQuery := `UPDATE order_ratings SET seller_rating = ?, seller_comment = ?, seller_rated_at = ?, updated_at = ? WHERE id = ?`
+		comment := fmt.Sprintf("Order cancelled by seller. Reason: %s", req.CancelReason)
+		_, err = h.db.ExecContext(ctx, updateRatingQuery, negativeOne, comment, now, now, rating.ID)
 		if err != nil {
 			slog.Error("Failed to update rating", "error", err)
 		} else {
@@ -871,9 +917,11 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status 
+		FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -884,6 +932,7 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 			"error": "Failed to get order",
 		})
 	}
+	
 	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 
 	// Check if user is buyer or seller
@@ -893,20 +942,26 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	// Create message
-	message := &models.OrderMessage{
-		OrderID:   id,
-		SenderID:  userIDInt64,
-		Message:   req.Message,
-		CreatedAt: FixedTimeNow(),
-	}
-
-	_, err = h.db.ModelContext(ctx, message).Insert()
+	// Create message using raw query
+	now := FixedTimeNow()
+	var messageID int64
+	insertQuery := `INSERT INTO order_messages (order_id, sender_id, message, created_at) 
+		VALUES (?, ?, ?, ?) RETURNING id`
+	_, err = h.db.QueryOneContext(ctx, pg.Scan(&messageID), insertQuery, id, userIDInt64, req.Message, now)
 	if err != nil {
 		slog.Error("Failed to save message", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to save message",
 		})
+	}
+
+	// Return created message
+	message := &models.OrderMessage{
+		ID:        messageID,
+		OrderID:   id,
+		SenderID:  userIDInt64,
+		Message:   req.Message,
+		CreatedAt: now,
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(message)
@@ -947,9 +1002,10 @@ func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 50)
 	offset := c.QueryInt("offset", 0)
 
-	// Get order to check permissions
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order to check permissions using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -969,15 +1025,11 @@ func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get messages
-	messages := []models.OrderMessage{}
-	err = h.db.ModelContext(ctx, &messages).
-		Where("order_id = ?", id).
-		Order("created_at ASC").
-		Limit(limit).
-		Offset(offset).
-		Select()
-
+	// Get messages using raw query
+	messagesQuery := `SELECT id, order_id, sender_id, message, created_at 
+		FROM order_messages WHERE order_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`
+	var messages []models.OrderMessage
+	_, err = h.db.QueryContext(ctx, &messages, messagesQuery, id, limit, offset)
 	if err != nil && err != pg.ErrNoRows {
 		slog.Error("Failed to get messages", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -1033,9 +1085,10 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", id).Select()
+	// Get order using raw query
+	var order models.Order
+	orderQuery := `SELECT id, auction_id, winner_id, seller_id, status FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -1058,9 +1111,12 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get rating record
-	rating := &models.OrderRating{}
-	err = h.db.ModelContext(ctx, rating).Where("order_id = ?", id).Select()
+	// Get rating record using raw query
+	var rating models.OrderRating
+	ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
+		buyer_rated_at, seller_rated_at, created_at, updated_at 
+		FROM order_ratings WHERE order_id = ?`
+	_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -1080,26 +1136,18 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 	if isBuyer {
 		// Buyer rates seller
 		oldRating = rating.BuyerRating
-		rating.BuyerRating = &req.Rating
-		rating.BuyerComment = req.Comment
-		rating.BuyerRatedAt = &now
 		targetUserID = order.SellerID
+		// Update using raw query
+		updateQuery := `UPDATE order_ratings SET buyer_rating = ?, buyer_comment = ?, buyer_rated_at = ?, updated_at = ? WHERE id = ?`
+		_, err = h.db.ExecContext(ctx, updateQuery, req.Rating, req.Comment, now, now, rating.ID)
 	} else {
 		// Seller rates buyer
 		oldRating = rating.SellerRating
-		rating.SellerRating = &req.Rating
-		rating.SellerComment = req.Comment
-		rating.SellerRatedAt = &now
 		targetUserID = order.WinnerID
+		// Update using raw query
+		updateQuery := `UPDATE order_ratings SET seller_rating = ?, seller_comment = ?, seller_rated_at = ?, updated_at = ? WHERE id = ?`
+		_, err = h.db.ExecContext(ctx, updateQuery, req.Rating, req.Comment, now, now, rating.ID)
 	}
-
-	rating.UpdatedAt = now
-
-	// Update rating record
-	_, err = h.db.ModelContext(ctx, rating).
-		Column("buyer_rating", "buyer_comment", "buyer_rated_at", "seller_rating", "seller_comment", "seller_rated_at", "updated_at").
-		WherePK().
-		Update()
 
 	if err != nil {
 		slog.Error("Failed to update rating", "error", err)
@@ -1107,6 +1155,18 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 			"error": "Failed to update rating",
 		})
 	}
+
+	// Update local object for response
+	if isBuyer {
+		rating.BuyerRating = &req.Rating
+		rating.BuyerComment = req.Comment
+		rating.BuyerRatedAt = &now
+	} else {
+		rating.SellerRating = &req.Rating
+		rating.SellerComment = req.Comment
+		rating.SellerRatedAt = &now
+	}
+	rating.UpdatedAt = now
 
 	// Update user rating stats
 	if oldRating != nil {
@@ -1118,16 +1178,8 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 
 	// Check if both parties have rated, if yes, mark order as completed
 	if rating.BuyerRating != nil && rating.SellerRating != nil && order.Status == models.OrderStatusDelivered {
-		now := FixedTimeNow()
-		order.Status = models.OrderStatusCompleted
-		order.CompletedAt = &now
-		order.UpdatedAt = now
-
-		_, err = h.db.ModelContext(ctx, order).
-			Column("status", "completed_at", "updated_at").
-			WherePK().
-			Update()
-
+		completeQuery := `UPDATE orders SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?`
+		_, err = h.db.ExecContext(ctx, completeQuery, models.OrderStatusCompleted, now, now, id)
 		if err != nil {
 			slog.Error("Failed to complete order", "error", err)
 		}
@@ -1155,8 +1207,11 @@ func (h *OrderHandler) GetRating(c *fiber.Ctx) error {
 		})
 	}
 
-	rating := &models.OrderRating{}
-	err = h.db.ModelContext(ctx, rating).Where("order_id = ?", id).Select()
+	var rating models.OrderRating
+	ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
+		buyer_rated_at, seller_rated_at, created_at, updated_at 
+		FROM order_ratings WHERE order_id = ?`
+	_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -1190,12 +1245,9 @@ func (h *OrderHandler) GetUserRating(c *fiber.Ctx) error {
 		})
 	}
 
-	user := &models.User{}
-	err = h.db.ModelContext(ctx, user).
-		Column("id", "total_number_good_reviews", "total_number_reviews").
-		Where("id = ?", id).
-		Select()
-
+	var user models.User
+	userQuery := `SELECT id, total_number_good_reviews, total_number_reviews FROM users WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &user, userQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -1249,14 +1301,25 @@ func (h *OrderHandler) GetAllOrders(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 50)
 	offset := c.QueryInt("offset", 0)
 
-	query := h.db.ModelContext(ctx, &[]models.Order{}).Relation("Rating")
-
+	// Build query
+	var whereClause string
+	var args []interface{}
+	
+	ordersQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
+		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
+		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
+		FROM orders`
+	
 	if status != "" {
-		query = query.Where("status = ?", status)
+		whereClause = " WHERE status = ?"
+		args = append(args, status)
 	}
-
-	orders := []models.Order{}
-	err := query.Order("created_at DESC").Limit(limit).Offset(offset).Select(&orders)
+	
+	ordersQuery += whereClause + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+	
+	var orders []models.Order
+	_, err := h.db.QueryContext(ctx, &orders, ordersQuery, args...)
 	if err != nil {
 		slog.Error("Failed to get orders", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -1264,28 +1327,40 @@ func (h *OrderHandler) GetAllOrders(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get ratings for each order
+	for i := range orders {
+		var rating models.OrderRating
+		ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
+			buyer_rated_at, seller_rated_at, created_at, updated_at 
+			FROM order_ratings WHERE order_id = ?`
+		_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, orders[i].ID)
+		if err == nil {
+			orders[i].Rating = &rating
+		}
+	}
+
 	return c.JSON(orders)
 }
 
 // updateUserRating updates user's rating statistics in database
 func (h *OrderHandler) updateUserRating(ctx context.Context, userID int64, rating int) error {
-	user := &models.User{}
-	err := h.db.ModelContext(ctx, user).Where("id = ?", userID).Select()
+	var user models.User
+	userQuery := `SELECT id, total_number_reviews, total_number_good_reviews FROM users WHERE id = ?`
+	_, err := h.db.QueryOneContext(ctx, &user, userQuery, userID)
 	if err != nil {
 		slog.Error("Failed to get user for rating update", "error", err, "userID", userID)
 		return err
 	}
 
 	// Update counts
-	user.TotalNumberReviews++
+	totalReviews := user.TotalNumberReviews + 1
+	totalGoodReviews := user.TotalNumberGoodReviews
 	if rating == 1 {
-		user.TotalNumberGoodReviews++
+		totalGoodReviews++
 	}
 
-	_, err = h.db.ModelContext(ctx, user).
-		Column("total_number_reviews", "total_number_good_reviews").
-		WherePK().
-		Update()
+	updateQuery := `UPDATE users SET total_number_reviews = ?, total_number_good_reviews = ? WHERE id = ?`
+	_, err = h.db.ExecContext(ctx, updateQuery, totalReviews, totalGoodReviews, userID)
 
 	if err != nil {
 		slog.Error("Failed to update user rating", "error", err, "userID", userID)
@@ -1375,8 +1450,9 @@ func (h *OrderHandler) HandleWebSocket(c *websocket.Conn) {
 
 	// Verify user has access to this order
 	ctx := context.Background()
-	order := &models.Order{}
-	err = h.db.ModelContext(ctx, order).Where("id = ?", orderID).Select()
+	var order models.Order
+	orderQuery := `SELECT id, winner_id, seller_id FROM orders WHERE id = ?`
+	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, orderID)
 	if err != nil {
 		slog.Error("Order not found", "orderID", orderID)
 		c.Close()
@@ -1425,19 +1501,25 @@ func (h *OrderHandler) readPump(client *Client) {
 		// Handle different message types
 		switch wsMsg.Type {
 		case "message":
-			// Save message to database
-			message := &models.OrderMessage{
-				OrderID:   client.OrderID,
-				SenderID:  client.UserID,
-				Message:   wsMsg.Content,
-				CreatedAt: FixedTimeNow(),
-			}
-
+			// Save message to database using raw query
+			now := FixedTimeNow()
+			var messageID int64
 			ctx := context.Background()
-			_, err := h.db.ModelContext(ctx, message).Insert()
+			insertQuery := `INSERT INTO order_messages (order_id, sender_id, message, created_at) 
+				VALUES (?, ?, ?, ?) RETURNING id`
+			_, err := h.db.QueryOneContext(ctx, pg.Scan(&messageID), insertQuery, 
+				client.OrderID, client.UserID, wsMsg.Content, now)
 			if err != nil {
 				slog.Error("Failed to save message", "error", err)
 				continue
+			}
+
+			message := &models.OrderMessage{
+				ID:        messageID,
+				OrderID:   client.OrderID,
+				SenderID:  client.UserID,
+				Message:   wsMsg.Content,
+				CreatedAt: now,
 			}
 
 			// Broadcast to all clients connected to this order

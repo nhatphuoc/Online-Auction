@@ -1,18 +1,64 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ProductListItem } from '../../types';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
-import { Clock, Gavel, Eye } from 'lucide-react';
+import { Clock, Gavel, Eye, Heart } from 'lucide-react';
 import { ProductImage } from '../Common/Image';
+import { watchlistService } from '../../services/watchlist.service';
+import { useAuth } from '../../hooks/useAuth';
+import { useUIStore } from '../../stores/ui.store';
 
 interface ProductCardProps {
   product: ProductListItem;
   showCategory?: boolean;
   isNew?: boolean;
+  inWatchlist?: boolean;
+  onWatchlistChange?: () => void;
 }
 
-export const ProductCard = ({ product, showCategory = true, isNew = false }: ProductCardProps) => {
+export const ProductCard = ({ 
+  product, 
+  showCategory = true, 
+  isNew = false,
+  inWatchlist = false,
+  onWatchlistChange
+}: ProductCardProps) => {
+  const { isAuthenticated } = useAuth();
+  const addToast = useUIStore((state) => state.addToast);
+  const [isInWatchlist, setIsInWatchlist] = useState(inWatchlist);
+  const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
+  
   const timeLeft = new Date(product.endAt).getTime() - Date.now();
   const isEndingSoon = timeLeft < 3 * 24 * 60 * 60 * 1000; // Less than 3 days
+
+  const handleWatchlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!isAuthenticated) {
+      addToast('error', 'Vui lòng đăng nhập để thêm vào yêu thích');
+      return;
+    }
+
+    setIsTogglingWatchlist(true);
+    try {
+      if (isInWatchlist) {
+        await watchlistService.removeFromWatchlist(product.id);
+        setIsInWatchlist(false);
+        addToast('success', 'Đã xóa khỏi danh sách yêu thích');
+      } else {
+        await watchlistService.addToWatchlist(product.id);
+        setIsInWatchlist(true);
+        addToast('success', 'Đã thêm vào danh sách yêu thích');
+      }
+      onWatchlistChange?.();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Có lỗi xảy ra';
+      addToast('error', message);
+    } finally {
+      setIsTogglingWatchlist(false);
+    }
+  };
 
   return (
     <Link
@@ -35,6 +81,22 @@ export const ProductCard = ({ product, showCategory = true, isNew = false }: Pro
           <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded-md">
             MUA NGAY
           </div>
+        )}
+        
+        {/* Watchlist Button */}
+        {isAuthenticated && (
+          <button
+            onClick={handleWatchlistToggle}
+            disabled={isTogglingWatchlist}
+            className={`absolute top-2 left-2 p-2 rounded-full transition-all ${
+              isInWatchlist 
+                ? 'bg-red-500 text-white' 
+                : 'bg-white/80 text-gray-600 hover:bg-white'
+            } ${isTogglingWatchlist ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={isInWatchlist ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'}
+          >
+            <Heart className={`w-4 h-4 ${isInWatchlist ? 'fill-current' : ''}`} />
+          </button>
         )}
       </div>
 

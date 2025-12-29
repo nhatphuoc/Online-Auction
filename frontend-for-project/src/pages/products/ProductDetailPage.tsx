@@ -544,7 +544,7 @@ const ProductDetailPage = () => {
                     : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Lịch sử đấu giá ({bidHistory.length})
+                Lịch sử đấu giá 
               </button>
               <button
                 onClick={() => setActiveTab('questions')}
@@ -554,7 +554,7 @@ const ProductDetailPage = () => {
                     : 'border-transparent text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Câu hỏi ({comments?.length || 0})
+                Câu hỏi 
               </button>
             </nav>
           </div>

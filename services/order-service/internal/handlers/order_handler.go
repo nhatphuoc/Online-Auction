@@ -8,7 +8,6 @@ import (
 	"order_service/internal/config"
 	"order_service/internal/middleware"
 	"order_service/internal/models"
-	"order_service/internal/utils"
 	"strconv"
 	"sync"
 	"time"
@@ -216,8 +215,8 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
+	userID := c.Locals("userID").(string)
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -242,8 +241,10 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 		})
 	}
 
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
+
 	// Check if user is buyer or seller
-	if order.WinnerID != userID && order.SellerID != userID {
+	if order.WinnerID != userIDInt64 && order.SellerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
 		})
@@ -266,9 +267,10 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{}
 // @Router /orders [get]
 func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
+	fmt.Println("---------------------")
 	ctx := context.Background()
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
+	userID := c.Locals("userID").(string)
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -279,10 +281,10 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 
 	query := h.db.ModelContext(ctx, &[]models.Order{}).Relation("Rating")
 
-	// Filter by role
-	if role == "buyer" {
+	// Filter by role (accepts both "buyer"/"seller" and "ROLE_BIDDER"/"ROLE_SELLER")
+	if role == "ROLE_SELLER" || role == "ROLE_BIDDER" {
 		query = query.Where("winner_id = ?", userID)
-	} else if role == "seller" {
+	} else if role == "seller" || role == "ROLE_SELLER" {
 		query = query.Where("seller_id = ?", userID)
 	} else {
 		// Get all orders where user is either buyer or seller
@@ -299,7 +301,7 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 	}
 
 	orders := []models.Order{}
-	err = query.Order("created_at DESC").Select(&orders)
+	err := query.Order("created_at DESC").Select(&orders)
 	if err != nil {
 		slog.Error("Failed to get orders", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -334,8 +336,8 @@ func (h *OrderHandler) PayOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
+	userID := c.Locals("userID").(string)
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -367,9 +369,9 @@ func (h *OrderHandler) PayOrder(c *fiber.Ctx) error {
 			"error": "Failed to get order",
 		})
 	}
-
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 	// Check if user is buyer
-	if order.WinnerID != userID {
+	if order.WinnerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Only buyer can pay for order",
 		})
@@ -429,8 +431,8 @@ func (h *OrderHandler) ProvideShippingAddress(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
+	userID := c.Locals("userID").(string)
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -463,8 +465,9 @@ func (h *OrderHandler) ProvideShippingAddress(c *fiber.Ctx) error {
 		})
 	}
 
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 	// Check if user is buyer
-	if order.WinnerID != userID {
+	if order.WinnerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Only buyer can provide shipping address",
 		})
@@ -522,7 +525,7 @@ func (h *OrderHandler) SendShippingInvoice(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID := c.Locals("userID").(string)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -556,8 +559,10 @@ func (h *OrderHandler) SendShippingInvoice(c *fiber.Ctx) error {
 		})
 	}
 
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
+
 	// Check if user is seller
-	if order.SellerID != userID {
+	if order.SellerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Only seller can send shipping invoice",
 		})
@@ -614,7 +619,7 @@ func (h *OrderHandler) ConfirmDelivery(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID := c.Locals("userID").(string)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -635,8 +640,9 @@ func (h *OrderHandler) ConfirmDelivery(c *fiber.Ctx) error {
 		})
 	}
 
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 	// Check if user is buyer
-	if order.WinnerID != userID {
+	if order.WinnerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Only buyer can confirm delivery",
 		})
@@ -694,8 +700,8 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
+	userID := c.Locals("userID").(string)
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -728,8 +734,9 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 		})
 	}
 
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 	// Check if user is seller
-	if order.SellerID != userID {
+	if order.SellerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Only seller can cancel order",
 		})
@@ -812,7 +819,7 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
+	userID := c.Locals("userID").(string)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -845,9 +852,10 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 			"error": "Failed to get order",
 		})
 	}
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 
 	// Check if user is buyer or seller
-	if order.WinnerID != userID && order.SellerID != userID {
+	if order.WinnerID != userIDInt64 && order.SellerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
 		})
@@ -856,7 +864,7 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 	// Create message
 	message := &models.OrderMessage{
 		OrderID:   id,
-		SenderID:  userID,
+		SenderID:  userIDInt64,
 		Message:   req.Message,
 		CreatedAt: FixedTimeNow(),
 	}
@@ -897,8 +905,8 @@ func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
+	userID := c.Locals("userID").(string)
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -921,8 +929,9 @@ func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 		})
 	}
 
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 	// Check if user is buyer or seller
-	if order.WinnerID != userID && order.SellerID != userID {
+	if order.WinnerID != userIDInt64 && order.SellerID != userIDInt64 {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
 		})
@@ -972,8 +981,8 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	userID, err := utils.GetUserIDFromContext(c)
-	if err != nil {
+	userID := c.Locals("userID").(string)
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -1007,8 +1016,9 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 	}
 
 	// Check if user is buyer or seller
-	isBuyer := order.WinnerID == userID
-	isSeller := order.SellerID == userID
+	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
+	isBuyer := order.WinnerID == userIDInt64
+	isSeller := order.SellerID == userIDInt64
 
 	if !isBuyer && !isSeller {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{

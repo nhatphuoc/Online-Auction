@@ -98,7 +98,7 @@ func main() {
 	app.Use(fiberlogger.New(fiberlogger.Config{
 		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
 	}))
-	
+
 	// CORS middleware - CRITICAL: Must be enabled for frontend to work properly
 	// This handles OPTIONS preflight requests from browsers
 	app.Use(func(c *fiber.Ctx) error {
@@ -107,12 +107,12 @@ func main() {
 		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-User-Token, X-Internal-JWT")
 		c.Set("Access-Control-Allow-Credentials", "true")
 		c.Set("Access-Control-Max-Age", "86400") // 24 hours cache for preflight
-		
+
 		// Handle preflight OPTIONS request
 		if c.Method() == "OPTIONS" {
 			return c.SendStatus(fiber.StatusOK)
 		}
-		
+
 		return c.Next()
 	})
 
@@ -148,7 +148,7 @@ func main() {
 	protected.All("/bids/*", middleware.ProxyMiddleware(cfg, cfg.BiddingServiceName), proxyHandler.ProxyRequest(cfg.BiddingServiceURL))
 
 	// Order service
-	protected.All("/orders/*", middleware.ProxyMiddleware(cfg, cfg.OrderServiceName), proxyHandler.ProxyRequest(cfg.OrderServiceURL))
+	protected.All("/orders/data/*", middleware.ProxyMiddleware(cfg, cfg.OrderServiceName), proxyHandler.ProxyRequest(cfg.OrderServiceURL))
 	protected.All("/order-websocket/*", middleware.ProxyMiddleware(cfg, cfg.OrderServiceName), proxyHandler.OrderProxyWebSocket)
 
 	// Payment service

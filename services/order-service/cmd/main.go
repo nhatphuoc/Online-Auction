@@ -55,7 +55,7 @@ func main() {
 		log.Fatalf("Lỗi khởi tạo schema: %v", err)
 	}
 
-	// Seed sample data
+	// Seed sample data (commented out - uncomment to seed database)
 	if err := config.SeedData(db); err != nil {
 		log.Fatalf("Lỗi seeding dữ liệu: %v", err)
 	}
@@ -80,12 +80,12 @@ func main() {
 		c.Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-User-Token, X-Internal-JWT, Upgrade, Connection, Sec-WebSocket-Key, Sec-WebSocket-Version")
 		c.Set("Access-Control-Allow-Credentials", "true")
 		c.Set("Access-Control-Max-Age", "86400")
-		
+
 		// Handle preflight OPTIONS request
 		if c.Method() == "OPTIONS" {
 			return c.SendStatus(fiber.StatusOK)
 		}
-		
+
 		return c.Next()
 	})
 
@@ -103,26 +103,26 @@ func main() {
 
 	// Initialize handlers
 	orderHandler := handlers.NewOrderHandler(db, cfg)
+	api := app.Group("")
+
 	app.Get("/ws", websocket.New(orderHandler.HandleWebSocket))
 
 	// Routes
-	api := app.Group("")
 
 	// Order routes
-	orders := api.Group("orders")
-	orders.Post("/", orderHandler.CreateOrder)                                                                 // Create order (no auth - called by auction service)
-	orders.Get("/", middleware.ExtractUserInfo(cfg), orderHandler.GetUserOrders)                               // Get user's orders
-	orders.Get("/:id", middleware.ExtractUserInfo(cfg), orderHandler.GetOrderByID)                             // Get order by ID
-	orders.Post("/:id/pay", middleware.ExtractUserInfo(cfg), orderHandler.PayOrder)                            // Pay for order
-	orders.Post("/:id/shipping-address", middleware.ExtractUserInfo(cfg), orderHandler.ProvideShippingAddress) // Provide shipping address
-	orders.Post("/:id/shipping-invoice", middleware.ExtractUserInfo(cfg), orderHandler.SendShippingInvoice)    // Send shipping invoice
-	orders.Post("/:id/confirm-delivery", middleware.ExtractUserInfo(cfg), orderHandler.ConfirmDelivery)        // Confirm delivery
-	orders.Post("/:id/cancel", middleware.ExtractUserInfo(cfg), orderHandler.CancelOrder)                      // Cancel order
-	orders.Post("/:id/messages", middleware.ExtractUserInfo(cfg), orderHandler.SendMessage)                    // Send message
-	orders.Get("/:id/messages", middleware.ExtractUserInfo(cfg), orderHandler.GetMessages)                     // Get messages
-	orders.Post("/:id/rate", middleware.ExtractUserInfo(cfg), orderHandler.RateOrder)                          // Rate order
-	orders.Get("/:id/rating", middleware.ExtractUserInfo(cfg), orderHandler.GetRating)                         // Get rating (public)
-
+	orders := api.Group("", middleware.ExtractUserInfo(cfg))
+	orders.Post("product/", orderHandler.CreateOrder)                                // Create order (no auth - called by auction service)
+	orders.Get("product/", orderHandler.GetUserOrders)                               // Get user's orders
+	orders.Get("product/:id", orderHandler.GetOrderByID)                             // Get order by ID
+	orders.Post("product/:id/pay", orderHandler.PayOrder)                            // Pay for order
+	orders.Post("product/:id/shipping-address", orderHandler.ProvideShippingAddress) // Provide shipping address
+	orders.Post("product/:id/shipping-invoice", orderHandler.SendShippingInvoice)    // Send shipping invoice
+	orders.Post("product/:id/confirm-delivery", orderHandler.ConfirmDelivery)        // Confirm delivery
+	orders.Post("product/:id/cancel", orderHandler.CancelOrder)                      // Cancel order
+	orders.Post("product/:id/messages", orderHandler.SendMessage)                    // Send message
+	orders.Get("product/:id/messages", orderHandler.GetMessages)                     // Get messages
+	orders.Post("product/:id/rate", orderHandler.RateOrder)                          // Rate order
+	orders.Get("product/:id/rating", orderHandler.GetRating)                         // Get rating (public)
 	// User rating routes
 	api.Get("/users/:id/rating", middleware.ExtractUserInfo(cfg), orderHandler.GetUserRating) // Get user rating stats (public)
 

@@ -1269,13 +1269,20 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 
 ## 6. Order Service
 
-**Routing:** `GET/POST/PUT http://localhost:8080/api/orders/*` → `http://localhost:8086/*`
+**Routing:** `GET/POST/PUT http://localhost:8080/api/orders/data/*` → `http://localhost:8086/product/*`
 
 **Required Header:** `X-User-Token: <JWT_ACCESS_TOKEN>`
 
+**Order Status Flow:**
+```
+PENDING_PAYMENT → PAID → ADDRESS_PROVIDED → SHIPPING → DELIVERED → COMPLETED
+                                                             ↓
+                                                        CANCELLED (có thể cancel bất kỳ lúc nào trước COMPLETED)
+```
+
 ### 6.1. Tạo đơn hàng (Internal - sau khi auction kết thúc)
 
-**Endpoint:** `POST http://localhost:8080/api/orders`
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/`
 
 **Headers:**
 ```
@@ -1286,10 +1293,10 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "auctionId": 1,
-  "winnerId": 5,
-  "sellerId": 10,
-  "finalPrice": 26000000
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000
 }
 ```
 
@@ -1297,13 +1304,24 @@ Content-Type: application/json
 ```json
 {
   "id": 1,
-  "auctionId": 1,
-  "winnerId": 5,
-  "sellerId": 10,
-  "finalPrice": 26000000,
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000,
   "status": "PENDING_PAYMENT",
-  "createdAt": "2024-01-17T10:00:00Z",
-  "updatedAt": "2024-01-17T10:00:00Z"
+  "payment_method": "",
+  "payment_proof": "",
+  "shipping_address": "",
+  "shipping_phone": "",
+  "tracking_number": "",
+  "shipping_invoice": "",
+  "paid_at": null,
+  "delivered_at": null,
+  "completed_at": null,
+  "cancelled_at": null,
+  "cancel_reason": "",
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-17T10:00:00Z"
 }
 ```
 
@@ -1311,7 +1329,7 @@ Content-Type: application/json
 
 ### 6.2. Lấy chi tiết đơn hàng
 
-**Endpoint:** `GET http://localhost:8080/api/orders/{id}`
+**Endpoint:** `GET http://localhost:8080/api/orders/data/product/{id}`
 
 **Headers:**
 ```
@@ -1324,23 +1342,36 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 ```json
 {
   "id": 1,
-  "auctionId": 1,
-  "winnerId": 5,
-  "sellerId": 10,
-  "finalPrice": 26000000,
-  "status": "PENDING_PAYMENT",
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000,
+  "status": "PAID",
+  "payment_method": "MOMO",
+  "payment_proof": "https://s3.amazonaws.com/proof.jpg",
+  "shipping_address": "",
+  "shipping_phone": "",
+  "tracking_number": "",
+  "shipping_invoice": "",
+  "paid_at": "2024-01-17T11:00:00Z",
+  "delivered_at": null,
+  "completed_at": null,
+  "cancelled_at": null,
+  "cancel_reason": "",
   "rating": {
     "id": 1,
-    "orderId": 1,
-    "sellerRating": null,
-    "sellerComment": null,
-    "buyerRating": null,
-    "buyerComment": null,
-    "createdAt": "2024-01-17T10:00:00Z",
-    "updatedAt": "2024-01-17T10:00:00Z"
+    "order_id": 1,
+    "buyer_rating": null,
+    "buyer_comment": "",
+    "seller_rating": null,
+    "seller_comment": "",
+    "buyer_rated_at": null,
+    "seller_rated_at": null,
+    "created_at": "2024-01-17T10:00:00Z",
+    "updated_at": "2024-01-17T10:00:00Z"
   },
-  "createdAt": "2024-01-17T10:00:00Z",
-  "updatedAt": "2024-01-17T10:00:00Z"
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-17T11:00:00Z"
 }
 ```
 
@@ -1351,11 +1382,18 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 }
 ```
 
+**Response Error (404):**
+```json
+{
+  "error": "Order not found"
+}
+```
+
 ---
 
 ### 6.3. Lấy danh sách đơn hàng của user
 
-**Endpoint:** `GET http://localhost:8080/api/orders`
+**Endpoint:** `GET http://localhost:8080/api/orders/data/product/`
 
 **Headers:**
 ```
@@ -1363,38 +1401,497 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 ```
 
 **Query Parameters:**
-- `role` (optional): buyer hoặc seller
-- `status` (optional): PENDING_PAYMENT, PAID, SHIPPING, COMPLETED, CANCELLED
+- `role` (optional): `buyer`, `seller`, `ROLE_BIDDER`, `ROLE_SELLER` - Lọc theo vai trò
+- `status` (optional): `PENDING_PAYMENT`, `PAID`, `ADDRESS_PROVIDED`, `SHIPPING`, `DELIVERED`, `COMPLETED`, `CANCELLED`
 
-**Example:** `GET http://localhost:8080/api/orders?role=buyer&status=COMPLETED`
+**Example:** `GET http://localhost:8080/api/orders/data/product/?role=buyer&status=COMPLETED`
 
 **Response Success (200):**
 ```json
 [
   {
     "id": 1,
-    "auctionId": 1,
-    "winnerId": 5,
-    "sellerId": 10,
-    "finalPrice": 26000000,
+    "auction_id": 1,
+    "winner_id": 5,
+    "seller_id": 10,
+    "final_price": 26000000,
     "status": "COMPLETED",
+    "payment_method": "MOMO",
+    "payment_proof": "https://s3.amazonaws.com/proof.jpg",
+    "shipping_address": "123 Nguyen Hue, District 1, HCM",
+    "shipping_phone": "0901234567",
+    "tracking_number": "VN123456789",
+    "shipping_invoice": "https://s3.amazonaws.com/invoice.jpg",
+    "paid_at": "2024-01-17T11:00:00Z",
+    "delivered_at": "2024-01-20T15:00:00Z",
+    "completed_at": "2024-01-20T16:00:00Z",
+    "cancelled_at": null,
+    "cancel_reason": "",
     "rating": {
       "id": 1,
-      "orderId": 1,
-      "sellerRating": 5,
-      "buyerRating": 5
+      "order_id": 1,
+      "buyer_rating": 1,
+      "buyer_comment": "Great seller!",
+      "seller_rating": 1,
+      "seller_comment": "Good buyer!",
+      "buyer_rated_at": "2024-01-20T16:00:00Z",
+      "seller_rated_at": "2024-01-20T16:05:00Z",
+      "created_at": "2024-01-17T10:00:00Z",
+      "updated_at": "2024-01-20T16:05:00Z"
     },
-    "createdAt": "2024-01-17T10:00:00Z",
-    "updatedAt": "2024-01-20T10:00:00Z"
+    "created_at": "2024-01-17T10:00:00Z",
+    "updated_at": "2024-01-20T16:05:00Z"
   }
 ]
 ```
 
 ---
 
-### 6.4. WebSocket kết nối theo dõi đơn hàng
+### 6.4. Thanh toán đơn hàng (Buyer)
 
-**Endpoint:** `GET http://localhost:8080/api/order-websocket/*`
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/pay`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+**Authorization:** Chỉ buyer của đơn hàng, order phải ở trạng thái `PENDING_PAYMENT`
+
+**Request Body:**
+```json
+{
+  "payment_method": "MOMO",
+  "payment_proof": "https://s3.amazonaws.com/proof.jpg"
+}
+```
+
+**Payment Methods:** `MOMO`, `ZALOPAY`, `VNPAY`, `STRIPE`, `PAYPAL`
+
+**Response Success (200):**
+```json
+{
+  "id": 1,
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000,
+  "status": "PAID",
+  "payment_method": "MOMO",
+  "payment_proof": "https://s3.amazonaws.com/proof.jpg",
+  "paid_at": "2024-01-17T11:00:00Z",
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-17T11:00:00Z"
+}
+```
+
+**Response Error (400):**
+```json
+{
+  "error": "Cannot pay order with status: PAID"
+}
+```
+
+**Response Error (403):**
+```json
+{
+  "error": "Only buyer can pay for order"
+}
+```
+
+---
+
+### 6.5. Cung cấp địa chỉ giao hàng (Buyer)
+
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/shipping-address`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+**Authorization:** Chỉ buyer, order phải ở trạng thái `PAID`
+
+**Request Body:**
+```json
+{
+  "shipping_address": "123 Nguyen Hue, District 1, Ho Chi Minh City, Vietnam",
+  "shipping_phone": "0901234567"
+}
+```
+
+**Response Success (200):**
+```json
+{
+  "id": 1,
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000,
+  "status": "ADDRESS_PROVIDED",
+  "payment_method": "MOMO",
+  "shipping_address": "123 Nguyen Hue, District 1, Ho Chi Minh City, Vietnam",
+  "shipping_phone": "0901234567",
+  "paid_at": "2024-01-17T11:00:00Z",
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-17T12:00:00Z"
+}
+```
+
+**Response Error (400):**
+```json
+{
+  "error": "Cannot provide address for order with status: PENDING_PAYMENT"
+}
+```
+
+---
+
+### 6.6. Gửi thông tin vận chuyển (Seller)
+
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/shipping-invoice`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+**Authorization:** Chỉ seller, order phải ở trạng thái `ADDRESS_PROVIDED`
+
+**Request Body:**
+```json
+{
+  "tracking_number": "VN123456789",
+  "shipping_invoice": "https://s3.amazonaws.com/invoice.jpg"
+}
+```
+
+**Response Success (200):**
+```json
+{
+  "id": 1,
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000,
+  "status": "SHIPPING",
+  "tracking_number": "VN123456789",
+  "shipping_invoice": "https://s3.amazonaws.com/invoice.jpg",
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-18T09:00:00Z"
+}
+```
+
+**Response Error (403):**
+```json
+{
+  "error": "Only seller can send shipping invoice"
+}
+```
+
+---
+
+### 6.7. Xác nhận đã nhận hàng (Buyer)
+
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/confirm-delivery`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Authorization:** Chỉ buyer, order phải ở trạng thái `SHIPPING`
+
+**Response Success (200):**
+```json
+{
+  "id": 1,
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000,
+  "status": "DELIVERED",
+  "delivered_at": "2024-01-20T15:00:00Z",
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-20T15:00:00Z"
+}
+```
+
+**Response Error (400):**
+```json
+{
+  "error": "Cannot confirm delivery for order with status: PAID"
+}
+```
+
+---
+
+### 6.8. Hủy đơn hàng (Seller)
+
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/cancel`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+**Authorization:** Chỉ seller, order không được ở trạng thái `COMPLETED` hoặc `CANCELLED`
+
+**Request Body:**
+```json
+{
+  "cancel_reason": "Product is no longer available"
+}
+```
+
+**Response Success (200):**
+```json
+{
+  "id": 1,
+  "auction_id": 1,
+  "winner_id": 5,
+  "seller_id": 10,
+  "final_price": 26000000,
+  "status": "CANCELLED",
+  "cancel_reason": "Product is no longer available",
+  "cancelled_at": "2024-01-18T10:00:00Z",
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-18T10:00:00Z"
+}
+```
+
+**Lưu ý:** Khi seller hủy đơn, buyer sẽ tự động nhận rating -1 từ hệ thống
+
+---
+
+### 6.9. Gửi tin nhắn trong order
+
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/messages`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+**Authorization:** Buyer hoặc seller của order
+
+**Request Body:**
+```json
+{
+  "message": "When will you ship the product?"
+}
+```
+
+**Response Success (201):**
+```json
+{
+  "id": 1,
+  "order_id": 1,
+  "sender_id": 5,
+  "message": "When will you ship the product?",
+  "created_at": "2024-01-17T12:00:00Z"
+}
+```
+
+---
+
+### 6.10. Lấy danh sách tin nhắn trong order
+
+**Endpoint:** `GET http://localhost:8080/api/orders/data/product/{id}/messages`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Authorization:** Buyer hoặc seller của order
+
+**Query Parameters:**
+- `limit` (default: 50): Số lượng tin nhắn
+- `offset` (default: 0): Vị trí bắt đầu
+
+**Example:** `GET http://localhost:8080/api/orders/data/product/1/messages?limit=20&offset=0`
+
+**Response Success (200):**
+```json
+[
+  {
+    "id": 1,
+    "order_id": 1,
+    "sender_id": 5,
+    "message": "When will you ship the product?",
+    "created_at": "2024-01-17T12:00:00Z"
+  },
+  {
+    "id": 2,
+    "order_id": 1,
+    "sender_id": 10,
+    "message": "I will ship it tomorrow",
+    "created_at": "2024-01-17T13:00:00Z"
+  }
+]
+```
+
+---
+
+### 6.11. Đánh giá đơn hàng
+
+**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/rate`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+**Authorization:** Buyer hoặc seller của order
+
+**Request Body:**
+```json
+{
+  "rating": 1,
+  "comment": "Great transaction!"
+}
+```
+
+**Rating Values:**
+- `1`: Đánh giá tích cực (good review)
+- `-1`: Đánh giá tiêu cực (bad review)
+
+**Response Success (200):**
+```json
+{
+  "id": 1,
+  "order_id": 1,
+  "buyer_rating": 1,
+  "buyer_comment": "Great transaction!",
+  "seller_rating": null,
+  "seller_comment": "",
+  "buyer_rated_at": "2024-01-20T16:00:00Z",
+  "seller_rated_at": null,
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-20T16:00:00Z"
+}
+```
+
+**Lưu ý:** 
+- Nếu cả buyer và seller đều đã đánh giá và order ở trạng thái `DELIVERED`, order sẽ tự động chuyển sang `COMPLETED`
+- Rating sẽ cập nhật vào thống kê rating của user (total_number_reviews và total_number_good_reviews)
+
+---
+
+### 6.12. Lấy thông tin rating của order
+
+**Endpoint:** `GET http://localhost:8080/api/orders/data/product/{id}/rating`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Response Success (200):**
+```json
+{
+  "id": 1,
+  "order_id": 1,
+  "buyer_rating": 1,
+  "buyer_comment": "Great seller!",
+  "seller_rating": 1,
+  "seller_comment": "Good buyer!",
+  "buyer_rated_at": "2024-01-20T16:00:00Z",
+  "seller_rated_at": "2024-01-20T16:05:00Z",
+  "created_at": "2024-01-17T10:00:00Z",
+  "updated_at": "2024-01-20T16:05:00Z"
+}
+```
+
+---
+
+### 6.13. Lấy thống kê rating của user
+
+**Endpoint:** `GET http://localhost:8080/api/orders/data/users/{id}/rating`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Response Success (200):**
+```json
+{
+  "user_id": 5,
+  "total_number_reviews": 25,
+  "total_number_good_reviews": 22,
+  "rating_percentage": 88.0
+}
+```
+
+**Response Error (404):**
+```json
+{
+  "error": "User not found"
+}
+```
+
+---
+
+### 6.14. Lấy tất cả orders (Admin only)
+
+**Endpoint:** `GET http://localhost:8080/api/orders/data/admin/orders`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Authorization:** ROLE_ADMIN only
+
+**Query Parameters:**
+- `status` (optional): Filter by status
+- `limit` (default: 50): Số lượng orders
+- `offset` (default: 0): Vị trí bắt đầu
+
+**Example:** `GET http://localhost:8080/api/orders/data/admin/orders?status=COMPLETED&limit=20`
+
+**Response Success (200):**
+```json
+[
+  {
+    "id": 1,
+    "auction_id": 1,
+    "winner_id": 5,
+    "seller_id": 10,
+    "final_price": 26000000,
+    "status": "COMPLETED",
+    "rating": {
+      "id": 1,
+      "order_id": 1,
+      "buyer_rating": 1,
+      "seller_rating": 1
+    },
+    "created_at": "2024-01-17T10:00:00Z",
+    "updated_at": "2024-01-20T16:05:00Z"
+  }
+]
+```
+
+**Response Error (403):**
+```json
+{
+  "error": "Admin access required"
+}
+```
+
+---
+
+### 6.15. WebSocket kết nối chat trong order
+
+**Endpoint:** `GET http://localhost:8080/api/order-websocket/`
 
 **Headers:**
 ```
@@ -1409,10 +1906,54 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 }
 ```
 
-**Cách sử dụng:**
-1. Gọi endpoint này để lấy `order_service_websocket_url` và `internal_jwt`
-2. Kết nối WebSocket đến: `ws://localhost:8086/ws?orderId=1&X-User-Token=<JWT>&X-Internal-JWT=<internal_jwt>`
-3. Nhận real-time updates về trạng thái đơn hàng
+**Cách sử dụng WebSocket:**
+
+1. Gọi endpoint trên để lấy `order_service_websocket_url` và `internal_jwt`
+2. Kết nối WebSocket với URL:
+   ```
+   ws://localhost:8086/ws?orderId=1&X-User-Token=<JWT_ACCESS_TOKEN>&X-Internal-JWT=<internal_jwt>
+   ```
+
+3. Gửi tin nhắn:
+   ```json
+   {
+     "type": "message",
+     "content": "Hello, seller!"
+   }
+   ```
+
+4. Gửi typing indicator:
+   ```json
+   {
+     "type": "typing"
+   }
+   ```
+
+5. Nhận tin nhắn mới:
+   ```json
+   {
+     "type": "message",
+     "orderId": 1,
+     "data": {
+       "id": 5,
+       "order_id": 1,
+       "sender_id": 10,
+       "message": "Hi, buyer!",
+       "created_at": "2024-01-17T14:00:00Z"
+     }
+   }
+   ```
+
+6. Nhận typing indicator:
+   ```json
+   {
+     "type": "typing",
+     "orderId": 1,
+     "data": {
+       "userId": 10
+     }
+   }
+   ```
 
 ---
 

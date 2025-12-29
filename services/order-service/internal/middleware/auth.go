@@ -7,103 +7,33 @@ import (
 	"errors"
 	"fmt"
 	"order_service/internal/config"
-	"strconv"
-	"strings"
+	"order_service/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// AuthMiddleware extracts user info from headers (set by API Gateway after authentication)
-func AuthMiddleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		userIDStr := c.Get("X-User-ID")
-		if userIDStr == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing user information",
-			})
-		}
-
-		userID, err := strconv.ParseInt(userIDStr, 10, 64)
-		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid user ID format",
-			})
-		}
-
-		email := c.Get("X-User-Email")
-		role := c.Get("X-User-Role")
-
-		c.Locals("user_id", userID)
-		c.Locals("email", email)
-		c.Locals("role", role)
-
-		return c.Next()
-	}
-}
-
-// OptionalAuthMiddleware extracts user info if present but doesn't require it
-func OptionalAuthMiddleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		userIDStr := c.Get("X-User-ID")
-		if userIDStr != "" {
-			userID, err := strconv.ParseInt(userIDStr, 10, 64)
-			if err == nil {
-				c.Locals("user_id", userID)
-				c.Locals("email", c.Get("X-User-Email"))
-				c.Locals("role", c.Get("X-User-Role"))
-			}
-		}
-		return c.Next()
-	}
-}
-
-// RoleMiddleware checks if user has required role
-func RoleMiddleware(allowedRoles ...string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		role := c.Locals("role")
-		if role == nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Unauthorized",
-			})
-		}
-
-		userRole := role.(string)
-		for _, allowedRole := range allowedRoles {
-			if strings.EqualFold(userRole, allowedRole) {
-				return c.Next()
-			}
-		}
-
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Insufficient permissions",
-		})
-	}
-}
-
-// AdminMiddleware checks if user is admin
+// AdminMiddleware kiểm tra quyền admin
 func AdminMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		role := c.Locals("role")
-		if role == nil || role != "ROLE_ADMIN" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Admin access required",
-			})
+		role := c.Locals("role").(string)
+		if role != "admin" {
+			return utils.ErrorResponse(c, fiber.StatusForbidden, "Bạn không có quyền truy cập")
 		}
 		return c.Next()
 	}
 }
-
-// VerifyInternalJWT verifies internal JWT from API Gateway
 func VerifyInternalJWT(
 	cfg *config.Config,
 	tokenString string,
 	expectedAudience string,
 ) (bool, error) {
 
-	fmt.Println("Verifying Internal JWT...")
 	fmt.Println(expectedAudience)
-	// Parse UNVERIFIED to get issuer
+
+	// =========================
+	// Phase 1: Parse UNVERIFIED để lấy issuer
+	// =========================
 	unverifiedClaims := &jwt.RegisteredClaims{}
 
 	parser := jwt.NewParser(
@@ -120,7 +50,9 @@ func VerifyInternalJWT(
 		return false, errors.New("missing issuer")
 	}
 
-	// Lookup public key by issuer
+	// =========================
+	// Lookup public key theo issuer
+	// =========================
 	publicPem, ok := cfg.PublicKeys[issuer]
 	if !ok {
 		return false, errors.New("unknown issuer")
@@ -141,7 +73,9 @@ func VerifyInternalJWT(
 		return false, errors.New("not RSA public key")
 	}
 
-	// Parse + verify + validate time
+	// =========================
+	// Phase 2: Parse + verify + validate time
+	// =========================
 	claims := &jwt.RegisteredClaims{}
 
 	parser = jwt.NewParser(
@@ -158,6 +92,7 @@ func VerifyInternalJWT(
 		},
 	)
 	if err != nil {
+		fmt.Println("Error parsing token:", err)
 		return false, err
 	}
 
@@ -168,13 +103,17 @@ func VerifyInternalJWT(
 	return true, nil
 }
 
-// ExtractUserInfo middleware: gets user info from headers and verifies X-Internal-JWT
+// ExtractUserInfo middleware: lấy thông tin user từ header và xác nhận X-Internal-JWT
 func ExtractUserInfo(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		userID := c.Get("X-User-ID")
 		email := c.Get("X-User-Email")
 		role := c.Get("X-User-Role")
 		internalJWT := c.Get("X-Internal-JWT")
+		fmt.Println("Extracted Internal JWT:", internalJWT)
+		fmt.Println("X-User-ID:", userID)
+		fmt.Println("X-User-Email:", email)
+		fmt.Println("X-User-Role:", role)
 
 		ok, err := VerifyInternalJWT(
 			cfg,
@@ -182,11 +121,9 @@ func ExtractUserInfo(cfg *config.Config) fiber.Handler {
 			cfg.OrderServiceName,
 		)
 		if err != nil || !ok {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid Internal JWT",
-			})
+			fmt.Println("Internal JWT verification error:", err)
+			return utils.ErrorResponse(c, fiber.StatusUnauthorized, "Invalid Internal JWT")
 		}
-
 		c.Locals("userID", userID)
 		c.Locals("email", email)
 		c.Locals("role", role)
@@ -195,27 +132,12 @@ func ExtractUserInfo(cfg *config.Config) fiber.Handler {
 	}
 }
 
-func ExtractUserInfoNoInternalJWT(cfg *config.Config) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		userID := c.Get("X-User-ID")
-		email := c.Get("X-User-Email")
-		role := c.Get("X-User-Role")
-
-		c.Locals("userID", userID)
-		c.Locals("email", email)
-		c.Locals("role", role)
-		return c.Next()
-	}
-}
-
-// RequireAdminRole middleware: requires ROLE_ADMIN
+// RequireAdminRole middleware: chỉ cho phép ROLE_ADMIN
 func RequireAdminRole() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role := c.Locals("role")
 		if role != "ROLE_ADMIN" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Admin role required",
-			})
+			return utils.ErrorResponse(c, fiber.StatusForbidden, "Admin role required")
 		}
 		return c.Next()
 	}

@@ -1,177 +1,273 @@
 {
   "info": {
-    "_postman_id": "order-service-collection-2025",
+    "_postman_id": "order-service-2025",
     "name": "Order Service API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Test API cho Order Service"
+    "description": "API Testing for Order Service via API Gateway - All endpoints go through http://localhost:8080/api/orders/data/* which forwards to http://localhost:8086/product/*"
   },
   "item": [
     {
-      "name": "Health Check",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": { "raw": "{{base_url}}/api/health", "host": ["{{base_url}}"], "path": ["api", "health"] }
-      },
-      "response": []
-    },
-    {
-      "name": "Tạo đơn hàng mới",
+      "name": "1. Create Order (Internal)",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}", "type": "text"},
+          {"key": "Content-Type", "value": "application/json", "type": "text"}
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"auction_id\": 1,\n  \"winner_id\": 6,\n  \"seller_id\": 2,\n  \"final_price\": 2500000\n}"
+          "raw": "{\n  \"auction_id\": 1,\n  \"winner_id\": 5,\n  \"seller_id\": 10,\n  \"final_price\": 26000000\n}"
         },
-        "url": { "raw": "{{base_url}}/api/orders", "host": ["{{base_url}}"], "path": ["api", "orders"] }
-      },
-      "response": []
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", ""]
+        },
+        "description": "Create a new order after auction ends. Typically called by auction service."
+      }
     },
     {
-      "name": "Lấy danh sách đơn hàng của user",
+      "name": "2. Get Order By ID",
       "request": {
         "method": "GET",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
-        "url": { "raw": "{{base_url}}/api/orders?role=buyer", "host": ["{{base_url}}"], "path": ["api", "orders"], "query": [ { "key": "role", "value": "buyer" } ] }
-      },
-      "response": []
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}"]
+        },
+        "description": "Get order details by ID. Only accessible by buyer or seller of the order."
+      }
     },
     {
-      "name": "Lấy chi tiết đơn hàng",
+      "name": "3. Get User Orders",
       "request": {
         "method": "GET",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
-        "url": { "raw": "{{base_url}}/api/orders/1", "host": ["{{base_url}}"], "path": ["api", "orders", "1"] }
-      },
-      "response": []
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/?role=buyer&status=COMPLETED",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", ""],
+          "query": [
+            {"key": "role", "value": "buyer", "description": "Filter by role: buyer, seller, ROLE_BIDDER, ROLE_SELLER"},
+            {"key": "status", "value": "COMPLETED", "description": "Filter by status: PENDING_PAYMENT, PAID, ADDRESS_PROVIDED, SHIPPING, DELIVERED, COMPLETED, CANCELLED"}
+          ]
+        },
+        "description": "Get all orders for current user as buyer or seller"
+      }
     },
     {
-      "name": "Thanh toán đơn hàng",
+      "name": "4. Pay Order (Buyer)",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}", "type": "text"},
+          {"key": "Content-Type", "value": "application/json", "type": "text"}
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"payment_method\": \"MOMO\",\n  \"payment_proof\": \"https://example.com/payment.jpg\"\n}"
+          "raw": "{\n  \"payment_method\": \"MOMO\",\n  \"payment_proof\": \"https://s3.amazonaws.com/proof.jpg\"\n}"
         },
-        "url": { "raw": "{{base_url}}/api/orders/1/pay", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "pay"] }
-      },
-      "response": []
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/pay",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "pay"]
+        },
+        "description": "Buyer pays for the order. Order must be in PENDING_PAYMENT status. Payment methods: MOMO, ZALOPAY, VNPAY, STRIPE, PAYPAL"
+      }
     },
     {
-      "name": "Cung cấp địa chỉ giao hàng",
+      "name": "5. Provide Shipping Address (Buyer)",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}", "type": "text"},
+          {"key": "Content-Type", "value": "application/json", "type": "text"}
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"shipping_address\": \"123 Đường ABC, Quận 1, TP.HCM\",\n  \"shipping_phone\": \"0901234567\"\n}"
+          "raw": "{\n  \"shipping_address\": \"123 Nguyen Hue, District 1, Ho Chi Minh City, Vietnam\",\n  \"shipping_phone\": \"0901234567\"\n}"
         },
-        "url": { "raw": "{{base_url}}/api/orders/1/shipping-address", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "shipping-address"] }
-      },
-      "response": []
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/shipping-address",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "shipping-address"]
+        },
+        "description": "Buyer provides shipping address. Order must be in PAID status."
+      }
     },
     {
-      "name": "Gửi hóa đơn vận chuyển (seller)",
+      "name": "6. Send Shipping Invoice (Seller)",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}", "type": "text"},
+          {"key": "Content-Type", "value": "application/json", "type": "text"}
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"tracking_number\": \"VN123456789\",\n  \"shipping_invoice\": \"https://example.com/invoice.pdf\"\n}"
+          "raw": "{\n  \"tracking_number\": \"VN123456789\",\n  \"shipping_invoice\": \"https://s3.amazonaws.com/invoice.jpg\"\n}"
         },
-        "url": { "raw": "{{base_url}}/api/orders/1/shipping-invoice", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "shipping-invoice"] }
-      },
-      "response": []
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/shipping-invoice",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "shipping-invoice"]
+        },
+        "description": "Seller sends shipping invoice and tracking number. Order must be in ADDRESS_PROVIDED status."
+      }
     },
     {
-      "name": "Xác nhận đã nhận hàng (buyer)",
+      "name": "7. Confirm Delivery (Buyer)",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
-        "url": { "raw": "{{base_url}}/api/orders/1/confirm-delivery", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "confirm-delivery"] }
-      },
-      "response": []
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/confirm-delivery",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "confirm-delivery"]
+        },
+        "description": "Buyer confirms that they received the product. Order must be in SHIPPING status."
+      }
     },
     {
-      "name": "Hủy đơn hàng (seller)",
+      "name": "8. Cancel Order (Seller)",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}", "type": "text"},
+          {"key": "Content-Type", "value": "application/json", "type": "text"}
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"cancel_reason\": \"Lý do hủy đơn\"\n}"
+          "raw": "{\n  \"cancel_reason\": \"Product is no longer available\"\n}"
         },
-        "url": { "raw": "{{base_url}}/api/orders/1/cancel", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "cancel"] }
-      },
-      "response": []
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/cancel",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "cancel"]
+        },
+        "description": "Seller cancels the order. Cannot cancel orders that are COMPLETED or already CANCELLED. Note: Buyer will automatically receive -1 rating when seller cancels."
+      }
     },
     {
-      "name": "Gửi tin nhắn chat",
+      "name": "9. Send Message",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}", "type": "text"},
+          {"key": "Content-Type", "value": "application/json", "type": "text"}
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"message\": \"Xin chào, tôi đã thanh toán!\"\n}"
+          "raw": "{\n  \"message\": \"When will you ship the product?\"\n}"
         },
-        "url": { "raw": "{{base_url}}/api/orders/1/messages", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "messages"] }
-      },
-      "response": []
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/messages",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "messages"]
+        },
+        "description": "Send a chat message between buyer and seller in the order"
+      }
     },
     {
-      "name": "Lấy danh sách tin nhắn chat",
+      "name": "10. Get Messages",
       "request": {
         "method": "GET",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
-        "url": { "raw": "{{base_url}}/api/orders/1/messages?limit=50&offset=0", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "messages"], "query": [ { "key": "limit", "value": "50" }, { "key": "offset", "value": "0" } ] }
-      },
-      "response": []
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/messages?limit=50&offset=0",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "messages"],
+          "query": [
+            {"key": "limit", "value": "50", "description": "Number of messages to return"},
+            {"key": "offset", "value": "0", "description": "Offset for pagination"}
+          ]
+        },
+        "description": "Get all chat messages for an order. Only accessible by buyer or seller."
+      }
     },
     {
-      "name": "Đánh giá đơn hàng",
+      "name": "11. Rate Order",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" } ],
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}", "type": "text"},
+          {"key": "Content-Type", "value": "application/json", "type": "text"}
+        ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"rating\": 1,\n  \"comment\": \"Rất tốt!\"\n}"
+          "raw": "{\n  \"rating\": 1,\n  \"comment\": \"Great transaction!\"\n}"
         },
-        "url": { "raw": "{{base_url}}/api/orders/1/rate", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "rate"] }
-      },
-      "response": []
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/rate",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "rate"]
+        },
+        "description": "Rate the order transaction. Rating: 1 (good) or -1 (bad). If both parties rate and order is DELIVERED, it will automatically become COMPLETED."
+      }
     },
     {
-      "name": "Lấy đánh giá đơn hàng",
+      "name": "12. Get Order Rating",
       "request": {
         "method": "GET",
-        "header": [],
-        "url": { "raw": "{{base_url}}/api/orders/1/rating", "host": ["{{base_url}}"], "path": ["api", "orders", "1", "rating"] }
-      },
-      "response": []
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/product/{{order_id}}/rating",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "product", "{{order_id}}", "rating"]
+        },
+        "description": "Get rating information for an order"
+      }
     },
     {
-      "name": "Lấy thống kê rating của user",
+      "name": "13. Get User Rating Stats",
       "request": {
         "method": "GET",
-        "header": [],
-        "url": { "raw": "{{base_url}}/api/users/6/rating", "host": ["{{base_url}}"], "path": ["api", "users", "6", "rating"] }
-      },
-      "response": []
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/users/{{user_id}}/rating",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "users", "{{user_id}}", "rating"]
+        },
+        "description": "Get user's rating statistics (total reviews, good reviews, rating percentage)"
+      }
     },
     {
-      "name": "Lấy tất cả đơn hàng (admin)",
+      "name": "14. Get All Orders (Admin)",
       "request": {
         "method": "GET",
-        "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
-        "url": { "raw": "{{base_url}}/api/admin/orders?status=PAID&limit=50&offset=0", "host": ["{{base_url}}"], "path": ["api", "admin", "orders"], "query": [ { "key": "status", "value": "PAID" }, { "key": "limit", "value": "50" }, { "key": "offset", "value": "0" } ] }
-      },
-      "response": []
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/orders/data/admin/orders?status=COMPLETED&limit=50&offset=0",
+          "host": ["{{base_url}}"],
+          "path": ["api", "orders", "data", "admin", "orders"],
+          "query": [
+            {"key": "status", "value": "COMPLETED", "description": "Filter by status"},
+            {"key": "limit", "value": "50", "description": "Number of orders to return"},
+            {"key": "offset", "value": "0", "description": "Offset for pagination"}
+          ]
+        },
+        "description": "Get all orders in the system. Admin access required (ROLE_ADMIN)."
+      }
+    },
+    {
+      "name": "15. Get WebSocket Info",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "X-User-Token", "value": "{{token}}", "type": "text"}],
+        "url": {
+          "raw": "{{base_url}}/api/order-websocket/",
+          "host": ["{{base_url}}"],
+          "path": ["api", "order-websocket", ""]
+        },
+        "description": "Get WebSocket URL and internal JWT for real-time order chat. Use the returned values to connect to WebSocket: ws://localhost:8086/ws?orderId=1&X-User-Token=<token>&X-Internal-JWT=<internal_jwt>"
+      }
     }
   ],
   "variable": [
-    { "key": "base_url", "value": "http://localhost:8086" },
-    { "key": "token", "value": "<JWT_TOKEN>" }
+    {"key": "base_url", "value": "http://localhost:8080", "type": "string"},
+    {"key": "token", "value": "your_access_token_here", "type": "string"},
+    {"key": "order_id", "value": "1", "type": "string"},
+    {"key": "user_id", "value": "5", "type": "string"}
   ]
 }

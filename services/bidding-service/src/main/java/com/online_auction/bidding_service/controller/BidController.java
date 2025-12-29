@@ -23,20 +23,21 @@ import com.online_auction.bidding_service.dto.response.BiddingHistorySearchRespo
 import com.online_auction.bidding_service.service.BidService;
 
 @RestController
-@RequestMapping("/bids")
+@RequestMapping("/api/bids")
 @RequiredArgsConstructor
 public class BidController {
 
         private final BidService bidService;
 
         @PostMapping
-        @PreAuthorize("hasAnyRole('BIDDER', 'SELLER')")
+        @PreAuthorize("hasAnyRole('ROLE_BIDDER', 'ROLE_SELLER')")
         public ResponseEntity<?> placeBid(
                         @RequestBody BidRequest req,
                         @RequestHeader("X-User-Token") String userJwt) {
                 Authentication auth = SecurityContextHolder.getContext().getAuthentication();
                 UserPrincipal user = (UserPrincipal) auth.getPrincipal();
 
+                System.out.println("Request: " + req);
                 ApiResponse<?> response = bidService.placeBid(
                                 req.getProductId(),
                                 user.getUserId(),
@@ -50,7 +51,7 @@ public class BidController {
         }
 
         @GetMapping("/search")
-        @PreAuthorize("hasAnyRole('ADMIN', 'SELLER', 'BIDDER')")
+        @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SELLER', 'ROLE_BIDDER')")
         public Page<BiddingHistorySearchResponse> search(
                         @RequestParam(required = false) Long productId,
                         @RequestParam(required = false) Long bidderId,

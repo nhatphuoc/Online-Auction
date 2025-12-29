@@ -44,6 +44,7 @@ public class BidService {
                 ApiResponse<ProductBidSuccessData> resp = productServiceClient.placeBidToProductService(productId, req,
                                 userJwt);
 
+                System.out.println("Response: " + resp);
                 if (resp == null) {
                         saveHistory(productId, bidderId, amount, requestId, BidStatus.FAILED,
                                         "NULL_RESPONSE_FROM_PRODUCT_SERVICE");

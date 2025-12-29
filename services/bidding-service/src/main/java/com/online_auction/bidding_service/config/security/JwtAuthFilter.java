@@ -17,8 +17,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final InternalKeyValidator internalKeyValidator;
@@ -44,6 +46,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
+        String method = request.getMethod();
+        String uri = request.getRequestURI();
+        String query = request.getQueryString();
+
+        log.info("➡️ Incoming request: {} {}{}",
+                method,
+                uri,
+                query != null ? "?" + query : "");
+
         // 1. Validate internal keys
         if (!internalKeyValidator.isValid(request)) {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid internal key");
@@ -52,11 +63,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // 2. Parse JWT từ header X-User-Token
         String token = request.getHeader("X-User-Token");
+        System.out.println("Token: " + token);
         if (!StringUtils.isBlank(token)) {
             Claims claims = tokenParser.parseClaims(token);
 
             // Lấy role từ claim
             String role = claims.get("role", String.class); // nếu role là List<String>
+            System.out.println("Role: " + role);
 
             // Chuyển sang GrantedAuthority
             List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));

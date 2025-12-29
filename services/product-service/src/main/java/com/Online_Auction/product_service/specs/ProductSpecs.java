@@ -11,12 +11,25 @@ public class ProductSpecs {
                                 : cb.equal(root.get("parentCategoryId"), parentCategoryId);
         }
 
-        public static Specification<Product> hasCategory(Long categoryId) {
-                return (root, query, cb) -> categoryId == null ? null : cb.equal(root.get("categoryId"), categoryId);
-        }
+        // public static Specification<Product> hasCategory(Long categoryId) {
+        // return (root, query, cb) -> categoryId == null ? null :
+        // cb.equal(root.get("categoryId"), categoryId);
+        // }
 
         public static Specification<Product> hasNamePrefix(String queryStr) {
                 return (root, query, cb) -> (queryStr == null || queryStr.isBlank()) ? null
                                 : cb.like(cb.lower(root.get("name")), queryStr.toLowerCase() + "%");
+        }
+
+        public static Specification<Product> hasCategory(Long categoryId) {
+                return (root, query, cb) -> {
+                        if (categoryId == null) {
+                                return cb.conjunction();
+                        }
+
+                        return cb.or(
+                                        cb.equal(root.get("categoryId"), categoryId),
+                                        cb.equal(root.get("parentCategoryId"), categoryId));
+                };
         }
 }

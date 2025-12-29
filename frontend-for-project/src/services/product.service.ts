@@ -45,15 +45,12 @@ export const productService = {
 
   async searchProducts(params: {
     query?: string;
-    parentCategoryId?: number;
     categoryId?: number;
     page?: number;
     pageSize?: number;
   }) {
     const queryParams = new URLSearchParams();
     if (params.query) queryParams.append('query', params.query);
-    if (params.parentCategoryId)
-      queryParams.append('parentCategoryId', params.parentCategoryId.toString());
     if (params.categoryId)
       queryParams.append('categoryId', params.categoryId.toString());
     queryParams.append('page', (params.page || 0).toString());

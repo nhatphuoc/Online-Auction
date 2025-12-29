@@ -169,7 +169,6 @@ public class ProductService {
     // =================================
     public Page<ProductListItemResponse> searchProducts(
             String query,
-            Long parentCategoryId,
             Long categoryId,
             int page,
             int pageSize) {
@@ -177,8 +176,7 @@ public class ProductService {
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by("createdAt").descending());
 
         Specification<Product> spec = Specification
-                .where(ProductSpecs.hasParentCategory(parentCategoryId))
-                .and(ProductSpecs.hasCategory(categoryId))
+                .where(ProductSpecs.hasCategory(categoryId))
                 .and(ProductSpecs.hasNamePrefix(query));
 
         return productRepository.findAll(spec, pageable)

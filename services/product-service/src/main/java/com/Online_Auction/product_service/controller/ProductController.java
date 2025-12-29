@@ -128,13 +128,11 @@ public class ProductController {
     @GetMapping("/search")
     public ApiResponse<Page<ProductListItemResponse>> searchProducts(
             @RequestParam(required = false) String query,
-            @RequestParam(required = false) Long parentCategoryId,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
         Page<ProductListItemResponse> result = productService.searchProducts(
                 query,
-                parentCategoryId,
                 categoryId,
                 page,
                 pageSize);

@@ -104,23 +104,101 @@ export interface BidHistory {
 
 export interface Order {
   id: number;
-  auctionId: number;
-  winnerId: number;
-  sellerId: number;
-  finalPrice: number;
-  status: 'PENDING_PAYMENT' | 'PAID' | 'SHIPPING' | 'COMPLETED' | 'CANCELLED';
-  rating?: {
+  auction_id: number;
+  winner_id: number;
+  seller_id: number;
+  final_price: number;
+  status: 'PENDING_PAYMENT' | 'PAID' | 'ADDRESS_PROVIDED' | 'SHIPPING' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED';
+  payment_method?: string;
+  payment_proof?: string;
+  paid_at?: string;
+  shipping_address?: string;
+  shipping_phone?: string;
+  tracking_number?: string;
+  shipping_invoice?: string;
+  delivered_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  cancel_reason?: string;
+  // Extended fields (may come from joined queries)
+  product_name?: string;
+  product_image?: string;
+  seller_info?: {
     id: number;
-    orderId: number;
-    sellerRating?: number;
-    sellerComment?: string;
-    buyerRating?: number;
-    buyerComment?: string;
-    createdAt: string;
-    updatedAt: string;
+    username: string;
+    email: string;
   };
-  createdAt: string;
-  updatedAt: string;
+  buyer_info?: {
+    id: number;
+    username: string;
+    email: string;
+  };
+  rating?: OrderRating;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderRating {
+  id: number;
+  order_id: number;
+  buyer_rating?: number | null; // 1 or -1
+  buyer_comment?: string;
+  buyer_rated_at?: string | null;
+  seller_rating?: number | null; // 1 or -1
+  seller_comment?: string;
+  seller_rated_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderMessage {
+  id: number;
+  order_id: number;
+  sender_id: number;
+  message: string;
+  created_at: string;
+}
+
+export interface CreateOrderRequest {
+  auction_id: number;
+  winner_id: number;
+  seller_id: number;
+  final_price: number;
+}
+
+export interface PayOrderRequest {
+  payment_method: 'MOMO' | 'ZALOPAY' | 'VNPAY' | 'STRIPE' | 'PAYPAL';
+  payment_proof?: string;
+}
+
+export interface ShippingAddressRequest {
+  shipping_address: string;
+  shipping_phone: string;
+}
+
+export interface ShippingInvoiceRequest {
+  tracking_number: string;
+  shipping_invoice?: string;
+}
+
+export interface CancelOrderRequest {
+  cancel_reason: string;
+}
+
+export interface SendMessageRequest {
+  message: string;
+}
+
+export interface RateOrderRequest {
+  rating: 1 | -1; // +1 or -1
+  comment?: string;
+}
+
+export interface UserRatingStats {
+  user_id: number;
+  total_number_reviews: number;
+  total_number_good_reviews: number;
+  rating_percentage: number;
 }
 
 export interface ChatMessage {
@@ -235,22 +313,7 @@ export interface ProductQuestion {
 }
 
 export interface OrderDetail extends Order {
-  productName: string;
-  productImage: string;
-  sellerInfo: {
-    id: number;
-    name: string;
-    email: string;
-    phone: string;
-  };
-  buyerInfo: {
-    id: number;
-    name: string;
-    email: string;
-    phone: string;
-  };
-  shippingAddress?: string;
-  trackingNumber?: string;
+  messages?: OrderMessage[];
 }
 
 export interface MediaUploadResponse {

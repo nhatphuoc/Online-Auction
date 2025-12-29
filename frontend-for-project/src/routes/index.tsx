@@ -10,6 +10,9 @@ import SearchPage from '../pages/products/SearchPage';
 import ProfilePage from '../pages/profile/ProfilePage';
 import WatchlistPage from '../pages/bidder/WatchlistPage';
 import MyBidsPage from '../pages/bidder/MyBidsPage';
+import MyProductsPage from '../pages/seller/products/MyProductsPage';
+import OrdersPage from '../pages/orders/OrdersPage';
+import OrderDetailPage from '../pages/orders/OrderDetailPage';
 import NotFoundPage from '../pages/common/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -44,6 +47,18 @@ export const router = createBrowserRouter([
       {
         path: 'my-bids',
         element: <MyBidsPage />,
+      },
+      {
+        path: 'orders',
+        element: <OrdersPage />,
+      },
+      {
+        path: 'orders/:id',
+        element: <OrderDetailPage />,
+      },
+      {
+        path: 'seller/products',
+        element: <MyProductsPage />,
       },
     ],
   },

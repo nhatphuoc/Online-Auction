@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Menu, X, Search, Gavel, LogOut, User, LogIn, 
-  Heart, Package, ShoppingCart, Settings, TrendingUp 
+  Menu, X, Gavel, LogOut, User, LogIn, 
+  Heart, Package, ShoppingCart, Settings, TrendingUp, Search 
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRole } from '../../hooks/useRole';
@@ -11,19 +11,9 @@ import { RoleBased } from '../Common/RoleBased';
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
   const { isAdmin, isSeller } = useRole();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
-      setSearchQuery('');
-      setMobileMenuOpen(false);
-    }
-  };
 
   const handleLogout = () => {
     logout();
@@ -89,25 +79,15 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Search bar - Desktop */}
-          <div className="hidden md:flex items-center flex-1 mx-8">
-            <form onSubmit={handleSearch} className="w-full max-w-2xl">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm sản phẩm..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <Search className="w-5 h-5" />
-                </button>
-              </div>
-            </form>
+          {/* Quick Search Link - Desktop */}
+          <div className="hidden md:flex items-center flex-1 mx-8 justify-end">
+            <Link
+              to="/search"
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Search className="w-5 h-5" />
+              <span className="text-sm font-medium">Tìm kiếm</span>
+            </Link>
           </div>
 
           {/* Desktop Menu */}
@@ -192,23 +172,16 @@ const Navbar = () => {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 py-4 space-y-4">
-            <form onSubmit={handleSearch} className="px-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                >
-                  <Search className="w-5 h-5" />
-                </button>
-              </div>
-            </form>
+            <div className="px-4 space-y-2">
+              <Link
+                to="/search"
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Search className="w-5 h-5" />
+                Tìm kiếm
+              </Link>
+            </div>
 
             <div className="px-4 space-y-2">
               {!isAuthenticated ? (

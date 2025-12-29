@@ -18,6 +18,7 @@ import com.online_auction.bidding_service.dto.response.BiddingHistorySearchRespo
 import com.online_auction.bidding_service.dto.response.ProductBidSuccessData;
 import com.online_auction.bidding_service.event.BidPlacedEvent;
 import com.online_auction.bidding_service.repository.BiddingHistoryRepository;
+import com.online_auction.bidding_service.specs.BiddingHistorySpecs;
 
 import java.time.LocalDateTime;
 
@@ -99,7 +100,8 @@ public class BidService {
                         LocalDateTime to,
                         Pageable pageable) {
                 return biddingHistoryRepository
-                                .search(productId, bidderId, status, requestId, from, to, pageable)
+                                .findAll(BiddingHistorySpecs.search(productId, bidderId, status, requestId, from, to),
+                                                pageable)
                                 .map(this::toResponse);
         }
 

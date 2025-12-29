@@ -37,16 +37,20 @@ export const orderService = {
   async getUserOrders(params?: {
     role?: 'buyer' | 'seller' | 'ROLE_BIDDER' | 'ROLE_SELLER';
     status?: Order['status'];
-  }): Promise<Order[]> {
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: Order[]; pagination: { page: number; limit: number; total: number; total_pages: number } }> {
     const queryParams = new URLSearchParams();
     if (params?.role) queryParams.append('role', params.role);
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
 
     const url = queryParams.toString()
       ? `${endpoints.orders.list}?${queryParams.toString()}`
       : endpoints.orders.list;
 
-    const response = await apiClient.get<Order[]>(url);
+    const response = await apiClient.get<{ data: Order[]; pagination: { page: number; limit: number; total: number; total_pages: number } }>(url);
     return response.data;
   },
 

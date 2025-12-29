@@ -225,8 +225,8 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 	// Get order
 	order := &models.Order{}
 	err = h.db.ModelContext(ctx, order).
-		Where("id = ?", id).
 		Relation("Rating").
+		Where("order.id = ?", id).
 		Select()
 
 	if err != nil {
@@ -261,8 +261,10 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 // @Produce json
 // @Param role query string false "Filter by role: buyer or seller"
 // @Param status query string false "Filter by status"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(10)
 // @Security BearerAuth
-// @Success 200 {array} models.Order
+// @Success 200 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 500 {object} map[string]interface{}
 // @Router /orders [get]
@@ -278,6 +280,17 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 
 	role := c.Query("role")
 	status := c.Query("status")
+
+	// Pagination parameters
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
 
 	query := h.db.ModelContext(ctx, &[]models.Order{}).Relation("Rating")
 
@@ -300,8 +313,17 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 		query = query.Where("status = ?", status)
 	}
 
+	// Get total count
+	total, err := query.Count()
+	if err != nil {
+		slog.Error("Failed to count orders", "error", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to count orders",
+		})
+	}
+
 	orders := []models.Order{}
-	err := query.Order("created_at DESC").Select(&orders)
+	err = query.Order("created_at DESC").Limit(limit).Offset(offset).Select(&orders)
 	if err != nil {
 		slog.Error("Failed to get orders", "error", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -309,7 +331,17 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(orders)
+	totalPages := (total + limit - 1) / limit
+
+	return c.JSON(fiber.Map{
+		"data": orders,
+		"pagination": fiber.Map{
+			"page":        page,
+			"limit":       limit,
+			"total":       total,
+			"total_pages": totalPages,
+		},
+	})
 }
 
 // PayOrder handles payment for order

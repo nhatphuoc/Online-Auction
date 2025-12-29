@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { orderService } from '../../services/order.service';
 import { Order } from '../../types';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
-import { Package, ShoppingCart, Clock, User, Star, MessageSquare } from 'lucide-react';
+import { Package, ShoppingCart, Clock, User, Star, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 
 const OrdersPage = () => {
@@ -13,20 +13,33 @@ const OrdersPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'buyer' | 'seller'>('buyer');
   const [statusFilter, setStatusFilter] = useState<Order['status'] | 'all'>('all');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [limit] = useState(10);
 
   const fetchOrders = useCallback(async () => {
     try {
       setIsLoading(true);
-      const params: { role: 'buyer' | 'seller'; status?: Order['status'] } = { role: activeTab };
+      const params: { role: 'buyer' | 'seller'; status?: Order['status']; page: number; limit: number } = { 
+        role: activeTab, 
+        page: currentPage,
+        limit 
+      };
       if (statusFilter !== 'all') {
         params.status = statusFilter;
       }
-      const data = await orderService.getUserOrders(params);
-      // Ensure data is an array
-      if (Array.isArray(data)) {
-        setOrders(data);
+      const response = await orderService.getUserOrders(params);
+      
+      // Handle the paginated response
+      if (response && response.data && Array.isArray(response.data)) {
+        setOrders(response.data);
+        setTotalPages(response.pagination.total_pages);
+        setTotal(response.pagination.total);
       } else {
-        console.error('Invalid orders data:', data);
+        console.error('Invalid orders data:', response);
         setOrders([]);
         addToast('error', 'Dữ liệu đơn hàng không hợp lệ');
       }
@@ -37,11 +50,16 @@ const OrdersPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, statusFilter, addToast]);
+  }, [activeTab, statusFilter, currentPage, limit, addToast]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Reset to page 1 when changing tabs or filters
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, statusFilter]);
 
   const getStatusBadge = (status: Order['status']) => {
     const styles: Record<Order['status'], string> = {
@@ -235,6 +253,59 @@ const OrdersPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!isLoading && orders.length > 0 && totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-600">
+            Hiển thị {orders.length} / {total} đơn hàng
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-2 rounded-lg ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white'
+                        : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       )}
     </div>

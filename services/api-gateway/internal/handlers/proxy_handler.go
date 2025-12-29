@@ -23,11 +23,12 @@ func NewProxyHandler(cfg *config.Config) *ProxyHandler {
 func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Build target URL
-		path := c.Params("*")
-		if path == "" {
-			path = "/"
+		path := strings.Trim(c.Params("*"), "/")
+
+		fullURL := strings.TrimSuffix(targetURL, "/")
+		if path != "" {
+			fullURL += "/" + path
 		}
-		fullURL := strings.TrimSuffix(targetURL, "/") + "/" + strings.TrimPrefix(path, "/")
 
 		// Add query params
 		if len(c.Context().QueryArgs().String()) > 0 {

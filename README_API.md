@@ -2105,83 +2105,17 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 
 **Required Header:** `X-User-Token: <JWT_ACCESS_TOKEN>`
 
-### 7.1. Upload file đơn
+**⚠️ Lưu ý quan trọng:** Media Service sử dụng **Presigned URL** để upload file trực tiếp lên AWS S3. Client không upload file qua backend mà upload trực tiếp lên S3 thông qua presigned URL.
 
-**Endpoint:** `POST http://localhost:8080/api/media/upload`
-
-**Headers:**
-```
-X-User-Token: <JWT_ACCESS_TOKEN>
-Content-Type: multipart/form-data
-```
-
-**Request Body (Form Data):**
-- `file`: File cần upload
-- `folder` (query param, optional): Thư mục đích (default: "uploads/")
-
-**Example:** `POST http://localhost:8080/api/media/upload?folder=products/`
-
-**Response Success (200):**
-```json
-{
-  "message": "Upload thành công",
-  "url": "https://wnc-s3.s3.ap-southeast-1.amazonaws.com/products/20240101-uuid-image.jpg",
-  "key": "products/20240101-uuid-image.jpg",
-  "filename": "image.jpg",
-  "size": 1048576,
-  "uploaded_at": "2024-01-01T00:00:00Z"
-}
-```
-
-**Response Error (400):**
-```json
-{
-  "error": "File quá lớn, tối đa 10MB"
-}
-```
+**Flow Upload:**
+1. Client gọi API `/presign` hoặc `/presign/multiple` để lấy presigned URL từ backend
+2. Backend tạo presigned URL từ AWS S3 (có thời hạn 15 phút) và trả về cho client
+3. Client sử dụng presigned URL để upload file **trực tiếp lên S3** bằng HTTP PUT request
+4. Sau khi upload thành công, client sử dụng `image_url` (public URL) để lưu vào database
 
 ---
 
-### 7.2. Upload nhiều file
-
-**Endpoint:** `POST http://localhost:8080/api/media/upload/multiple`
-
-**Headers:**
-```
-X-User-Token: <JWT_ACCESS_TOKEN>
-Content-Type: multipart/form-data
-```
-
-**Request Body (Form Data):**
-- `files`: Danh sách file cần upload (multiple)
-- `folder` (query param, optional): Thư mục đích
-
-**Example:** `POST http://localhost:8080/api/media/upload/multiple?folder=products/`
-
-**Response Success (200):**
-```json
-{
-  "message": "Uploaded 3/3 files successfully",
-  "uploaded": [
-    {
-      "message": "Upload thành công",
-      "url": "https://wnc-s3.s3.ap-southeast-1.amazonaws.com/products/image1.jpg",
-      "key": "products/image1.jpg",
-      "filename": "image1.jpg",
-      "size": 1048576,
-      "uploaded_at": "2024-01-01T00:00:00Z"
-    }
-  ],
-  "failed": [],
-  "total": 3,
-  "success_count": 3,
-  "failed_count": 0
-}
-```
-
----
-
-### 7.3. Lấy Presigned URL cho upload trực tiếp
+### 7.1. Lấy Presigned URL cho 1 file
 
 **Endpoint:** `GET http://localhost:8080/api/media/presign`
 
@@ -2191,25 +2125,202 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 ```
 
 **Query Parameters:**
-- `filename` (required): Tên file muốn upload
-- `folder` (optional): Thư mục đích
+- `filename` (required): Tên file muốn upload (VD: `product.jpg`, `avatar.png`)
+- `folder` (optional, default: "uploads/"): Thư mục đích trong S3 (VD: `products/`, `avatars/`)
 
-**Example:** `GET http://localhost:8080/api/media/presign?filename=product.jpg&folder=products/`
+**Example:** `GET http://localhost:8080/api/media/presign?filename=iphone-15.jpg&folder=products/`
 
 **Response Success (200):**
 ```json
 {
-  "presigned_url": "https://wnc-s3.s3.ap-southeast-1.amazonaws.com/products/20240101-uuid-product.jpg?X-Amz-Algorithm=...",
-  "image_url": "https://wnc-s3.s3.ap-southeast-1.amazonaws.com/products/20240101-uuid-product.jpg",
-  "key": "products/20240101-uuid-product.jpg",
+  "presigned_url": "https://bucket-name.s3.ap-southeast-1.amazonaws.com/products/20241231_abc123_iphone-15.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...",
+  "image_url": "https://bucket-name.s3.ap-southeast-1.amazonaws.com/products/20241231_abc123_iphone-15.jpg",
+  "key": "products/20241231_abc123_iphone-15.jpg",
   "expires_in": 900
 }
 ```
 
-**Cách sử dụng:**
-1. Client gọi endpoint này để lấy `presigned_url`
-2. Client upload file trực tiếp đến `presigned_url` bằng PUT request
-3. Sau khi upload thành công, sử dụng `image_url` để lưu vào database
+**Response Error (400):**
+```json
+{
+  "error": "Thiếu tên file (filename)"
+}
+```
+
+**Cách sử dụng presigned URL:**
+
+```javascript
+// Bước 1: Lấy presigned URL từ backend
+const response = await fetch('/api/media/presign?filename=photo.jpg&folder=products/', {
+  headers: { 'X-User-Token': token }
+});
+const { presigned_url, image_url } = await response.json();
+
+// Bước 2: Upload file trực tiếp lên S3 bằng PUT request
+await fetch(presigned_url, {
+  method: 'PUT',
+  body: file,
+  headers: {
+    'Content-Type': file.type
+  }
+});
+
+// Bước 3: Lưu image_url vào database hoặc state
+console.log('File uploaded successfully:', image_url);
+```
+
+---
+
+### 7.2. Lấy Presigned URLs cho nhiều file
+
+**Endpoint:** `POST http://localhost:8080/api/media/presign/multiple`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+Content-Type: application/json
+```
+
+**Query Parameters:**
+- `folder` (optional, default: "uploads/"): Thư mục đích trong S3
+
+**Request Body:**
+```json
+[
+  "product-image-1.jpg",
+  "product-image-2.png",
+  "product-image-3.jpeg"
+]
+```
+
+**Example:** `POST http://localhost:8080/api/media/presign/multiple?folder=products/`
+
+**Response Success (200):**
+```json
+{
+  "presigned": [
+    {
+      "filename": "product-image-1.jpg",
+      "presigned_url": "https://bucket.s3.region.amazonaws.com/products/20241231_xxx_product-image-1.jpg?X-Amz-...",
+      "image_url": "https://bucket.s3.region.amazonaws.com/products/20241231_xxx_product-image-1.jpg",
+      "key": "products/20241231_xxx_product-image-1.jpg",
+      "expires_in": 900
+    },
+    {
+      "filename": "product-image-2.png",
+      "presigned_url": "https://bucket.s3.region.amazonaws.com/products/20241231_yyy_product-image-2.png?X-Amz-...",
+      "image_url": "https://bucket.s3.region.amazonaws.com/products/20241231_yyy_product-image-2.png",
+      "key": "products/20241231_yyy_product-image-2.png",
+      "expires_in": 900
+    },
+    {
+      "filename": "product-image-3.jpeg",
+      "presigned_url": "https://bucket.s3.region.amazonaws.com/products/20241231_zzz_product-image-3.jpeg?X-Amz-...",
+      "image_url": "https://bucket.s3.region.amazonaws.com/products/20241231_zzz_product-image-3.jpeg",
+      "key": "products/20241231_zzz_product-image-3.jpeg",
+      "expires_in": 900
+    }
+  ]
+}
+```
+
+**Response Error (400):**
+```json
+{
+  "error": "Body phải là mảng tên file ([]string)"
+}
+```
+
+**Cách sử dụng cho multiple files:**
+
+```javascript
+// Bước 1: Lấy presigned URLs cho tất cả files
+const filenames = files.map(f => f.name);
+const response = await fetch('/api/media/presign/multiple?folder=products/', {
+  method: 'POST',
+  headers: {
+    'X-User-Token': token,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(filenames)
+});
+const { presigned } = await response.json();
+
+// Bước 2: Upload từng file lên S3 song song
+const uploadPromises = presigned.map((item, index) => 
+  fetch(item.presigned_url, {
+    method: 'PUT',
+    body: files[index],
+    headers: { 'Content-Type': files[index].type }
+  })
+);
+await Promise.all(uploadPromises);
+
+// Bước 3: Lấy danh sách image URLs để lưu vào database
+const imageUrls = presigned.map(item => item.image_url);
+console.log('All files uploaded:', imageUrls);
+```
+
+---
+
+### 7.3. Health Check
+
+**Endpoint:** `GET http://localhost:8080/api/media/health`
+
+**Không yêu cầu authentication**
+
+**Response Success (200):**
+```json
+{
+  "status": "ok",
+  "service": "media-service",
+  "bucket": "your-bucket-name",
+  "region": "ap-southeast-1"
+}
+```
+
+---
+
+### 📝 Lưu ý khi sử dụng Media Service
+
+#### 1. **Presigned URL có thời hạn**
+- Presigned URL có hiệu lực trong **15 phút**
+- Nếu quá hạn, cần gọi lại API để lấy URL mới
+- Kiểm tra `expires_in` trong response
+
+#### 2. **Upload trực tiếp lên S3**
+- **Phải sử dụng PUT method** khi upload lên presigned URL
+- **Phải set Content-Type header** đúng với loại file
+- Không cần thêm Authorization header khi upload lên S3
+
+#### 3. **CORS Policy**
+- **S3 bucket PHẢI được cấu hình CORS** để cho phép upload từ browser
+- Nếu gặp lỗi CORS khi upload lên S3, xem file `services/media-service/S3_CORS_SETUP.md` để biết cách fix
+- CORS phải allow:
+  - **Methods:** PUT (quan trọng nhất), GET, HEAD
+  - **Origins:** Frontend domain của bạn (VD: http://localhost:5173)
+  - **Headers:** Content-Type, * (hoặc wildcard)
+- **Common CORS error:**
+  ```
+  Access to fetch at 'https://bucket.s3.amazonaws.com/...' has been blocked by CORS policy
+  ```
+  → **Solution:** Configure S3 bucket CORS trong AWS Console (xem S3_CORS_SETUP.md)
+
+#### 4. **Giới hạn file**
+- Kích thước file tối đa: Cấu hình trong media-service (thường 10MB - 50MB)
+- Định dạng cho phép: Tất cả định dạng ảnh (JPG, PNG, GIF, WebP, ...)
+- Tên file sẽ được rename tự động để tránh trùng lặp (thêm timestamp + hash)
+
+#### 5. **Security**
+- Presigned URL được tạo với quyền `public-read` (ACL)
+- File sau khi upload sẽ có thể truy cập công khai qua `image_url`
+- `X-User-Token` chỉ cần khi gọi API presign, không cần khi upload lên S3
+
+#### 6. **Best Practices**
+- Upload nhiều file: Sử dụng `/presign/multiple` và `Promise.all()` để upload song song
+- Progress tracking: Sử dụng XMLHttpRequest hoặc axios để track upload progress
+- Error handling: Kiểm tra HTTP status code khi upload lên S3 (200 = success)
+- Retry logic: Implement retry nếu upload failed (network issue)
 
 ---
 

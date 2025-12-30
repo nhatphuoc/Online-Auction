@@ -94,7 +94,7 @@ func (h *UploadHandler) UploadSingleFile(c *fiber.Ctx) error {
 		Key:         aws.String(key),
 		Body:        bytes.NewReader(data),
 		ContentType: aws.String(utils.GetContentType(fileHeader.Filename)),
-		ACL:         "public-read",
+		// ACL removed - use bucket policy instead for public access
 	})
 
 	if err != nil {
@@ -200,7 +200,7 @@ func (h *UploadHandler) UploadMultipleFiles(c *fiber.Ctx) error {
 			Key:         aws.String(key),
 			Body:        bytes.NewReader(data),
 			ContentType: aws.String(utils.GetContentType(fileHeader.Filename)),
-			ACL:         "public-read",
+			// ACL removed - use bucket policy instead for public access
 		})
 
 		if err != nil {
@@ -266,7 +266,7 @@ func (h *UploadHandler) GetPresignedURL(c *fiber.Ctx) error {
 		Bucket:      aws.String(h.cfg.AWSBucketName),
 		Key:         aws.String(key),
 		ContentType: aws.String(utils.GetContentType(filename)),
-		ACL:         "public-read",
+		// ACL removed - use bucket policy instead for public access
 	}
 	presignDuration := 15 * time.Minute
 	presigned, err := presignClient.PresignPutObject(context.TODO(), presignParams, func(opts *s3.PresignOptions) {
@@ -279,10 +279,10 @@ func (h *UploadHandler) GetPresignedURL(c *fiber.Ctx) error {
 			Details: err.Error(),
 		})
 	}
-	
+
 	// Generate the final image URL
 	imageURL := config.GetS3URL(h.cfg, key)
-	
+
 	return c.JSON(fiber.Map{
 		"presigned_url": presigned.URL,
 		"image_url":     imageURL,
@@ -323,7 +323,7 @@ func (h *UploadHandler) GetPresignedURLs(c *fiber.Ctx) error {
 			Bucket:      aws.String(h.cfg.AWSBucketName),
 			Key:         aws.String(key),
 			ContentType: aws.String(utils.GetContentType(filename)),
-			ACL:         "public-read",
+			// ACL removed - use bucket policy instead for public access
 		}
 		presigned, err := presignClient.PresignPutObject(context.TODO(), presignParams, func(opts *s3.PresignOptions) {
 			opts.Expires = presignDuration
@@ -336,10 +336,10 @@ func (h *UploadHandler) GetPresignedURLs(c *fiber.Ctx) error {
 			})
 			continue
 		}
-		
+
 		// Generate the final image URL
 		imageURL := config.GetS3URL(h.cfg, key)
-		
+
 		result = append(result, map[string]interface{}{
 			"filename":      filename,
 			"presigned_url": presigned.URL,

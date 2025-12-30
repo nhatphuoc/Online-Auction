@@ -1,78 +1,34 @@
 {
   "info": {
-    "name": "Media Service API",
-    "description": "Postman collection for testing Media Service endpoints (qua API Gateway)",
+    "name": "Media Service API (Presigned URL)",
+    "description": "Postman collection for Media Service - Sử dụng Presigned URL để upload trực tiếp lên S3",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
-      "name": "Upload Single File",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
-        ],
-        "body": {
-          "mode": "formdata",
-          "formdata": [
-            { "key": "file", "type": "file", "src": "" }
-          ]
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/media/upload",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
-          "path": ["api", "media", "upload"]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Upload Multiple Files",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
-        ],
-        "body": {
-          "mode": "formdata",
-          "formdata": [
-            { "key": "files", "type": "file", "src": "", "multiple": true }
-          ]
-        },
-        "url": {
-          "raw": "http://localhost:8080/api/media/upload/multiple",
-          "protocol": "http",
-          "host": ["localhost"],
-          "port": "8080",
-          "path": ["api", "media", "upload", "multiple"]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Get Presigned URL (Single)",
+      "name": "1. Get Presigned URL (Single File)",
       "request": {
         "method": "GET",
         "header": [
           { "key": "X-User-Token", "value": "{{user_token}}", "type": "text" }
         ],
         "url": {
-          "raw": "http://localhost:8080/api/media/presign?filename={{filename}}",
+          "raw": "http://localhost:8080/api/media/presign?filename={{filename}}&folder=products/",
           "protocol": "http",
           "host": ["localhost"],
           "port": "8080",
           "path": ["api", "media", "presign"],
           "query": [
-            { "key": "filename", "value": "{{filename}}" }
+            { "key": "filename", "value": "{{filename}}", "description": "Tên file (VD: product.jpg)" },
+            { "key": "folder", "value": "products/", "description": "Thư mục đích (optional)" }
           ]
-        }
+        },
+        "description": "Lấy presigned URL để upload 1 file. Response chứa presigned_url (để upload) và image_url (public URL sau khi upload)"
       },
       "response": []
     },
     {
-      "name": "Get Presigned URLs (Multiple)",
+      "name": "2. Get Presigned URLs (Multiple Files)",
       "request": {
         "method": "POST",
         "header": [
@@ -81,15 +37,53 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "[\n  \"a.jpg\",\n  \"b.png\"\n]"
+          "raw": "[\n  \"product-image-1.jpg\",\n  \"product-image-2.png\",\n  \"product-image-3.jpeg\"\n]"
         },
         "url": {
-          "raw": "http://localhost:8080/api/media/presign/multiple",
+          "raw": "http://localhost:8080/api/media/presign/multiple?folder=products/",
           "protocol": "http",
           "host": ["localhost"],
           "port": "8080",
-          "path": ["api", "media", "presign", "multiple"]
+          "path": ["api", "media", "presign", "multiple"],
+          "query": [
+            { "key": "folder", "value": "products/", "description": "Thư mục đích (optional)" }
+          ]
+        },
+        "description": "Lấy presigned URLs cho nhiều files. Body là mảng tên file."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Upload File to S3 (Using Presigned URL)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Bước 1: Lấy presigned URL trước",
+              "// Chạy request '1. Get Presigned URL' trước",
+              "// Sau đó copy presigned_url vào biến {{presigned_url}}"
+            ],
+            "type": "text/javascript"
+          }
         }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "image/jpeg", "type": "text", "description": "Set đúng MIME type của file" }
+        ],
+        "body": {
+          "mode": "file",
+          "file": {
+            "src": ""
+          }
+        },
+        "url": {
+          "raw": "{{presigned_url}}",
+          "host": ["{{presigned_url}}"]
+        },
+        "description": "Upload file trực tiếp lên S3 sử dụng presigned URL.\n\nCách sử dụng:\n1. Chạy request 'Get Presigned URL' trước\n2. Copy 'presigned_url' từ response\n3. Paste vào biến {{presigned_url}}\n4. Chọn file cần upload\n5. Set Content-Type đúng với loại file\n6. Send request"
       },
       "response": []
     },
@@ -103,14 +97,16 @@
           "host": ["localhost"],
           "port": "8080",
           "path": ["api", "media", "health"]
-        }
+        },
+        "description": "Kiểm tra trạng thái của media service"
       },
       "response": []
     }
   ],
   "variable": [
-    { "key": "filename", "value": "test.jpg" },
-    { "key": "user_token", "value": "your_jwt_token_here" }
+    { "key": "filename", "value": "test-product.jpg", "type": "string" },
+    { "key": "user_token", "value": "your_jwt_token_here", "type": "string" },
+    { "key": "presigned_url", "value": "", "type": "string", "description": "Paste presigned URL vào đây sau khi lấy được từ request 1 hoặc 2" }
   ]
 }
 

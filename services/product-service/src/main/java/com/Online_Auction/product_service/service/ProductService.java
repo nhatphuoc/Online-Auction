@@ -12,15 +12,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.Online_Auction.product_service.client.RestTemplateNotificationServiceClient;
+import com.Online_Auction.product_service.client.RestTemplateOrderServiceClient;
 import com.Online_Auction.product_service.client.RestTemplateUserServiceClient;
 import com.Online_Auction.product_service.domain.Product;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
 import com.Online_Auction.product_service.dto.request.UpdateCategoryRequest;
+import com.Online_Auction.product_service.dto.response.BuyNowResponse;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
 import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.dto.response.SimpleUserInfo;
 import com.Online_Auction.product_service.external.SimpleUserResponse;
+import com.Online_Auction.product_service.external.notification.EmailNotificationRequest;
+import com.Online_Auction.product_service.external.order.CreateOrderRequest;
 import com.Online_Auction.product_service.mapper.ProductMapper;
 import com.Online_Auction.product_service.repository.ProductRepository;
 import com.Online_Auction.product_service.specs.ProductSpecs;
@@ -35,6 +40,8 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
     private final RestTemplateUserServiceClient restTemplateUserServiceClient;
+    private final RestTemplateOrderServiceClient orderClient;
+    private final RestTemplateNotificationServiceClient notificationServiceClient;
 
     // =================================
     // CREATE PRODUCT (SELLER)
@@ -245,5 +252,88 @@ public class ProductService {
         return productRepository.updateParentCategoryName(
                 parentCategoryId,
                 parentCategoryName);
+    }
+
+    /* ================= BUY NOW ================= */
+    @Transactional
+    public BuyNowResponse buyNow(Long productId, Long buyerId) {
+
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // ===== VALIDATION =====
+        if (product.isOrderCreated()) {
+            throw new RuntimeException("Product already sold");
+        }
+
+        if (product.getBuyNowPrice() == null) {
+            throw new RuntimeException("Buy now not available");
+        }
+
+        if (product.getEndAt().isBefore(now)) {
+            throw new RuntimeException("Auction already ended");
+        }
+
+        // ===== MARK AS WON =====
+        markAuctionAsWon(product, buyerId, product.getBuyNowPrice());
+
+        productRepository.save(product);
+
+        // ===== SIDE EFFECTS =====
+        handleWinningAuction(product);
+
+        return new BuyNowResponse(
+                product.getId(),
+                product.getCurrentPrice(),
+                buyerId,
+                product.getEndAt());
+    }
+
+    private void markAuctionAsWon(Product product, Long winnerId, Double finalPrice) {
+        LocalDateTime now = LocalDateTime.now();
+
+        product.setCurrentBidder(winnerId);
+        product.setCurrentPrice(finalPrice);
+        product.setEndAt(now);
+    }
+
+    private void handleWinningAuction(Product product) {
+
+        if (!product.isOrderCreated()) {
+            orderClient.createOrder(
+                    CreateOrderRequest.builder()
+                            .auction_id(product.getId())
+                            .final_price(product.getCurrentPrice())
+                            .seller_id(product.getSellerId())
+                            .winner_id(product.getCurrentBidder())
+                            .build());
+
+            product.setOrderCreated(true);
+            productRepository.save(product);
+        }
+
+        if (!product.isSentEmail()) {
+            var seller = restTemplateUserServiceClient.getUserById(product.getSellerId());
+            var winner = restTemplateUserServiceClient.getUserById(product.getCurrentBidder());
+
+            notificationServiceClient.sendEmail(
+                    EmailNotificationRequest.builder()
+                            .to(seller.getEmail())
+                            .subject("Auction ended with a winner")
+                            .body("Your product \"" + product.getName() + "\" has been sold.")
+                            .build());
+
+            notificationServiceClient.sendEmail(
+                    EmailNotificationRequest.builder()
+                            .to(winner.getEmail())
+                            .subject("You won the auction!")
+                            .body("You won \"" + product.getName() + "\".")
+                            .build());
+
+            product.setSentEmail(true);
+            productRepository.save(product);
+        }
     }
 }

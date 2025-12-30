@@ -16,6 +16,7 @@ import com.Online_Auction.product_service.dto.request.RenameParentCategoryReques
 import com.Online_Auction.product_service.dto.request.UpdateCategoryRequest;
 import com.Online_Auction.product_service.dto.response.ApiResponse;
 import com.Online_Auction.product_service.dto.response.BatchUpdateResult;
+import com.Online_Auction.product_service.dto.response.BuyNowResponse;
 import com.Online_Auction.product_service.dto.response.ProductDTO;
 import com.Online_Auction.product_service.dto.response.ProductListItemResponse;
 import com.Online_Auction.product_service.external.ProductBidRequest;
@@ -37,7 +38,7 @@ public class ProductController {
     // =================================
     // SELLER: CREATE PRODUCT
     // =================================
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
     @PostMapping
     public ResponseEntity<ProductDTO> createProduct(
             @Valid @RequestBody ProductCreateRequest request) {
@@ -62,7 +63,7 @@ public class ProductController {
     // =================================
     // SELLER: UPDATE DESCRIPTION (APPEND)
     // =================================
-    @PreAuthorize("hasRole('SELLER')")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
     @PatchMapping("/{productId}/description")
     public ResponseEntity<ProductDTO> updateDescription(
             @PathVariable Long productId,
@@ -218,5 +219,16 @@ public class ProductController {
                 ApiResponse.success(
                         new BatchUpdateResult(updated),
                         "Parent category renamed successfully"));
+    }
+
+    @PostMapping("/{id}/buy-now")
+    @PreAuthorize("hasAnyRole('ROLE_BIDDER', 'ROLE_SELLER')")
+    public ResponseEntity<ApiResponse<BuyNowResponse>> buyNow(@PathVariable Long id) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        Long buyerId = principal.getUserId();
+        BuyNowResponse response = productService.buyNow(id, buyerId);
+        return ResponseEntity.ok(
+                ApiResponse.success(response, "Buy now successful"));
     }
 }

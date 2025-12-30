@@ -19,26 +19,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var locVN = mustLoad("Asia/Ho_Chi_Minh")
-
-func mustLoad(name string) *time.Location {
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		panic(err)
-	}
-	return loc
-}
-
-func FixedTimeNow() time.Time {
-	nowVN := FixedTimeNow().In(locVN)
-	return time.Date(
-		nowVN.Year(), nowVN.Month(), nowVN.Day(),
-		nowVN.Hour(), nowVN.Minute(), nowVN.Second(),
-		nowVN.Nanosecond(),
-		time.UTC,
-	)
-}
-
 // Client represents a connected WebSocket client
 type Client struct {
 	Conn    *websocket.Conn
@@ -59,6 +39,26 @@ type Hub struct {
 type BroadcastMessage struct {
 	OrderID int64
 	Message []byte
+}
+
+var locVN = mustLoad("Asia/Ho_Chi_Minh")
+
+func mustLoad(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
+func FixedTimeNow() time.Time {
+	nowVN := time.Now().In(locVN)
+	return time.Date(
+		nowVN.Year(), nowVN.Month(), nowVN.Day(),
+		nowVN.Hour(), nowVN.Minute(), nowVN.Second(),
+		nowVN.Nanosecond(),
+		time.UTC,
+	)
 }
 
 var hub *Hub
@@ -225,12 +225,16 @@ func (h *OrderHandler) GetOrderByID(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get order using raw query
+	// Get order using raw query with user names
 	var order models.Order
-	orderQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
-		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
-		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
-		FROM orders WHERE id = ?`
+	orderQuery := `SELECT o.id, o.auction_id, o.winner_id, o.seller_id, o.final_price, o.status, o.payment_method, o.payment_proof, 
+		o.shipping_address, o.shipping_phone, o.tracking_number, o.shipping_invoice, o.paid_at, o.delivered_at, 
+		o.completed_at, o.cancelled_at, o.cancel_reason, o.created_at, o.updated_at,
+		buyer.full_name AS buyer_name, seller.full_name AS seller_name
+		FROM orders o
+		LEFT JOIN users buyer ON o.winner_id = buyer.id
+		LEFT JOIN users seller ON o.seller_id = seller.id
+		WHERE o.id = ?`
 	_, err = h.db.QueryOneContext(ctx, &order, orderQuery, id)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -309,7 +313,7 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 	// Build query based on role filter
 	var whereClause string
 	var args []interface{}
-	
+
 	// Filter by role (accepts both "buyer"/"seller" and "ROLE_BIDDER"/"ROLE_SELLER")
 	if role == "ROLE_BIDDER" || role == "buyer" {
 		whereClause = "winner_id = ?"
@@ -340,13 +344,17 @@ func (h *OrderHandler) GetUserOrders(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get orders with pagination
-	ordersQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
-		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
-		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
-		FROM orders WHERE ` + whereClause + ` ORDER BY created_at DESC LIMIT ? OFFSET ?`
+	// Get orders with pagination and user names
+	ordersQuery := `SELECT o.id, o.auction_id, o.winner_id, o.seller_id, o.final_price, o.status, o.payment_method, o.payment_proof, 
+		o.shipping_address, o.shipping_phone, o.tracking_number, o.shipping_invoice, o.paid_at, o.delivered_at, 
+		o.completed_at, o.cancelled_at, o.cancel_reason, o.created_at, o.updated_at,
+		buyer.full_name AS buyer_name, seller.full_name AS seller_name
+		FROM orders o
+		LEFT JOIN users buyer ON o.winner_id = buyer.id
+		LEFT JOIN users seller ON o.seller_id = seller.id
+		WHERE ` + whereClause + ` ORDER BY o.created_at DESC LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
-	
+
 	var orders []models.Order
 	_, err = h.db.QueryContext(ctx, &orders, ordersQuery, args...)
 	if err != nil {
@@ -442,7 +450,7 @@ func (h *OrderHandler) PayOrder(c *fiber.Ctx) error {
 			"error": "Failed to get order",
 		})
 	}
-	
+
 	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 	// Check if user is buyer
 	if order.WinnerID != userIDInt64 {
@@ -602,7 +610,7 @@ func (h *OrderHandler) SendShippingInvoice(c *fiber.Ctx) error {
 	}
 
 	userID := c.Locals("userID").(string)
-	if err != nil {
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -699,7 +707,7 @@ func (h *OrderHandler) ConfirmDelivery(c *fiber.Ctx) error {
 	}
 
 	userID := c.Locals("userID").(string)
-	if err != nil {
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -851,13 +859,32 @@ func (h *OrderHandler) CancelOrder(c *fiber.Ctx) error {
 	order.CancelledAt = &now
 	order.UpdatedAt = now
 
-	// Auto-rate buyer with -1 when seller cancels
+	// Auto-rate buyer with -1 when seller cancels (create rating record if not exists)
 	var rating models.OrderRating
 	ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
 		buyer_rated_at, seller_rated_at, created_at, updated_at 
 		FROM order_ratings WHERE order_id = ?`
 	_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, order.ID)
-	if err == nil {
+
+	// If rating record doesn't exist, create it
+	if err == pg.ErrNoRows {
+		insertQuery := `INSERT INTO order_ratings (order_id, created_at, updated_at) 
+			VALUES (?, ?, ?) RETURNING id`
+		_, err = h.db.QueryOneContext(ctx, pg.Scan(&rating.ID), insertQuery, order.ID, now, now)
+		if err != nil {
+			slog.Error("Failed to create rating record for cancelled order", "error", err)
+			// Don't return error, cancellation was successful
+		} else {
+			rating.OrderID = order.ID
+			rating.CreatedAt = now
+			rating.UpdatedAt = now
+		}
+	} else if err != nil {
+		slog.Error("Failed to get rating record", "error", err)
+	}
+
+	// If we have a rating record (existing or newly created), update it
+	if rating.ID > 0 {
 		negativeOne := -1
 		updateRatingQuery := `UPDATE order_ratings SET seller_rating = ?, seller_comment = ?, seller_rated_at = ?, updated_at = ? WHERE id = ?`
 		comment := fmt.Sprintf("Order cancelled by seller. Reason: %s", req.CancelReason)
@@ -898,7 +925,7 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 	}
 
 	userID := c.Locals("userID").(string)
-	if err != nil {
+	if userID == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
 		})
@@ -932,7 +959,7 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 			"error": "Failed to get order",
 		})
 	}
-	
+
 	userIDInt64, _ := strconv.ParseInt(userID, 10, 64)
 
 	// Check if user is buyer or seller
@@ -967,9 +994,9 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(message)
 }
 
-// GetMessages retrieves all messages for an order
-// @Summary Get messages
-// @Description Get all chat messages for an order
+// GetMessages retrieves all messages for an order (Chat History)
+// @Summary Get chat history
+// @Description Get all chat messages for an order with pagination
 // @Tags orders
 // @Accept json
 // @Produce json
@@ -977,12 +1004,12 @@ func (h *OrderHandler) SendMessage(c *fiber.Ctx) error {
 // @Param limit query int false "Limit" default(50)
 // @Param offset query int false "Offset" default(0)
 // @Security BearerAuth
-// @Success 200 {array} models.OrderMessage
+// @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]interface{}
 // @Failure 401 {object} map[string]interface{}
 // @Failure 403 {object} map[string]interface{}
 // @Failure 404 {object} map[string]interface{}
-// @Router /orders/{id}/messages [get]
+// @Router /orders/product/{id}/messages [get]
 func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 	ctx := context.Background()
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -1001,6 +1028,13 @@ func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 
 	limit := c.QueryInt("limit", 50)
 	offset := c.QueryInt("offset", 0)
+
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
 	// Get order to check permissions using raw query
 	var order models.Order
@@ -1025,9 +1059,20 @@ func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get messages using raw query
+	// Get total count
+	var total int
+	countQuery := `SELECT COUNT(*) FROM order_messages WHERE order_id = ?`
+	_, err = h.db.QueryOneContext(ctx, pg.Scan(&total), countQuery, id)
+	if err != nil {
+		slog.Error("Failed to count messages", "error", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to count messages",
+		})
+	}
+
+	// Get messages using raw query - ordered DESC to get newest first, then reverse
 	messagesQuery := `SELECT id, order_id, sender_id, message, created_at 
-		FROM order_messages WHERE order_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`
+		FROM order_messages WHERE order_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
 	var messages []models.OrderMessage
 	_, err = h.db.QueryContext(ctx, &messages, messagesQuery, id, limit, offset)
 	if err != nil && err != pg.ErrNoRows {
@@ -1037,8 +1082,20 @@ func (h *OrderHandler) GetMessages(c *fiber.Ctx) error {
 		})
 	}
 
-	// Nếu không có message nào thì trả về mảng rỗng [] và status 200
-	return c.JSON(messages)
+	// Reverse messages to show oldest first (chronological order)
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+
+	// Return with pagination metadata
+	return c.JSON(fiber.Map{
+		"data": messages,
+		"pagination": fiber.Map{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+		},
+	})
 }
 
 // RateOrder rates an order
@@ -1111,18 +1168,29 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get rating record using raw query
+	// Get or create rating record using raw query
 	var rating models.OrderRating
 	ratingQuery := `SELECT id, order_id, buyer_rating, buyer_comment, seller_rating, seller_comment, 
 		buyer_rated_at, seller_rated_at, created_at, updated_at 
 		FROM order_ratings WHERE order_id = ?`
 	_, err = h.db.QueryOneContext(ctx, &rating, ratingQuery, id)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "Rating record not found",
+
+	// If rating record doesn't exist, create it
+	if err == pg.ErrNoRows {
+		now := FixedTimeNow()
+		insertQuery := `INSERT INTO order_ratings (order_id, created_at, updated_at) 
+			VALUES (?, ?, ?) RETURNING id`
+		_, err = h.db.QueryOneContext(ctx, pg.Scan(&rating.ID), insertQuery, id, now, now)
+		if err != nil {
+			slog.Error("Failed to create rating record", "error", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to create rating record",
 			})
 		}
+		rating.OrderID = id
+		rating.CreatedAt = now
+		rating.UpdatedAt = now
+	} else if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to get rating",
 		})
@@ -1171,10 +1239,14 @@ func (h *OrderHandler) RateOrder(c *fiber.Ctx) error {
 	// Update user rating stats
 	if oldRating != nil {
 		// Remove old rating first
-		h.updateUserRating(ctx, targetUserID, -*oldRating)
+		if err := h.removeUserRating(ctx, targetUserID, *oldRating); err != nil {
+			slog.Error("Failed to remove old rating", "error", err)
+		}
 	}
 	// Add new rating
-	h.updateUserRating(ctx, targetUserID, req.Rating)
+	if err := h.addUserRating(ctx, targetUserID, req.Rating); err != nil {
+		slog.Error("Failed to add new rating", "error", err)
+	}
 
 	// Check if both parties have rated, if yes, mark order as completed
 	if rating.BuyerRating != nil && rating.SellerRating != nil && order.Status == models.OrderStatusDelivered {
@@ -1304,20 +1376,20 @@ func (h *OrderHandler) GetAllOrders(c *fiber.Ctx) error {
 	// Build query
 	var whereClause string
 	var args []interface{}
-	
+
 	ordersQuery := `SELECT id, auction_id, winner_id, seller_id, final_price, status, payment_method, payment_proof, 
 		shipping_address, shipping_phone, tracking_number, shipping_invoice, paid_at, delivered_at, 
 		completed_at, cancelled_at, cancel_reason, created_at, updated_at 
 		FROM orders`
-	
+
 	if status != "" {
 		whereClause = " WHERE status = ?"
 		args = append(args, status)
 	}
-	
+
 	ordersQuery += whereClause + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
-	
+
 	var orders []models.Order
 	_, err := h.db.QueryContext(ctx, &orders, ordersQuery, args...)
 	if err != nil {
@@ -1343,7 +1415,8 @@ func (h *OrderHandler) GetAllOrders(c *fiber.Ctx) error {
 }
 
 // updateUserRating updates user's rating statistics in database
-func (h *OrderHandler) updateUserRating(ctx context.Context, userID int64, rating int) error {
+// addUserRating adds a new rating to user's stats
+func (h *OrderHandler) addUserRating(ctx context.Context, userID int64, rating int) error {
 	var user models.User
 	userQuery := `SELECT id, total_number_reviews, total_number_good_reviews FROM users WHERE id = ?`
 	_, err := h.db.QueryOneContext(ctx, &user, userQuery, userID)
@@ -1368,6 +1441,43 @@ func (h *OrderHandler) updateUserRating(ctx context.Context, userID int64, ratin
 	}
 
 	return nil
+}
+
+// removeUserRating removes an existing rating from user's stats
+func (h *OrderHandler) removeUserRating(ctx context.Context, userID int64, rating int) error {
+	var user models.User
+	userQuery := `SELECT id, total_number_reviews, total_number_good_reviews FROM users WHERE id = ?`
+	_, err := h.db.QueryOneContext(ctx, &user, userQuery, userID)
+	if err != nil {
+		slog.Error("Failed to get user for rating removal", "error", err, "userID", userID)
+		return err
+	}
+
+	// Decrease counts (ensure they don't go negative)
+	totalReviews := user.TotalNumberReviews - 1
+	if totalReviews < 0 {
+		totalReviews = 0
+	}
+
+	totalGoodReviews := user.TotalNumberGoodReviews
+	if rating == 1 && totalGoodReviews > 0 {
+		totalGoodReviews--
+	}
+
+	updateQuery := `UPDATE users SET total_number_reviews = ?, total_number_good_reviews = ? WHERE id = ?`
+	_, err = h.db.ExecContext(ctx, updateQuery, totalReviews, totalGoodReviews, userID)
+
+	if err != nil {
+		slog.Error("Failed to remove user rating", "error", err, "userID", userID)
+		return err
+	}
+
+	return nil
+}
+
+// updateUserRating is a legacy wrapper - prefer addUserRating
+func (h *OrderHandler) updateUserRating(ctx context.Context, userID int64, rating int) error {
+	return h.addUserRating(ctx, userID, rating)
 }
 
 // HandleWebSocket handles WebSocket connections for order chat
@@ -1398,6 +1508,9 @@ func (h *OrderHandler) HandleWebSocket(c *websocket.Conn) {
 	} else {
 		slog.Error("Internal JWT verified")
 	}
+	fmt.Println(ok)
+
+	fmt.Println(err)
 
 	if tokenString == "" {
 		slog.Error("Missing X-User-Token header")
@@ -1502,12 +1615,12 @@ func (h *OrderHandler) readPump(client *Client) {
 		switch wsMsg.Type {
 		case "message":
 			// Save message to database using raw query
-			now := FixedTimeNow()
+			now := time.Now().UTC()
 			var messageID int64
 			ctx := context.Background()
 			insertQuery := `INSERT INTO order_messages (order_id, sender_id, message, created_at) 
 				VALUES (?, ?, ?, ?) RETURNING id`
-			_, err := h.db.QueryOneContext(ctx, pg.Scan(&messageID), insertQuery, 
+			_, err := h.db.QueryOneContext(ctx, pg.Scan(&messageID), insertQuery,
 				client.OrderID, client.UserID, wsMsg.Content, now)
 			if err != nil {
 				slog.Error("Failed to save message", "error", err)

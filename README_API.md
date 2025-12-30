@@ -1107,7 +1107,70 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 
 ---
 
-### 4.9. Cập nhật category (Internal - Category Service)
+### 4.9. Mua ngay sản phẩm (Buy Now)
+
+**Endpoint:** `POST http://localhost:8080/api/products/{id}/buy-now`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Authorization:** ROLE_BIDDER, ROLE_SELLER
+
+**Mô tả:** Mua ngay sản phẩm với giá Buy Now, kết thúc phiên đấu giá ngay lập tức.
+
+**Response Success (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "productId": 1,
+    "finalPrice": 30000000.0,
+    "buyerId": 5,
+    "endAt": "2024-01-17T10:00:00"
+  },
+  "message": "Buy now successful"
+}
+```
+
+**Response Error (400):**
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Product already sold"
+}
+```
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Buy now not available"
+}
+```
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Auction already ended"
+}
+```
+
+**Response Error (404):**
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Product not found"
+}
+```
+
+---
+
+### 4.10. Cập nhật category (Internal - Category Service)
 
 **Endpoint:** `PUT http://localhost:8080/api/products/categories/{categoryId}`
 
@@ -1139,7 +1202,7 @@ Content-Type: application/json
 
 ---
 
-### 4.10. Đổi tên parent category (Internal - Category Service)
+### 4.11. Đổi tên parent category (Internal - Category Service)
 
 **Endpoint:** `PUT http://localhost:8080/api/products/parent-categories/{parentCategoryId}/rename`
 
@@ -1668,74 +1731,153 @@ Content-Type: application/json
 
 ---
 
-### 6.9. Gửi tin nhắn trong order
-
-**Endpoint:** `POST http://localhost:8080/api/orders/data/product/{id}/messages`
-
-**Headers:**
-```
-X-User-Token: <JWT_ACCESS_TOKEN>
-Content-Type: application/json
-```
-
-**Authorization:** Buyer hoặc seller của order
-
-**Request Body:**
-```json
-{
-  "message": "When will you ship the product?"
-}
-```
-
-**Response Success (201):**
-```json
-{
-  "id": 1,
-  "order_id": 1,
-  "sender_id": 5,
-  "message": "When will you ship the product?",
-  "created_at": "2024-01-17T12:00:00Z"
-}
-```
-
----
-
-### 6.10. Lấy danh sách tin nhắn trong order
+### 6.9. Lấy lịch sử chat (REST API)
 
 **Endpoint:** `GET http://localhost:8080/api/orders/data/product/{id}/messages`
 
+**Authorization:** ROLE_BIDDER, ROLE_SELLER (buyer hoặc seller của đơn hàng)
+
 **Headers:**
 ```
 X-User-Token: <JWT_ACCESS_TOKEN>
 ```
 
-**Authorization:** Buyer hoặc seller của order
-
 **Query Parameters:**
-- `limit` (default: 50): Số lượng tin nhắn
-- `offset` (default: 0): Vị trí bắt đầu
+- `limit` (optional, default: 50, max: 100): Số lượng messages mỗi trang
+- `offset` (optional, default: 0): Vị trí bắt đầu (dùng cho pagination)
 
-**Example:** `GET http://localhost:8080/api/orders/data/product/1/messages?limit=20&offset=0`
+**Example:**
+```
+GET http://localhost:8080/api/orders/data/product/1/messages?limit=20&offset=0
+```
 
 **Response Success (200):**
 ```json
-[
-  {
+{
+  "data": [
+    {
+      "id": 1,
+      "order_id": 1,
+      "sender_id": 5,
+      "message": "Xin chào, khi nào bạn giao hàng?",
+      "created_at": "2025-12-30T13:00:00Z"
+    },
+    {
+      "id": 2,
+      "order_id": 1,
+      "sender_id": 3,
+      "message": "Mình sẽ gửi hàng ngày mai bạn nhé!",
+      "created_at": "2025-12-30T13:05:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0
+  }
+}
+```
+
+**Lưu ý:**
+- Messages được sắp xếp theo thứ tự thời gian (cũ nhất đến mới nhất)
+- Endpoint này dùng để load lịch sử chat ban đầu khi mở trang
+- Để nhận real-time messages, sử dụng WebSocket connection (xem section 6.10)
+
+---
+
+### 6.10. Chat real-time với WebSocket
+
+WebSocket được sử dụng để gửi và nhận tin nhắn real-time trong order.
+
+#### **Bước 1: Lấy thông tin WebSocket**
+
+**Endpoint:** `GET http://localhost:8080/api/order-websocket/`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Response Success (200):**
+```json
+{
+  "internal_jwt": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "order_service_websocket_url": "ws://localhost:8086/ws"
+}
+```
+
+#### **Bước 2: Kết nối WebSocket**
+
+**WebSocket URL:**
+```
+ws://localhost:8086/ws?orderId={orderId}&X-User-Token={accessToken}&X-Internal-JWT={internalJwt}
+```
+
+**Query Parameters:**
+- `orderId`: ID của order cần chat
+- `X-User-Token`: JWT access token của user
+- `X-Internal-JWT`: Internal JWT từ API Gateway (nhận ở bước 1)
+
+#### **Bước 3: Gửi/Nhận tin nhắn**
+
+**Gửi tin nhắn:**
+```json
+{
+  "type": "message",
+  "content": "When will you ship the product?"
+}
+```
+
+**Nhận tin nhắn mới:**
+```json
+{
+  "type": "message",
+  "data": {
     "id": 1,
-    "order_id": 1,
-    "sender_id": 5,
-    "message": "When will you ship the product?",
-    "created_at": "2024-01-17T12:00:00Z"
-  },
-  {
-    "id": 2,
     "order_id": 1,
     "sender_id": 10,
     "message": "I will ship it tomorrow",
     "created_at": "2024-01-17T13:00:00Z"
   }
-]
+}
 ```
+
+**Gửi typing indicator:**
+```json
+{
+  "type": "typing"
+}
+```
+
+**Nhận typing indicator:**
+```json
+{
+  "type": "typing",
+  "order_id": 1,
+  "data": {
+    "userId": 5
+  }
+}
+```
+
+**Lỗi:**
+```json
+{
+  "type": "error",
+  "message": "Access denied"
+}
+```
+
+**Best Practice:**
+- Sử dụng REST API (`GET /messages`) để load lịch sử chat khi mở trang
+- Sử dụng WebSocket để gửi và nhận messages real-time
+- Kết nối WebSocket khi user đang xem order detail page
+- Disconnect WebSocket khi rời khỏi trang để tiết kiệm tài nguyên
+
+**Lưu ý:**
+- Chỉ buyer và seller của order mới có quyền truy cập chat
+- Tin nhắn được lưu vào database và đồng bộ real-time cho cả hai bên
+- WebSocket tự động reconnect khi mất kết nối (nên được implement ở client)
 
 ---
 

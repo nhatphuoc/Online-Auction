@@ -116,6 +116,8 @@ X-User-Token: <JWT_TOKEN>
   "cancel_reason": "",
   "created_at": "2025-12-30T10:00:00Z",
   "updated_at": "2025-12-30T10:30:00Z",
+  "buyer_name": "Nguyễn Văn A",
+  "seller_name": "Trần Thị B",
   "rating": {
     "id": 1,
     "order_id": 1,
@@ -178,7 +180,9 @@ X-User-Token: <JWT_TOKEN>
     "delivered_at": "2025-12-31T14:00:00Z",
     "completed_at": "2025-12-31T15:00:00Z",
     "created_at": "2025-12-30T10:00:00Z",
-    "updated_at": "2025-12-31T15:00:00Z"
+    "updated_at": "2025-12-31T15:00:00Z",
+    "buyer_name": "Nguyễn Văn A",
+    "seller_name": "Trần Thị B"
   }
 ]
 ```
@@ -420,96 +424,143 @@ X-User-Token: <JWT_TOKEN>
 
 ---
 
-### 11. Send Message (Chat)
+### 11. Get Chat History (Messages)
 
-**POST** `http://localhost:8080/api/orders/{id}/messages`
-
-**Authorization:** ROLE_BIDDER, ROLE_SELLER (buyer hoặc seller của đơn hàng)
-
-**Headers:**
-```
-Content-Type: application/json
-X-User-Token: <JWT_TOKEN>
-```
-
-**Request Body:**
-```json
-{
-  "message": "Xin chào, khi nào bạn giao hàng?"
-}
-```
-
-**Response (201):**
-```json
-{
-  "id": 1,
-  "order_id": 1,
-  "sender_id": 5,
-  "message": "Xin chào, khi nào bạn giao hàng?",
-  "created_at": "2025-12-30T13:00:00Z"
-}
-```
-
----
-
-### 12. Get Messages (Chat History)
-
-**GET** `http://localhost:8080/api/orders/{id}/messages`
+**GET** `http://localhost:8080/api/orders/data/product/{id}/messages`
 
 **Authorization:** ROLE_BIDDER, ROLE_SELLER (buyer hoặc seller của đơn hàng)
 
 **Headers:**
 ```
 X-User-Token: <JWT_TOKEN>
+```
+
+**Query Parameters:**
+- `limit` (optional, default: 50, max: 100): Số lượng messages mỗi trang
+- `offset` (optional, default: 0): Vị trí bắt đầu (dùng cho pagination)
+
+**Example:** 
+```
+GET http://localhost:8080/api/orders/data/product/1/messages?limit=20&offset=0
 ```
 
 **Response (200):**
 ```json
-[
-  {
-    "id": 1,
-    "order_id": 1,
-    "sender_id": 5,
-    "message": "Xin chào, khi nào bạn giao hàng?",
-    "created_at": "2025-12-30T13:00:00Z"
-  },
-  {
-    "id": 2,
-    "order_id": 1,
-    "sender_id": 3,
-    "message": "Mình sẽ gửi hàng ngày mai bạn nhé!",
-    "created_at": "2025-12-30T13:05:00Z"
+{
+  "data": [
+    {
+      "id": 1,
+      "order_id": 1,
+      "sender_id": 5,
+      "message": "Xin chào, khi nào bạn giao hàng?",
+      "created_at": "2025-12-30T13:00:00Z"
+    },
+    {
+      "id": 2,
+      "order_id": 1,
+      "sender_id": 3,
+      "message": "Mình sẽ gửi hàng ngày mai bạn nhé!",
+      "created_at": "2025-12-30T13:05:00Z"
+    }
+  ],
+  "pagination": {
+    "total": 2,
+    "limit": 50,
+    "offset": 0
   }
-]
+}
 ```
+
+**Note:** 
+- Messages được sắp xếp theo thứ tự thời gian (cũ nhất đến mới nhất)
+- Endpoint này dùng để load lịch sử chat ban đầu
+- Để nhận real-time messages, sử dụng WebSocket connection
 
 ---
 
-### 13. WebSocket Connection Info
+### 12. WebSocket Connection for Real-time Chat
 
-**GET** `http://localhost:8080/api/orders/{id}/websocket`
+**WebSocket URL:** `ws://localhost:8086/ws`
 
-**Authorization:** ROLE_BIDDER, ROLE_SELLER (buyer hoặc seller của đơn hàng)
+**Connection Parameters:**
+- `orderId`: ID của order
+- `X-User-Token`: JWT Access Token
+- `X-Internal-JWT`: Internal JWT token (lấy từ API Gateway endpoint `/api/order-websocket/`)
 
-**Headers:**
+**Cách connect:**
+
+1. **Lấy WebSocket info từ API Gateway:**
 ```
-X-User-Token: <JWT_TOKEN>
-```
+GET http://localhost:8080/api/order-websocket/
+Headers:
+  X-User-Token: <JWT_TOKEN>
 
-**Response (200):**
-```json
+Response:
 {
   "order_service_websocket_url": "ws://localhost:8086/ws",
   "internal_jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
-**Cách sử dụng WebSocket:**
-1. Gọi endpoint này để lấy `order_service_websocket_url` và `internal_jwt`
-2. Connect WebSocket: `ws://localhost:8086/ws?orderId=1&X-User-Token=<JWT>&X-Internal-JWT=<internal_jwt>`
-3. Nhận real-time messages và order status updates
+2. **Connect WebSocket:**
+```javascript
+const ws = new WebSocket(
+  'ws://localhost:8086/ws?orderId=1&X-User-Token=<JWT>&X-Internal-JWT=<internal_jwt>'
+);
+```
+
+**WebSocket Message Types:**
+
+**Send Message:**
+```json
+{
+  "type": "message",
+  "content": "Xin chào!"
+}
+```
+
+**Send Typing Indicator:**
+```json
+{
+  "type": "typing"
+}
+```
+
+**Receive Message:**
+```json
+{
+  "type": "message",
+  "order_id": 1,
+  "data": {
+    "id": 3,
+    "order_id": 1,
+    "sender_id": 5,
+    "message": "Xin chào!",
+    "created_at": "2025-12-30T14:00:00Z"
+  }
+}
+```
+
+**Receive Typing Indicator:**
+```json
+{
+  "type": "typing",
+  "order_id": 1,
+  "data": {
+    "userId": 5
+  }
+}
+```
+
+**Best Practice:**
+- Sử dụng REST API `/messages` để load lịch sử chat khi mở trang
+- Sử dụng WebSocket để nhận và gửi messages real-time
+- Kết nối WebSocket khi user đang xem order detail page
+- Disconnect WebSocket khi rời khỏi trang
 
 ---
+
+### 13. Rate Order (Rate Seller)
 
 ## 🔄 Workflow Example
 
@@ -580,3 +631,30 @@ X-User-Token: <JWT_TOKEN>
   "error": "Internal server error"
 }
 ```
+
+---
+
+## 📝 Changelog
+
+### v2.0 - Rating & User Info Improvements
+
+**Fixed:**
+- ✅ **Rating API** - `POST /orders/{id}/rate` now automatically creates rating record if not exists (UPSERT logic)
+- ✅ **Cancel Order** - `POST /orders/{id}/cancel` now creates rating record before applying negative rating
+- ✅ **User Names** - All order responses now include `buyer_name` and `seller_name` from JOIN with users table
+
+**Response Changes:**
+All order responses now include:
+```json
+{
+  "buyer_name": "Nguyễn Văn A",
+  "seller_name": "Trần Thị B"
+}
+```
+
+**Endpoints affected:**
+- `GET /orders/{id}` - Single order with user names
+- `GET /orders` - List orders with user names
+- `POST /orders/{id}/rate` - No longer returns 404 "Rating record not found"
+- `POST /orders/{id}/cancel` - Properly creates rating record before negative rating
+

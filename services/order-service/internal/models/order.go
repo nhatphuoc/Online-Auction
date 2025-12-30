@@ -39,6 +39,10 @@ type Order struct {
 	CreatedAt       time.Time   `json:"created_at" pg:"created_at,default:now()"`
 	UpdatedAt       time.Time   `json:"updated_at" pg:"updated_at,default:now()"`
 
+	// User names from JOIN
+	BuyerName  string `json:"buyer_name,omitempty" pg:"-"`  // Tên người mua (from users table)
+	SellerName string `json:"seller_name,omitempty" pg:"-"` // Tên người bán (from users table)
+
 	// Relations
 	Messages []*OrderMessage `json:"messages,omitempty" pg:"rel:has-many"`
 	Rating   *OrderRating    `json:"rating,omitempty" pg:"rel:has-one"`

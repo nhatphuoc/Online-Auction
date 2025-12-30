@@ -119,8 +119,7 @@ func main() {
 	orders.Post("product/:id/shipping-invoice", orderHandler.SendShippingInvoice)    // Send shipping invoice
 	orders.Post("product/:id/confirm-delivery", orderHandler.ConfirmDelivery)        // Confirm delivery
 	orders.Post("product/:id/cancel", orderHandler.CancelOrder)                      // Cancel order
-	orders.Post("product/:id/messages", orderHandler.SendMessage)                    // Send message
-	orders.Get("product/:id/messages", orderHandler.GetMessages)                     // Get messages
+	orders.Get("product/:id/messages", orderHandler.GetMessages)                     // Get chat history (REST API for initial load)
 	orders.Post("product/:id/rate", orderHandler.RateOrder)                          // Rate order
 	orders.Get("product/:id/rating", orderHandler.GetRating)                         // Get rating (public)
 	// User rating routes

@@ -11,6 +11,8 @@ import ProfilePage from '../pages/profile/ProfilePage';
 import WatchlistPage from '../pages/bidder/WatchlistPage';
 import MyBidsPage from '../pages/bidder/MyBidsPage';
 import MyProductsPage from '../pages/seller/products/MyProductsPage';
+import { CreateProductPage } from '../pages/seller/products/CreateProductPage';
+import { EditProductPage } from '../pages/seller/products/EditProductPage';
 import OrdersPage from '../pages/orders/OrdersPage';
 import OrderDetailPage from '../pages/orders/OrderDetailPage';
 import NotFoundPage from '../pages/common/NotFoundPage';
@@ -59,6 +61,14 @@ export const router = createBrowserRouter([
       {
         path: 'seller/products',
         element: <MyProductsPage />,
+      },
+      {
+        path: 'seller/products/create',
+        element: <CreateProductPage />,
+      },
+      {
+        path: 'seller/products/:id/edit',
+        element: <EditProductPage />,
       },
     ],
   },

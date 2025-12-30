@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Trash2, Eye, Clock, Gavel } from 'lucide-react';
+import { Heart, Trash2, Eye, Clock } from 'lucide-react';
 import { watchlistService, WatchlistItem } from '../../services/watchlist.service';
 import { useUIStore } from '../../stores/ui.store';
-import { formatCurrency, formatDate } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 import { CountdownTimer } from '../../components/UI/CountdownTimer';
 import { LoadingSpinner } from '../../components/Common/Loading';
 
@@ -33,7 +33,7 @@ const WatchlistPage = () => {
   const handleRemove = async (productId: number) => {
     try {
       await watchlistService.removeFromWatchlist(productId);
-      setWatchlist(prev => prev.filter(item => item.productId !== productId));
+      setWatchlist(prev => prev.filter(item => item.product_id !== productId));
       addToast('success', 'Đã xóa khỏi danh sách yêu thích');
     } catch (error) {
       console.error('Failed to remove from watchlist:', error);
@@ -83,20 +83,19 @@ const WatchlistPage = () => {
 
             <div className="divide-y divide-gray-200">
               {watchlist.map((item) => {
-                const product = item.product;
-                const isEnded = new Date(product.endAt) < new Date();
+                const isEnded = new Date(item.endAt) < new Date();
 
                 return (
                   <div key={item.id} className="p-6 hover:bg-gray-50 transition-colors">
                     <div className="flex gap-6">
                       {/* Product Image */}
                       <Link
-                        to={`/products/${product.id}`}
+                        to={`/products/${item.product_id}`}
                         className="flex-shrink-0 w-48 h-48 bg-gray-200 rounded-lg overflow-hidden group"
                       >
                         <img
-                          src={product.thumbnailUrl}
-                          alt={product.name}
+                          src={item.thumbnailUrl}
+                          alt={item.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
                             e.currentTarget.src = 'https://via.placeholder.com/400?text=No+Image';
@@ -109,18 +108,18 @@ const WatchlistPage = () => {
                         <div className="flex items-start justify-between gap-4 mb-3">
                           <div className="flex-1">
                             <Link
-                              to={`/products/${product.id}`}
+                              to={`/products/${item.product_id}`}
                               className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors line-clamp-2"
                             >
-                              {product.name}
+                              {item.name}
                             </Link>
                             <p className="text-sm text-gray-600 mt-1">
-                              {product.categoryParentName} › {product.categoryName}
+                              {item.categoryName}
                             </p>
                           </div>
 
                           <button
-                            onClick={() => handleRemove(product.id)}
+                            onClick={() => handleRemove(item.product_id)}
                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="Xóa khỏi yêu thích"
                           >
@@ -128,35 +127,24 @@ const WatchlistPage = () => {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                           {/* Current Price */}
                           <div>
                             <p className="text-sm text-gray-600 mb-1">Giá hiện tại</p>
                             <p className="text-lg font-bold text-blue-600">
-                              {formatCurrency(product.currentPrice)}
+                              {formatCurrency(item.currentPrice)}
                             </p>
                           </div>
 
                           {/* Buy Now Price */}
-                          {product.buyNowPrice && (
+                          {item.buyNowPrice && (
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Mua ngay</p>
                               <p className="text-lg font-bold text-green-600">
-                                {formatCurrency(product.buyNowPrice)}
+                                {formatCurrency(item.buyNowPrice)}
                               </p>
                             </div>
                           )}
-
-                          {/* Bid Count */}
-                          <div>
-                            <p className="text-sm text-gray-600 mb-1">Lượt đấu giá</p>
-                            <div className="flex items-center gap-2">
-                              <Gavel className="w-4 h-4 text-gray-400" />
-                              <p className="text-lg font-semibold text-gray-900">
-                                {product.bidCount}
-                              </p>
-                            </div>
-                          </div>
 
                           {/* Time Remaining */}
                           <div>
@@ -168,7 +156,7 @@ const WatchlistPage = () => {
                             ) : (
                               <div className="flex items-center gap-2">
                                 <Clock className="w-4 h-4 text-orange-500" />
-                                <CountdownTimer endTime={product.endAt} showIcon={false} />
+                                <CountdownTimer endTime={item.endAt} showIcon={false} />
                               </div>
                             )}
                           </div>
@@ -176,7 +164,7 @@ const WatchlistPage = () => {
 
                         <div className="flex items-center gap-3">
                           <Link
-                            to={`/products/${product.id}`}
+                            to={`/products/${item.product_id}`}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                           >
                             <Eye className="w-4 h-4" />
@@ -188,10 +176,6 @@ const WatchlistPage = () => {
                               Đấu giá đã kết thúc
                             </span>
                           )}
-
-                          <span className="text-sm text-gray-500">
-                            Thêm vào: {formatDate(item.createdAt)}
-                          </span>
                         </div>
                       </div>
                     </div>

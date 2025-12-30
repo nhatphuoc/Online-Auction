@@ -73,6 +73,7 @@ export const endpoints = {
     upload: '/media/upload',
     uploadMultiple: '/media/upload/multiple',
     presign: '/media/presign',
+    presignMultiple: '/media/presign/multiple',
   },
   notifications: {
     sendEmail: '/notifications/email',

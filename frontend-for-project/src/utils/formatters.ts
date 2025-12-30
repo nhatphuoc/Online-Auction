@@ -1,4 +1,4 @@
-import { formatDistanceToNow, format, parseISO } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
 export const formatCurrency = (amount: number): string => {
@@ -12,7 +12,15 @@ export const formatCurrency = (amount: number): string => {
 
 export const formatDate = (date: string | Date, dateFormat = 'dd/MM/yyyy HH:mm'): string => {
   try {
-    const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+    // Backend sends time with 'Z' suffix but it's actually Vietnam time (not UTC)
+    // Remove 'Z' to parse as local time
+    let parsedDate: Date;
+    if (typeof date === 'string') {
+      const dateStr = date.replace('Z', '');
+      parsedDate = new Date(dateStr);
+    } else {
+      parsedDate = date;
+    }
     return format(parsedDate, dateFormat, { locale: vi });
   } catch {
     return '';
@@ -21,7 +29,17 @@ export const formatDate = (date: string | Date, dateFormat = 'dd/MM/yyyy HH:mm')
 
 export const formatTimeRemaining = (endDate: string | Date): string => {
   try {
-    const parsedDate = typeof endDate === 'string' ? parseISO(endDate) : endDate;
+    // Backend sends time like "2024-01-17T10:00:00Z" but it's actually Vietnam time (not UTC)
+    // We need to parse it as local time by removing the 'Z' suffix
+    let parsedDate: Date;
+    if (typeof endDate === 'string') {
+      // Remove 'Z' suffix if present and parse as local time
+      const dateStr = endDate.replace('Z', '');
+      parsedDate = new Date(dateStr);
+    } else {
+      parsedDate = endDate;
+    }
+    
     const now = new Date();
 
     if (parsedDate < now) {
@@ -47,7 +65,15 @@ export const formatTimeRemaining = (endDate: string | Date): string => {
 
 export const formatRelativeTime = (date: string | Date): string => {
   try {
-    const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+    // Backend sends time with 'Z' suffix but it's actually Vietnam time (not UTC)
+    // Remove 'Z' to parse as local time
+    let parsedDate: Date;
+    if (typeof date === 'string') {
+      const dateStr = date.replace('Z', '');
+      parsedDate = new Date(dateStr);
+    } else {
+      parsedDate = date;
+    }
     return formatDistanceToNow(parsedDate, { addSuffix: true, locale: vi });
   } catch {
     return '';

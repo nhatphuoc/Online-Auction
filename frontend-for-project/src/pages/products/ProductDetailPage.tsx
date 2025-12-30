@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { productService } from '../../services/product.service';
 import { bidService } from '../../services/bid.service';
 import { commentService } from '../../services/comment.service';
+import { watchlistService } from '../../services/watchlist.service';
 import { useAuthStore } from '../../stores/auth.store';
 import { useUIStore } from '../../stores/ui.store';
 import { Product, BidHistory, Comment, ProductListItem } from '../../types';
@@ -59,6 +60,45 @@ const ProductDetailPage = () => {
   
   // Watchlist
   const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
+
+  // Check if product is in watchlist
+  const checkWatchlistStatus = useCallback(async () => {
+    if (!id || !isAuthenticated) return;
+    
+    try {
+      const inWatchlist = await watchlistService.isInWatchlist(parseInt(id));
+      setIsInWatchlist(inWatchlist);
+    } catch (error) {
+      console.error('Failed to check watchlist status:', error);
+    }
+  }, [id, isAuthenticated]);
+
+  // Toggle watchlist
+  const handleToggleWatchlist = async () => {
+    if (!isAuthenticated) {
+      addToast('error', 'Vui lòng đăng nhập để sử dụng tính năng này');
+      return;
+    }
+
+    setIsTogglingWatchlist(true);
+    try {
+      if (isInWatchlist) {
+        await watchlistService.removeFromWatchlist(parseInt(id!));
+        setIsInWatchlist(false);
+        addToast('success', 'Đã xóa khỏi danh sách yêu thích');
+      } else {
+        await watchlistService.addToWatchlist(parseInt(id!));
+        setIsInWatchlist(true);
+        addToast('success', 'Đã thêm vào danh sách yêu thích');
+      }
+    } catch (error) {
+      console.error('Failed to toggle watchlist:', error);
+      addToast('error', 'Không thể cập nhật danh sách yêu thích');
+    } finally {
+      setIsTogglingWatchlist(false);
+    }
+  };
 
   const loadProductDetail = useCallback(async () => {
     if (!id) return;
@@ -73,13 +113,18 @@ const ProductDetailPage = () => {
       if (data.categoryId) {
         loadRelatedProducts(data.categoryId, parseInt(id));
       }
+      
+      // Check watchlist status
+      if (isAuthenticated) {
+        checkWatchlistStatus();
+      }
     } catch (error) {
       console.error('Failed to load product:', error);
       addToast('error', 'Không thể tải thông tin sản phẩm');
     } finally {
       setIsLoading(false);
     }
-  }, [id, addToast]);
+  }, [id, addToast, isAuthenticated, checkWatchlistStatus]);
 
   const loadRelatedProducts = async (categoryId: number, currentProductId: number) => {
     try {
@@ -541,12 +586,13 @@ const ProductDetailPage = () => {
                 <div className="flex gap-3">
                   {isAuthenticated && !isSeller && (
                     <button
-                      onClick={() => setIsInWatchlist(!isInWatchlist)}
+                      onClick={handleToggleWatchlist}
+                      disabled={isTogglingWatchlist}
                       className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 border rounded-lg font-medium transition-colors ${
                         isInWatchlist
                           ? 'border-red-300 bg-red-50 text-red-700'
                           : 'border-gray-300 hover:bg-gray-50'
-                      }`}
+                      } ${isTogglingWatchlist ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <Heart className={`w-5 h-5 ${isInWatchlist ? 'fill-current' : ''}`} />
                       {isInWatchlist ? 'Đã lưu' : 'Lưu'}

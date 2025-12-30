@@ -1,0 +1,121 @@
+{
+  "info": {
+    "name": "WatchList API - Order Service",
+    "description": "API collection for testing Watch List (Danh sách yêu thích) endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Add Product to Watch List",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-User-Token",
+            "value": "{{jwt_token}}",
+            "description": "JWT Token from Auth Service"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product_id\": 1\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/data/watchlist",
+          "host": ["{{base_url}}"],
+          "path": ["data", "watchlist"]
+        },
+        "description": "Add a product to user's watch list"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Watch List",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-User-Token",
+            "value": "{{jwt_token}}",
+            "description": "JWT Token from Auth Service"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/data/watchlist?page=1&limit=20",
+          "host": ["{{base_url}}"],
+          "path": ["data", "watchlist"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1",
+              "description": "Page number"
+            },
+            {
+              "key": "limit",
+              "value": "20",
+              "description": "Items per page"
+            }
+          ]
+        },
+        "description": "Get user's watch list with pagination"
+      },
+      "response": []
+    },
+    {
+      "name": "Check if Product in Watch List",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-User-Token",
+            "value": "{{jwt_token}}",
+            "description": "JWT Token from Auth Service"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/data/watchlist/1/check",
+          "host": ["{{base_url}}"],
+          "path": ["data", "watchlist", "1", "check"]
+        },
+        "description": "Check if a specific product is in user's watch list"
+      },
+      "response": []
+    },
+    {
+      "name": "Remove from Watch List",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "X-User-Token",
+            "value": "{{jwt_token}}",
+            "description": "JWT Token from Auth Service"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/data/watchlist/1",
+          "host": ["{{base_url}}"],
+          "path": ["data", "watchlist", "1"]
+        },
+        "description": "Remove a product from user's watch list"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/api/orders",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "YOUR_JWT_TOKEN_HERE",
+      "type": "string"
+    }
+  ]
+}

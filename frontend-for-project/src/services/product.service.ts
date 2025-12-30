@@ -105,4 +105,11 @@ export const productService = {
     );
     return response.data;
   },
+
+  async deleteProduct(productId: number) {
+    const response = await apiClient.delete<ApiResponse<void>>(
+      endpoints.products.delete(productId)
+    );
+    return response.data;
+  },
 };

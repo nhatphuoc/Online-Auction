@@ -142,6 +142,35 @@ func InitSchema(db *pg.DB) error {
 		return fmt.Errorf("error creating index on order_ratings: %v", err)
 	}
 
+	// Create watch_list table (danh sách yêu thích)
+	_, err = db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS watch_list (
+			id BIGSERIAL PRIMARY KEY,
+			user_id BIGINT NOT NULL,
+			product_id BIGINT NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			CONSTRAINT watch_list_unique_user_product UNIQUE(user_id, product_id)
+		)
+	`)
+	if err != nil {
+		return fmt.Errorf("error creating watch_list table: %v", err)
+	}
+
+	// Create indexes on watch_list
+	_, err = db.ExecContext(ctx, `
+		CREATE INDEX IF NOT EXISTS idx_watch_list_user_id ON watch_list(user_id)
+	`)
+	if err != nil {
+		return fmt.Errorf("error creating index on watch_list user_id: %v", err)
+	}
+
+	_, err = db.ExecContext(ctx, `
+		CREATE INDEX IF NOT EXISTS idx_watch_list_product_id ON watch_list(product_id)
+	`)
+	if err != nil {
+		return fmt.Errorf("error creating index on watch_list product_id: %v", err)
+	}
+
 	log.Println("Database schema initialized successfully!")
 	return nil
 }

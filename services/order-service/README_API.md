@@ -32,7 +32,154 @@ Token được trả về sau khi login thành công qua Auth Service.
 
 ---
 
-## 📚 API Endpoints
+## ❤️ WATCH LIST API (Danh sách yêu thích)
+
+### 1. Add Product to Watch List
+
+**POST** `http://localhost:8080/api/orders/data/watchlist`
+
+**Description:** Thêm sản phẩm vào danh sách yêu thích
+
+**Headers:**
+```
+Content-Type: application/json
+X-User-Token: <JWT_TOKEN>
+```
+
+**Request Body:**
+```json
+{
+  "product_id": 123
+}
+```
+
+**Success Response (201 Created):**
+```json
+{
+  "message": "Product added to watch list successfully",
+  "data": {
+    "id": 1,
+    "user_id": 456,
+    "product_id": 123,
+    "created_at": "2025-12-31T10:30:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- **400 Bad Request:** Invalid product_id
+- **401 Unauthorized:** Missing or invalid token
+- **409 Conflict:** Product already in watch list
+- **500 Internal Server Error:** Database error
+
+---
+
+### 2. Get User's Watch List
+
+**GET** `http://localhost:8080/api/orders/data/watchlist?page=1&limit=20`
+
+**Description:** Lấy danh sách sản phẩm yêu thích của user
+
+**Headers:**
+```
+X-User-Token: <JWT_TOKEN>
+```
+
+**Query Parameters:**
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 20, max: 100)
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "Watch list fetched successfully",
+  "data": [
+    {
+      "id": 1,
+      "user_id": 456,
+      "product_id": 123,
+      "created_at": "2025-12-31T10:30:00Z"
+    },
+    {
+      "id": 2,
+      "user_id": 456,
+      "product_id": 124,
+      "created_at": "2025-12-30T15:20:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 2
+  }
+}
+```
+
+**Error Responses:**
+- **401 Unauthorized:** Missing or invalid token
+- **500 Internal Server Error:** Database error
+
+---
+
+### 3. Remove Product from Watch List
+
+**DELETE** `http://localhost:8080/api/orders/data/watchlist/{product_id}`
+
+**Description:** Xóa sản phẩm khỏi danh sách yêu thích
+
+**Headers:**
+```
+X-User-Token: <JWT_TOKEN>
+```
+
+**Path Parameters:**
+- `product_id`: ID của sản phẩm cần xóa
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "Product removed from watch list successfully"
+}
+```
+
+**Error Responses:**
+- **400 Bad Request:** Invalid product_id
+- **401 Unauthorized:** Missing or invalid token
+- **404 Not Found:** Product not found in watch list
+- **500 Internal Server Error:** Database error
+
+---
+
+### 4. Check if Product is in Watch List
+
+**GET** `http://localhost:8080/api/orders/data/watchlist/{product_id}/check`
+
+**Description:** Kiểm tra xem sản phẩm có trong danh sách yêu thích không
+
+**Headers:**
+```
+X-User-Token: <JWT_TOKEN>
+```
+
+**Path Parameters:**
+- `product_id`: ID của sản phẩm cần kiểm tra
+
+**Success Response (200 OK):**
+```json
+{
+  "is_in_watchlist": true,
+  "product_id": 123
+}
+```
+
+**Error Responses:**
+- **400 Bad Request:** Invalid product_id
+- **401 Unauthorized:** Missing or invalid token
+- **500 Internal Server Error:** Database error
+
+---
+
+## 📚 ORDER API Endpoints
 
 ### 1. Create Order (Internal - After Auction Ends)
 

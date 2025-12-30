@@ -1,5 +1,12 @@
 basePath: /api
 definitions:
+  models.AddToWatchListRequest:
+    properties:
+      product_id:
+        type: integer
+    required:
+    - product_id
+    type: object
   models.CancelOrderRequest:
     properties:
       cancel_reason:
@@ -30,6 +37,9 @@ definitions:
       auction_id:
         description: ID sản phẩm đấu giá
         type: integer
+      buyer_name:
+        description: User names from JOIN
+        type: string
       cancel_reason:
         description: Lý do hủy
         type: string
@@ -68,6 +78,9 @@ definitions:
       seller_id:
         description: Người bán
         type: integer
+      seller_name:
+        description: Tên người bán (from users table)
+        type: string
       shipping_address:
         description: Địa chỉ giao hàng
         type: string
@@ -232,6 +245,17 @@ definitions:
     required:
     - tracking_number
     type: object
+  models.WatchListResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      product_id:
+        type: integer
+      user_id:
+        type: integer
+    type: object
 host: localhost:3000
 info:
   contact:
@@ -305,15 +329,24 @@ paths:
         in: query
         name: status
         type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/models.Order'
-            type: array
+            additionalProperties: true
+            type: object
         "401":
           description: Unauthorized
           schema:
@@ -491,60 +524,6 @@ paths:
       tags:
       - orders
   /orders/{id}/messages:
-    get:
-      consumes:
-      - application/json
-      description: Get all chat messages for an order
-      parameters:
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - default: 50
-        description: Limit
-        in: query
-        name: limit
-        type: integer
-      - default: 0
-        description: Offset
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.OrderMessage'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            additionalProperties: true
-            type: object
-        "403":
-          description: Forbidden
-          schema:
-            additionalProperties: true
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get messages
-      tags:
-      - orders
     post:
       consumes:
       - application/json
@@ -815,6 +794,60 @@ paths:
       summary: Send shipping invoice
       tags:
       - orders
+  /orders/product/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Get all chat messages for an order with pagination
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 50
+        description: Limit
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get chat history
+      tags:
+      - orders
   /users/{id}/rating:
     get:
       consumes:
@@ -842,6 +875,163 @@ paths:
       summary: Get user rating
       tags:
       - users
+  /watchlist:
+    get:
+      description: Get all products in user's watch list
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 20)'
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user's watch list
+      tags:
+      - WatchList
+    post:
+      consumes:
+      - application/json
+      description: Add a product to user's watch list (favorites)
+      parameters:
+      - description: Add to watch list request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.AddToWatchListRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.WatchListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add product to watch list
+      tags:
+      - WatchList
+  /watchlist/{product_id}:
+    delete:
+      description: Remove a product from user's watch list
+      parameters:
+      - description: Product ID
+        in: path
+        name: product_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove product from watch list
+      tags:
+      - WatchList
+  /watchlist/{product_id}/check:
+    get:
+      description: Check if a specific product is in user's watch list
+      parameters:
+      - description: Product ID
+        in: path
+        name: product_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check if product is in watch list
+      tags:
+      - WatchList
 schemes:
 - http
 - https

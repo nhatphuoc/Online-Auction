@@ -103,11 +103,19 @@ func main() {
 
 	// Initialize handlers
 	orderHandler := handlers.NewOrderHandler(db, cfg)
+	likeHandler := handlers.NewLikeHandler(db, cfg)
 	api := app.Group("")
 
 	app.Get("/ws", websocket.New(orderHandler.HandleWebSocket))
 
 	// Routes
+
+	// WatchList routes (danh sách yêu thích) - /data/watchlist
+	watchlist := api.Group("/watchlist", middleware.ExtractUserInfo(cfg))
+	watchlist.Post("/", likeHandler.AddToWatchList)                   // Add product to watch list
+	watchlist.Get("/", likeHandler.GetWatchList)                      // Get user's watch list
+	watchlist.Delete("/:product_id", likeHandler.RemoveFromWatchList) // Remove from watch list
+	watchlist.Get("/:product_id/check", likeHandler.CheckInWatchList) // Check if in watch list
 
 	// Order routes
 	orders := api.Group("", middleware.ExtractUserInfo(cfg))

@@ -15,8 +15,10 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class ApiGatewayAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String HEADER_NAME = "X-Api-Gateway";
@@ -29,18 +31,25 @@ public class ApiGatewayAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        String apiKey = request.getHeader(HEADER_NAME);
+        String uri = request.getRequestURI();
+        boolean isAuthEndpoint = uri.startsWith("/auth");
 
-        if (apiKey != null && apiKey.equals(apiGatewayKey)) {
-            // Tạo Authentication đơn giản với role GATEWAY
-            Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    "API_GATEWAY",
-                    null,
-                    List.of(new SimpleGrantedAuthority("ROLE_GATEWAY")));
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+        if (!isAuthEndpoint) {
+            String apiKey = request.getHeader(HEADER_NAME);
+            if (apiKey == null || !apiKey.equals(apiGatewayKey)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                return;
+            }
         }
 
         // Nếu không hợp lệ, SecurityConfig sẽ block access
+        log.info("Incoming request");
+        log.info("Method: {}", request.getMethod());
+        log.info("URI: {}", request.getRequestURI());
+        log.info("Authorization: {}", request.getHeader("X-Api-Gateway"));
+
         filterChain.doFilter(request, response);
+
+        log.info("Response status: {}", response.getStatus());
     }
 }

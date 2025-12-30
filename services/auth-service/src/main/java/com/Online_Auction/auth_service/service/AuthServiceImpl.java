@@ -113,7 +113,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public SimpleUserResponse loginWithGoogle(GoogleTokenRequest request) {
-
+        System.out.println("Service: " + request);
         GoogleIdToken idToken;
         try {
             idToken = googleIdTokenVerifier.verify(request.idToken());
@@ -134,20 +134,18 @@ public class AuthServiceImpl implements AuthService {
         ApiResponse<SimpleUserResponse> getSimpleUserResponse = userServiceClient.getUserByEmail(email);
 
         if (!getSimpleUserResponse.isSuccess()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, getSimpleUserResponse.getMessage());
-        }
+            // 2. Automatically register user
+            RegisterUserRequest req = new RegisterUserRequest(
+                    name,
+                    email,
+                    null,
+                    null,
+                    true);
 
-        // 2. Automatically register user
-        RegisterUserRequest req = new RegisterUserRequest(
-                name,
-                email,
-                null,
-                null,
-                true);
-
-        ApiResponse<Void> status = userServiceClient.registerUser(req);
-        if (!status.isSuccess()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to auto-register user");
+            ApiResponse<Void> status = userServiceClient.registerUser(req);
+            if (!status.isSuccess()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to auto-register user");
+            }
         }
 
         ApiResponse<SimpleUserResponse> savedUser = userServiceClient.getUserByEmail(email);

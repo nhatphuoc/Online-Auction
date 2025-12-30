@@ -2,7 +2,6 @@ package com.Online_Auction.auth_service.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -29,19 +28,17 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         // 1. Auth endpoints
-                        .requestMatchers(HttpMethod.OPTIONS, "/auth/**").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
 
                         // 2. Swagger / OpenAPI
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html")
-                        .permitAll()
+                        .permitAll());
 
-                        // 3. Everything else must pass the gateway filter
-                        .anyRequest().authenticated());
-
-        http.addFilterBefore(apiGatewayFilter, UsernamePasswordAuthenticationFilter.class);
+        // http.addFilterBefore(apiGatewayFilter,
+        // UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

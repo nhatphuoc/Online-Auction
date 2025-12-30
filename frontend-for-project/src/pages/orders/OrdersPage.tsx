@@ -192,8 +192,8 @@ const OrdersPage = () => {
                     <p className="text-sm text-gray-600 flex items-center gap-2">
                       <User className="w-4 h-4" />
                       {activeTab === 'buyer' 
-                        ? `Người bán: ${order.seller_info?.username || 'N/A'}`
-                        : `Người mua: ${order.buyer_info?.username || 'N/A'}`
+                        ? `Người bán: ${order.seller_name || order.seller_info?.username || 'N/A'}`
+                        : `Người mua: ${order.buyer_name || order.buyer_info?.username || 'N/A'}`
                       }
                     </p>
                   </div>

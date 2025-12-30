@@ -44,6 +44,10 @@ const ProductDetailPage = () => {
   const [bidHistory, setBidHistory] = useState<BidHistory[]>([]);
   const [isLoadingBids, setIsLoadingBids] = useState(false);
   
+  // Buy Now
+  const [showConfirmBuyNow, setShowConfirmBuyNow] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+  
   // Comments/Q&A
   const [comments, setComments] = useState<Comment[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
@@ -221,6 +225,38 @@ const ProductDetailPage = () => {
       }
     } catch {
       addToast('error', 'Lỗi khi đấu giá. Vui lòng thử lại');
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!product || !isAuthenticated) {
+      addToast('error', 'Vui lòng đăng nhập để mua ngay');
+      navigate('/login');
+      return;
+    }
+
+    setShowConfirmBuyNow(false);
+    setIsBuyingNow(true);
+
+    try {
+      const response = await productService.buyNow(product.id);
+
+      if (response.success) {
+        addToast('success', 'Mua ngay thành công! Đơn hàng đang được xử lý');
+        await loadProductDetail();
+        // Redirect to orders page after a short delay
+        setTimeout(() => {
+          navigate('/orders');
+        }, 2000);
+      } else {
+        addToast('error', response.message || 'Mua ngay thất bại');
+      }
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const errorMessage = err?.response?.data?.message || 'Lỗi khi mua ngay. Vui lòng thử lại';
+      addToast('error', errorMessage);
+    } finally {
+      setIsBuyingNow(false);
     }
   };
 
@@ -473,9 +509,13 @@ const ProductDetailPage = () => {
                       Đấu giá
                     </button>
                     {product.buyNowPrice && (
-                      <button className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors">
+                      <button 
+                        onClick={() => setShowConfirmBuyNow(true)}
+                        disabled={isBuyingNow}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
                         <DollarSign className="w-5 h-5" />
-                        Mua ngay {formatCurrency(product.buyNowPrice)}
+                        {isBuyingNow ? 'Đang xử lý...' : `Mua ngay ${formatCurrency(product.buyNowPrice)}`}
                       </button>
                     )}
                   </>
@@ -797,6 +837,17 @@ const ProductDetailPage = () => {
         message={`Bạn có chắc chắn muốn đấu giá ${formatCurrency(bidAmount)} cho sản phẩm này?`}
         confirmText="Xác nhận"
         variant="info"
+      />
+
+      {/* Confirm Buy Now Dialog */}
+      <ConfirmDialog
+        isOpen={showConfirmBuyNow}
+        onClose={() => setShowConfirmBuyNow(false)}
+        onConfirm={handleBuyNow}
+        title="Xác nhận mua ngay"
+        message={`Bạn có chắc chắn muốn mua ngay sản phẩm này với giá ${formatCurrency(product?.buyNowPrice || 0)}? Phiên đấu giá sẽ kết thúc ngay lập tức.`}
+        confirmText="Mua ngay"
+        variant="warning"
       />
     </div>
   );

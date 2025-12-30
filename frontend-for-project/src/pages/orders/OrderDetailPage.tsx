@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { orderService } from '../../services/order.service';
-import { OrderDetail, OrderMessage } from '../../types';
+import { OrderDetail } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { 
   ArrowLeft, Package, CreditCard, MapPin, Truck, CheckCircle, 
-  XCircle, MessageSquare, Star, Send, AlertCircle 
+  XCircle, MessageSquare, Star, AlertCircle 
 } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
 import { useAuthStore } from '../../stores/auth.store';
+import { OrderChat } from '../../components/Order/OrderChat';
 
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,13 +19,8 @@ const OrderDetailPage = () => {
   const currentUser = useAuthStore((state) => state.user);
   
   const [order, setOrder] = useState<OrderDetail | null>(null);
-  const [messages, setMessages] = useState<OrderMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'rating'>('details');
-  const [messageInput, setMessageInput] = useState('');
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [ws, setWs] = useState<WebSocket | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Payment form
   const [paymentMethod, setPaymentMethod] = useState<'MOMO' | 'ZALOPAY' | 'VNPAY' | 'STRIPE' | 'PAYPAL'>('MOMO');
@@ -65,27 +61,6 @@ const OrderDetailPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  useEffect(() => {
-    if (activeTab === 'chat' && order) {
-      fetchMessages();
-      setupWebSocket();
-    }
-    return () => {
-      if (ws) {
-        ws.close();
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, order]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   const fetchOrderDetail = async () => {
     if (!id) return;
     try {
@@ -98,76 +73,6 @@ const OrderDetailPage = () => {
       navigate('/orders');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchMessages = async () => {
-    if (!id) return;
-    try {
-      const data = await orderService.getMessages(parseInt(id), { limit: 100 });
-      setMessages(data);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    }
-  };
-
-  const setupWebSocket = async () => {
-    if (!id) return;
-    try {
-      const wsInfo = await orderService.getWebSocketInfo();
-      const websocket = orderService.createWebSocketConnection(
-        parseInt(id),
-        wsInfo.internal_jwt,
-        wsInfo.order_service_websocket_url
-      );
-
-      websocket.onopen = () => {
-        console.log('WebSocket connected');
-      };
-
-      websocket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === 'message' && data.data) {
-          setMessages((prev) => [...prev, data.data]);
-        }
-      };
-
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-      };
-
-      websocket.onclose = () => {
-        console.log('WebSocket disconnected');
-      };
-
-      setWs(websocket);
-    } catch (error) {
-      console.error('Error setting up WebSocket:', error);
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!messageInput.trim() || !id || isSendingMessage) return;
-
-    try {
-      setIsSendingMessage(true);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'message',
-          content: messageInput.trim(),
-        }));
-      } else {
-        // Fallback to HTTP
-        await orderService.sendMessage(parseInt(id), { message: messageInput.trim() });
-        await fetchMessages();
-      }
-      setMessageInput('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      addToast('error', 'Không thể gửi tin nhắn');
-    } finally {
-      setIsSendingMessage(false);
     }
   };
 
@@ -397,11 +302,11 @@ const OrderDetailPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-gray-600 mb-1">Người mua</p>
-                <p className="font-medium">{order.buyer_info?.username || 'N/A'}</p>
+                <p className="font-medium">{order.buyer_name || order.buyer_info?.username || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-600 mb-1">Người bán</p>
-                <p className="font-medium">{order.seller_info?.username || 'N/A'}</p>
+                <p className="font-medium">{order.seller_name || order.seller_info?.username || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-gray-600 mb-1">Giá cuối</p>
@@ -630,56 +535,13 @@ const OrderDetailPage = () => {
         </div>
       )}
 
-      {activeTab === 'chat' && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="h-96 flex flex-col">
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map((msg) => {
-                const isOwn = msg.sender_id === currentUser?.id;
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-lg ${
-                        isOwn
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 text-gray-900'
-                      }`}
-                    >
-                      <p className="text-sm">{msg.message}</p>
-                      <p className="text-xs mt-1 opacity-75">
-                        {formatDate(msg.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <form onSubmit={handleSendMessage} className="p-4 border-t">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Nhập tin nhắn..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <button
-                  type="submit"
-                  disabled={!messageInput.trim() || isSendingMessage}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 flex items-center"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          </div>
+      {activeTab === 'chat' && order && (
+        <div className="bg-white rounded-lg shadow overflow-hidden" style={{ height: '600px' }}>
+          <OrderChat
+            orderId={order.id}
+            buyerId={order.winner_id}
+            sellerId={order.seller_id}
+          />
         </div>
       )}
 

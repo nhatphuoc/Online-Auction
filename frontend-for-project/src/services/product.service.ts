@@ -7,6 +7,13 @@ import {
   SearchResponse,
 } from '../types';
 
+export interface BuyNowResponse {
+  productId: number;
+  finalPrice: number;
+  buyerId: number;
+  endAt: string;
+}
+
 export const productService = {
   async getTopEnding() {
     const response = await apiClient.get<ApiResponse<ProductListItem[]>>(
@@ -88,6 +95,13 @@ export const productService = {
     const response = await apiClient.patch<Product>(
       endpoints.products.updateDescription(productId),
       { additionalDescription }
+    );
+    return response.data;
+  },
+
+  async buyNow(productId: number) {
+    const response = await apiClient.post<ApiResponse<BuyNowResponse>>(
+      endpoints.products.buyNow(productId)
     );
     return response.data;
   },

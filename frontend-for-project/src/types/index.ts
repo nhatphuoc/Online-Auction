@@ -120,6 +120,9 @@ export interface Order {
   completed_at?: string;
   cancelled_at?: string;
   cancel_reason?: string;
+  // User names from backend JOIN
+  buyer_name?: string;
+  seller_name?: string;
   // Extended fields (may come from joined queries)
   product_name?: string;
   product_image?: string;
@@ -212,6 +215,7 @@ export interface Comment {
   id: number;
   product_id: number;
   sender_id: number;
+  sender_name?: string;
   content: string;
   created_at: string;
 }

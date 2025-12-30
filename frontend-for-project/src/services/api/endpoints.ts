@@ -37,6 +37,7 @@ export const endpoints = {
     topEnding: '/products/top-ending',
     topMostBids: '/products/top-most-bids',
     topHighestPrice: '/products/top-highest-price',
+    buyNow: (id: number) => `/products/${id}/buy-now`,
   },
   bids: {
     place: '/bids',
@@ -51,13 +52,12 @@ export const endpoints = {
     shippingInvoice: (id: number) => `/orders/data/product/${id}/shipping-invoice`,
     confirmDelivery: (id: number) => `/orders/data/product/${id}/confirm-delivery`,
     cancel: (id: number) => `/orders/data/product/${id}/cancel`,
-    sendMessage: (id: number) => `/orders/data/product/${id}/messages`,
-    getMessages: (id: number) => `/orders/data/product/${id}/messages`,
+    getMessages: (id: number) => `/orders/data/product/${id}/messages`, // Get chat history via REST API
     rate: (id: number) => `/orders/data/product/${id}/rate`,
     getRating: (id: number) => `/orders/data/product/${id}/rating`,
     getUserRating: (userId: number) => `/orders/data/users/${userId}/rating`,
     adminOrders: '/orders/data/admin/orders',
-    websocket: '/order-websocket/',
+    websocket: '/order-websocket/', // Get WebSocket connection info
   },
   watchlist: {
     list: '/watchlist',

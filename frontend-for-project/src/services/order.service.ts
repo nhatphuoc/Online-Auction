@@ -8,9 +8,9 @@ import {
   ShippingAddressRequest,
   ShippingInvoiceRequest,
   CancelOrderRequest,
-  SendMessageRequest,
+  // SendMessageRequest, // DEPRECATED: Use WebSocket
   RateOrderRequest,
-  OrderMessage,
+  // OrderMessage, // DEPRECATED: Use WebSocket
   OrderRating,
   UserRatingStats,
 } from '../types';
@@ -104,28 +104,30 @@ export const orderService = {
     return response.data;
   },
 
+  // DEPRECATED: Use WebSocket for real-time messaging
   // Send message
-  async sendMessage(id: number, messageData: SendMessageRequest): Promise<OrderMessage> {
-    const response = await apiClient.post<OrderMessage>(
-      endpoints.orders.sendMessage(id),
-      messageData
-    );
-    return response.data;
-  },
+  // async sendMessage(id: number, messageData: SendMessageRequest): Promise<OrderMessage> {
+  //   const response = await apiClient.post<OrderMessage>(
+  //     endpoints.orders.sendMessage(id),
+  //     messageData
+  //   );
+  //   return response.data;
+  // },
 
+  // DEPRECATED: Use WebSocket for real-time messaging
   // Get messages
-  async getMessages(id: number, params?: { limit?: number; offset?: number }): Promise<OrderMessage[]> {
-    const queryParams = new URLSearchParams();
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.offset) queryParams.append('offset', params.offset.toString());
+  // async getMessages(id: number, params?: { limit?: number; offset?: number }): Promise<OrderMessage[]> {
+  //   const queryParams = new URLSearchParams();
+  //   if (params?.limit) queryParams.append('limit', params.limit.toString());
+  //   if (params?.offset) queryParams.append('offset', params.offset.toString());
 
-    const url = queryParams.toString()
-      ? `${endpoints.orders.getMessages(id)}?${queryParams.toString()}`
-      : endpoints.orders.getMessages(id);
+  //   const url = queryParams.toString()
+  //     ? `${endpoints.orders.getMessages(id)}?${queryParams.toString()}`
+  //     : endpoints.orders.getMessages(id);
 
-    const response = await apiClient.get<OrderMessage[]>(url);
-    return response.data;
-  },
+  //   const response = await apiClient.get<OrderMessage[]>(url);
+  //   return response.data;
+  // },
 
   // Rate order
   async rateOrder(id: number, ratingData: RateOrderRequest): Promise<OrderRating> {

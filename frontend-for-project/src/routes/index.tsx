@@ -16,6 +16,7 @@ import { EditProductPage } from '../pages/seller/products/EditProductPage';
 import OrdersPage from '../pages/orders/OrdersPage';
 import OrderDetailPage from '../pages/orders/OrderDetailPage';
 import NotFoundPage from '../pages/common/NotFoundPage';
+import GoogleCallback from '../pages/auth/GoogleCallback';
 
 export const router = createBrowserRouter([
   {
@@ -71,6 +72,10 @@ export const router = createBrowserRouter([
         element: <EditProductPage />,
       },
     ],
+  },
+  {
+    path: '/auth/google-callback',
+    element: <GoogleCallback />,
   },
   {
     path: '/login',

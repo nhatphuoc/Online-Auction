@@ -277,13 +277,18 @@ export interface RatingReview {
 
 export interface UpgradeRequest {
   id: number;
-  userId: number;
-  userEmail: string;
-  userName: string;
-  reason: string;
+  user: {
+    id: number;
+    email: string;
+    fullName: string;
+    role: 'ROLE_BIDDER' | 'ROLE_SELLER' | 'ROLE_ADMIN';
+  };
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reason: string;
+  rejectionReason?: string | null;
   createdAt: string;
-  updatedAt: string;
+  reviewedAt?: string | null;
+  reviewedByAdminId?: number | null;
 }
 
 export interface WatchlistItem {

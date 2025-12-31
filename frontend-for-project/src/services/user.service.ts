@@ -62,12 +62,14 @@ export const userService = {
   },
 
   async getUpgradeRequests(params: {
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED';
     page?: number;
     size?: number;
     sort?: string;
     direction?: 'asc' | 'desc';
   }) {
     const queryParams = new URLSearchParams();
+    if (params.status) queryParams.append('status', params.status);
     queryParams.append('page', (params.page || 0).toString());
     queryParams.append('size', (params.size || 10).toString());
     queryParams.append('sort', params.sort || 'createdAt');
@@ -75,6 +77,16 @@ export const userService = {
 
     const response = await apiClient.get<PaginationResponse<UpgradeRequest>>(
       `${endpoints.users.upgradeRequests}?${queryParams.toString()}`
+    );
+    return response.data;
+  },
+
+  async rejectUpgradeRequest(requestId: number, rejectReason?: string) {
+    const queryParams = new URLSearchParams();
+    if (rejectReason) queryParams.append('rejectReason', rejectReason);
+    
+    const response = await apiClient.post<string>(
+      `${endpoints.users.rejectUpgrade(requestId)}?${queryParams.toString()}`
     );
     return response.data;
   },

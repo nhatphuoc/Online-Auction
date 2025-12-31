@@ -17,6 +17,9 @@ import OrdersPage from '../pages/orders/OrdersPage';
 import OrderDetailPage from '../pages/orders/OrderDetailPage';
 import NotFoundPage from '../pages/common/NotFoundPage';
 import GoogleCallback from '../pages/auth/GoogleCallback';
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
+import CategoryManagementPage from '../pages/admin/CategoryManagementPage';
+import UpgradeRequestsPage from '../pages/admin/UpgradeRequestsPage';
 
 export const router = createBrowserRouter([
   {
@@ -70,6 +73,18 @@ export const router = createBrowserRouter([
       {
         path: 'seller/products/:id/edit',
         element: <EditProductPage />,
+      },
+      {
+        path: 'admin/dashboard',
+        element: <AdminDashboardPage />,
+      },
+      {
+        path: 'admin/categories',
+        element: <CategoryManagementPage />,
+      },
+      {
+        path: 'admin/upgrade-requests',
+        element: <UpgradeRequestsPage />,
       },
     ],
   },

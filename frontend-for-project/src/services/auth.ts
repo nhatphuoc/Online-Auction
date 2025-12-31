@@ -54,10 +54,10 @@ export const authService = {
     }
   },
 
-  async signInWithGoogle(token: string) {
+  async signInWithGoogle(idToken: string) {
     try {
       const response = await apiClient.post<AuthResponse>(endpoints.auth.signInGoogle, {
-        token,
+        idToken,
       });
       if (response.data.success && response.data.accessToken && response.data.refreshToken) {
         localStorage.setItem('accessToken', response.data.accessToken);
@@ -89,7 +89,7 @@ export const authService = {
       if (response.data.success && response.data.data) {
         const backendUser = response.data.data;
         console.log('Backend user data:', backendUser);
-        
+
         // Map backend response to User interface
         const user: User = {
           id: backendUser.id,
@@ -101,7 +101,7 @@ export const authService = {
           createdAt: backendUser.createdAt || new Date().toISOString(),
           updatedAt: backendUser.updatedAt || new Date().toISOString(),
         };
-        
+
         console.log('Mapped user with role:', user.userRole);
         return user;
       }

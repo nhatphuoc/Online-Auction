@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/auth";
+import { useAuthStore } from '../../stores/auth.store';
 
 export default function GoogleCallback() {
     const navigate = useNavigate();
     const ranRef = useRef(false);
+    const setUser = useAuthStore((state) => state.setUser);
 
     useEffect(() => {
         if (ranRef.current) return;
@@ -13,8 +15,6 @@ export default function GoogleCallback() {
         const hash = window.location.hash.substring(1);
         const params = new URLSearchParams(hash);
         const idToken = params.get("id_token");
-
-        console.log("Received id_token:", idToken);
 
         if (!idToken) {
             navigate("/login");
@@ -26,8 +26,10 @@ export default function GoogleCallback() {
 
         authService
             .signInWithGoogle(idToken)
-            .then((res) => {
+            .then(async (res) => {
                 if (res.success) {
+                    const user = await authService.getCurrentUser();
+                    setUser(user);
                     navigate("/");
                 } else {
                     console.error(res.message);

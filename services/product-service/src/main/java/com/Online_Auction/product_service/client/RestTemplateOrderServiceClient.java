@@ -35,7 +35,7 @@ public class RestTemplateOrderServiceClient {
      * Create order after auction finished
      */
     public OrderResponse createOrder(CreateOrderRequest request) {
-        String url = orderServiceBaseUrl + "/orders";
+        String url = orderServiceBaseUrl + "/order";
 
         ObjectMapper objectMapper = new ObjectMapper();
 

@@ -118,18 +118,29 @@ func main() {
 	watchlist.Get("/:product_id/check", likeHandler.CheckInWatchList) // Check if in watch list
 
 	// Order routes
-	orders := api.Group("", middleware.ExtractUserInfo(cfg))
-	orders.Post("product/", orderHandler.CreateOrder)                                // Create order (no auth - called by auction service)
-	orders.Get("product/", orderHandler.GetUserOrders)                               // Get user's orders
-	orders.Get("product/:id", orderHandler.GetOrderByID)                             // Get order by ID
-	orders.Post("product/:id/pay", orderHandler.PayOrder)                            // Pay for order
-	orders.Post("product/:id/shipping-address", orderHandler.ProvideShippingAddress) // Provide shipping address
-	orders.Post("product/:id/shipping-invoice", orderHandler.SendShippingInvoice)    // Send shipping invoice
-	orders.Post("product/:id/confirm-delivery", orderHandler.ConfirmDelivery)        // Confirm delivery
-	orders.Post("product/:id/cancel", orderHandler.CancelOrder)                      // Cancel order
-	orders.Get("product/:id/messages", orderHandler.GetMessages)                     // Get chat history (REST API for initial load)
-	orders.Post("product/:id/rate", orderHandler.RateOrder)                          // Rate order
-	orders.Get("product/:id/rating", orderHandler.GetRating)                         // Get rating (public)
+	orders := api.Group("")
+
+	// -------------------------------------------------
+	// PUBLIC endpoint (no middleware)
+	// Called by auction service
+	// -------------------------------------------------
+	orders.Post("order/", orderHandler.CreateOrder)                                // Create order (no auth - called by auction service)
+
+	// -------------------------------------------------
+	// PROTECTED endpoints (middleware applies from here)
+	// -------------------------------------------------
+	orders.Use(middleware.ExtractUserInfo(cfg))
+
+	orders.Get("order/", orderHandler.GetUserOrders)                               // Get user's orders
+	orders.Get("order/:id", orderHandler.GetOrderByID)                             // Get order by ID
+	orders.Post("order/:id/pay", orderHandler.PayOrder)                            // Pay for order
+	orders.Post("order/:id/shipping-address", orderHandler.ProvideShippingAddress) // Provide shipping address
+	orders.Post("order/:id/shipping-invoice", orderHandler.SendShippingInvoice)    // Send shipping invoice
+	orders.Post("order/:id/confirm-delivery", orderHandler.ConfirmDelivery)        // Confirm delivery
+	orders.Post("order/:id/cancel", orderHandler.CancelOrder)                      // Cancel order
+	orders.Get("order/:id/messages", orderHandler.GetMessages)                     // Get chat history (REST API for initial load)
+	orders.Post("order/:id/rate", orderHandler.RateOrder)                          // Rate order
+	orders.Get("order/:id/rating", orderHandler.GetRating)                         // Get rating (public)
 	// User rating routes
 	api.Get("/users/:id/rating", middleware.ExtractUserInfo(cfg), orderHandler.GetUserRating) // Get user rating stats (public)
 

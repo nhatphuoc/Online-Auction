@@ -17,7 +17,8 @@ public class RestTemplateNotificationService {
     @Value("${internal.key}")
     private String internalKey;
 
-    private final String notificationBaseUrl = "http://localhost:8082/api/notify";
+    @Value("${NOTIFICATION_SERVICE_URL}")
+    private String notificationBaseUrl;
 
     public RestTemplateNotificationService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
@@ -25,13 +26,12 @@ public class RestTemplateNotificationService {
 
     @Async
     public void sendEmail(String to, String subject, String body) {
-        String url = notificationBaseUrl + "/email";
+        String url = notificationBaseUrl + "/api/notify/email";
 
         Map<String, String> payload = Map.of(
                 "to", to,
                 "subject", subject,
-                "body", body
-        );
+                "body", body);
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-Auth-Internal-Service", internalKey);

@@ -44,17 +44,17 @@ export const endpoints = {
     search: '/bids/search',
   },
   orders: {
-    create: '/orders/data/product/',
-    list: '/orders/data/product/',
-    detail: (id: number) => `/orders/data/product/${id}`,
-    pay: (id: number) => `/orders/data/product/${id}/pay`,
-    shippingAddress: (id: number) => `/orders/data/product/${id}/shipping-address`,
-    shippingInvoice: (id: number) => `/orders/data/product/${id}/shipping-invoice`,
-    confirmDelivery: (id: number) => `/orders/data/product/${id}/confirm-delivery`,
-    cancel: (id: number) => `/orders/data/product/${id}/cancel`,
-    getMessages: (id: number) => `/orders/data/product/${id}/messages`, // Get chat history via REST API
-    rate: (id: number) => `/orders/data/product/${id}/rate`,
-    getRating: (id: number) => `/orders/data/product/${id}/rating`,
+    create: '/orders/data/order/',
+    list: '/orders/data/order/',
+    detail: (id: number) => `/orders/data/order/${id}`,
+    pay: (id: number) => `/orders/data/order/${id}/pay`,
+    shippingAddress: (id: number) => `/orders/data/order/${id}/shipping-address`,
+    shippingInvoice: (id: number) => `/orders/data/order/${id}/shipping-invoice`,
+    confirmDelivery: (id: number) => `/orders/data/order/${id}/confirm-delivery`,
+    cancel: (id: number) => `/orders/data/order/${id}/cancel`,
+    getMessages: (id: number) => `/orders/data/order/${id}/messages`, // Get chat history via REST API
+    rate: (id: number) => `/orders/data/order/${id}/rate`,
+    getRating: (id: number) => `/orders/data/order/${id}/rating`,
     getUserRating: (userId: number) => `/orders/data/users/${userId}/rating`,
     adminOrders: '/orders/data/admin/orders',
     websocket: '/order-websocket/', // Get WebSocket connection info

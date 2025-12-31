@@ -66,7 +66,31 @@ public class UserUpgradeService {
         upgradeUserRepository.save(request);
     }
 
+    @Transactional
+    public void rejectUpgrade(Long requestId, Long adminId, String rejectReason) {
+        UpgradeUser request = upgradeUserRepository
+                .findByIdAndStatus(requestId, UpgradeUser.UpgradeStatus.PENDING)
+                .orElseThrow(() -> new RuntimeException("Request not found"));
+
+        User user = request.getUser();
+        user.setIsSellerRequestSent(false);
+
+        request.setStatus(UpgradeUser.UpgradeStatus.REJECTED);
+        request.setReviewedAt(LocalDateTime.now());
+        request.setReviewedByAdminId(adminId);
+        if (rejectReason != null && !rejectReason.isEmpty()) {
+            request.setRejectionReason(rejectReason);
+        }
+
+        userRepository.save(user);
+        upgradeUserRepository.save(request);
+    }
+
     public Page<UpgradeUser> getAllUpgradeRequests(Pageable pageable) {
         return upgradeUserRepository.findAll(pageable);
+    }
+
+    public Page<UpgradeUser> getUpgradeRequestsByStatus(UpgradeUser.UpgradeStatus status, Pageable pageable) {
+        return upgradeUserRepository.findByStatus(status, pageable);
     }
 }

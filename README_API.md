@@ -372,7 +372,7 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 
 ### 2.5. Yêu cầu nâng cấp lên Seller
 
-**Endpoint:** `POST http://localhost:8080/api/users/upgrade-to-seller?reason=I want to sell`
+**Endpoint:** `POST http://localhost:8080/api/users/upgrade-to-seller`
 
 **Headers:**
 ```
@@ -384,9 +384,28 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 **Query Parameters:**
 - `reason` (required): Lý do muốn nâng cấp
 
+**Example:** `POST http://localhost:8080/api/users/upgrade-to-seller?reason=I want to sell my products`
+
 **Response Success (200):**
 ```json
 "Upgrade request submitted"
+```
+
+**Response Error (400):**
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Only BIDDER can request upgrade"
+}
+```
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Upgrade request already pending"
+}
 ```
 
 ---
@@ -400,16 +419,138 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 X-User-Token: <JWT_ACCESS_TOKEN>
 ```
 
-**Authorization:** ADMIN
+**Authorization:** ROLE_ADMIN
 
 **Response Success (200):**
 ```json
 "User upgraded to SELLER"
 ```
 
+**Response Error (400):**
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Request not found"
+}
+```
+
 ---
 
-### 2.7. Lấy danh sách yêu cầu nâng cấp
+### 2.7. Từ chối yêu cầu nâng cấp (Admin only)
+
+**Endpoint:** `POST http://localhost:8080/api/users/{requestId}/reject`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Authorization:** ROLE_ADMIN
+
+**Query Parameters:**
+- `rejectReason` (optional): Lý do từ chối
+
+**Example:** `POST http://localhost:8080/api/users/1/reject?rejectReason=Insufficient experience`
+
+**Response Success (200):**
+```json
+"Upgrade request rejected"
+```
+
+**Response Error (400):**
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Request not found"
+}
+```
+
+---
+
+### 2.8. Lấy danh sách yêu cầu nâng cấp (Admin only)
+
+**Endpoint:** `GET http://localhost:8080/api/users/upgrade-requests`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Authorization:** ROLE_ADMIN
+
+**Query Parameters:**
+- `status` (optional): Lọc theo status (PENDING, APPROVED, REJECTED)
+- `page` (default: 0): Số trang
+- `size` (default: 10): Số lượng kết quả
+- `sort` (default: createdAt): Trường sắp xếp
+- `direction` (default: desc): Hướng sắp xếp (asc/desc)
+
+**Example:** `GET http://localhost:8080/api/users/upgrade-requests?status=PENDING&page=0&size=10`
+
+**Response Success (200):**
+```json
+{
+  "content": [
+    {
+      "id": 1,
+      "user": {
+        "id": 5,
+        "email": "bidder@example.com",
+        "fullName": "Nguyen Van A",
+        "role": "ROLE_BIDDER"
+      },
+      "status": "PENDING",
+      "reason": "I want to sell my handmade products",
+      "rejectionReason": null,
+      "createdAt": "2024-01-15T10:00:00Z",
+      "reviewedAt": null,
+      "reviewedByAdminId": null
+    },
+    {
+      "id": 2,
+      "user": {
+        "id": 8,
+        "email": "seller@example.com",
+        "fullName": "Tran Thi B",
+        "role": "ROLE_SELLER"
+      },
+      "status": "APPROVED",
+      "reason": "I have an online shop",
+      "rejectionReason": null,
+      "createdAt": "2024-01-14T09:00:00Z",
+      "reviewedAt": "2024-01-14T15:00:00Z",
+      "reviewedByAdminId": 1
+    },
+    {
+      "id": 3,
+      "user": {
+        "id": 12,
+        "email": "rejected@example.com",
+        "fullName": "Le Van C",
+        "role": "ROLE_BIDDER"
+      },
+      "status": "REJECTED",
+      "reason": "I want to start selling",
+      "rejectionReason": "Insufficient experience",
+      "createdAt": "2024-01-13T08:00:00Z",
+      "reviewedAt": "2024-01-13T12:00:00Z",
+      "reviewedByAdminId": 1
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 10
+  },
+  "totalElements": 3,
+  "totalPages": 1
+}
+```
+
+---
+
+### 2.9. Lấy tất cả yêu cầu nâng cấp (không filter)
 
 **Endpoint:** `GET http://localhost:8080/api/users`
 
@@ -430,9 +571,13 @@ X-User-Token: <JWT_ACCESS_TOKEN>
   "content": [
     {
       "id": 1,
-      "userId": 5,
-      "reason": "I want to sell products",
+      "user": {
+        "id": 5,
+        "email": "bidder@example.com",
+        "fullName": "Nguyen Van A"
+      },
       "status": "PENDING",
+      "reason": "I want to sell products",
       "createdAt": "2024-01-01T00:00:00Z"
     }
   ],
@@ -443,9 +588,36 @@ X-User-Token: <JWT_ACCESS_TOKEN>
 
 ---
 
-### 2.8. Xác thực email (Internal)
+### 2.10. Xác thực email (Internal)
 
 **Endpoint:** `POST http://localhost:8080/api/users/verify-email`
+
+**Headers:**
+```
+X-User-Token: <JWT_ACCESS_TOKEN>
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response Success (200):**
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "Email verified successfully"
+}
+```
+
+---
+
+### 2.11. Xóa user theo email (Internal)
+
+**Endpoint:** `DELETE http://localhost:8080/api/users`
 
 **Headers:**
 ```

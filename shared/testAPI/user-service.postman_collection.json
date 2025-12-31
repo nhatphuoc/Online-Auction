@@ -109,7 +109,7 @@
       "request": {
         "method": "GET",
         "header": [
-          {"key": "Authorization", "value": "Bearer {{token}}"}
+          {"key": "X-User-Token", "value": "{{token}}"}
         ],
         "url": {
           "raw": "{{USER_SERVICE_URL}}/api/users/profile/me",
@@ -123,7 +123,7 @@
       "request": {
         "method": "GET",
         "header": [
-          {"key": "Authorization", "value": "Bearer {{token}}"}
+          {"key": "X-User-Token", "value": "{{token}}"}
         ],
         "url": {
           "raw": "{{USER_SERVICE_URL}}/api/users/search?keyword={{keyword}}&role={{role}}&page=0&size=10",
@@ -137,6 +137,121 @@
           ]
         }
       }
+    },
+    {
+      "name": "Request Upgrade to Seller (Bidder)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/upgrade-to-seller?reason=I want to sell my handmade products",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "upgrade-to-seller"],
+          "query": [
+            {"key": "reason", "value": "I want to sell my handmade products"}
+          ]
+        },
+        "description": "Request upgrade from BIDDER to SELLER. Requires: ROLE_BIDDER"
+      }
+    },
+    {
+      "name": "Get Upgrade Requests - Pending (Admin)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/upgrade-requests?status=PENDING&page=0&size=10&sort=createdAt&direction=desc",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "upgrade-requests"],
+          "query": [
+            {"key": "status", "value": "PENDING"},
+            {"key": "page", "value": "0"},
+            {"key": "size", "value": "10"},
+            {"key": "sort", "value": "createdAt"},
+            {"key": "direction", "value": "desc"}
+          ]
+        },
+        "description": "Get upgrade requests filtered by status. Requires: ROLE_ADMIN"
+      }
+    },
+    {
+      "name": "Get Upgrade Requests - All (Admin)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/upgrade-requests?page=0&size=10&sort=createdAt&direction=desc",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "upgrade-requests"],
+          "query": [
+            {"key": "page", "value": "0"},
+            {"key": "size", "value": "10"},
+            {"key": "sort", "value": "createdAt"},
+            {"key": "direction", "value": "desc"}
+          ]
+        },
+        "description": "Get all upgrade requests. Requires: ROLE_ADMIN"
+      }
+    },
+    {
+      "name": "Approve Upgrade Request (Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/{{request_id}}/approve",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "{{request_id}}", "approve"]
+        },
+        "description": "Approve upgrade request. Changes user role to SELLER. Requires: ROLE_ADMIN"
+      }
+    },
+    {
+      "name": "Reject Upgrade Request (Admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users/{{request_id}}/reject?rejectReason=Insufficient experience",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users", "{{request_id}}", "reject"],
+          "query": [
+            {"key": "rejectReason", "value": "Insufficient experience"}
+          ]
+        },
+        "description": "Reject upgrade request. Requires: ROLE_ADMIN"
+      }
+    },
+    {
+      "name": "Get All Upgrade Requests (No Filter)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "X-User-Token", "value": "{{token}}"}
+        ],
+        "url": {
+          "raw": "{{USER_SERVICE_URL}}/api/users?page=0&size=10&sort=createdAt&direction=desc",
+          "host": ["{{USER_SERVICE_URL}}"],
+          "path": ["api", "users"],
+          "query": [
+            {"key": "page", "value": "0"},
+            {"key": "size", "value": "10"},
+            {"key": "sort", "value": "createdAt"},
+            {"key": "direction", "value": "desc"}
+          ]
+        },
+        "description": "Get all upgrade requests without filtering"
+      }
     }
   ],
   "variable": [
@@ -145,6 +260,7 @@
     {"key": "id", "value": "1"},
     {"key": "token", "value": ""},
     {"key": "keyword", "value": ""},
-    {"key": "role", "value": "BIDDER"}
+    {"key": "role", "value": "BIDDER"},
+    {"key": "request_id", "value": "1"}
   ]
 }

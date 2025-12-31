@@ -15,4 +15,6 @@ public interface UpgradeUserRepository extends JpaRepository<UpgradeUser, Long> 
     Optional<UpgradeUser> findByIdAndStatus(Long id, UpgradeUser.UpgradeStatus status);
 
     Page<UpgradeUser> findAll(Pageable pageable);
+
+    Page<UpgradeUser> findByStatus(UpgradeUser.UpgradeStatus status, Pageable pageable);
 }

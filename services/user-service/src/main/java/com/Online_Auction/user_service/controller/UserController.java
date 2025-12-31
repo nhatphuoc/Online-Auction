@@ -153,6 +153,42 @@ public class UserController {
         return ResponseEntity.ok("User upgraded to SELLER");
     }
 
+    @PostMapping("/{requestId}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<?> reject(@PathVariable Long requestId, @RequestParam(required = false) String rejectReason) {
+        User admin = userService.getCurrentUser();
+
+        if (admin == null)
+            return ResponseEntity.badRequest().body(ApiResponse.fail("User not authenticated"));
+
+        userUpgradeService.rejectUpgrade(requestId, admin.getId(), rejectReason);
+        return ResponseEntity.ok("Upgrade request rejected");
+    }
+
+    @GetMapping("/upgrade-requests")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<Page<UpgradeUser>> getPendingUpgradeRequests(
+            @RequestParam(required = false) UpgradeUser.UpgradeStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
+        Sort sortOrder = Sort.by(
+                direction.equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC,
+                sort);
+
+        Pageable pageable = PageRequest.of(page, size, sortOrder);
+
+        Page<UpgradeUser> result;
+        if (status != null) {
+            result = userUpgradeService.getUpgradeRequestsByStatus(status, pageable);
+        } else {
+            result = userUpgradeService.getAllUpgradeRequests(pageable);
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping
     public ResponseEntity<Page<UpgradeUser>> getAll(
             @RequestParam(defaultValue = "0") int page,

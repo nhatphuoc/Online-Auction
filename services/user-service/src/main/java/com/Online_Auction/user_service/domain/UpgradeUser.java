@@ -38,6 +38,8 @@ public class UpgradeUser {
 
     private String reason;
 
+    private String rejectionReason;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime reviewedAt;

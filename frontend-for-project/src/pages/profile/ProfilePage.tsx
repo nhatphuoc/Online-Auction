@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useRole } from '../../hooks/useRole';
-import { 
-  User, Mail, Phone, Calendar, Shield, Star, 
-  Edit2, Save, X, Lock, Award 
+import {
+  User, Mail, Phone, Calendar, Shield, Star,
+  Edit2, Save, X, Lock, Award
 } from 'lucide-react';
 import { userService } from '../../services/user.service';
 import { UserProfile } from '../../types';
@@ -17,7 +17,9 @@ const ProfilePage = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
-  
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     phoneNumber: user?.phoneNumber || '',
@@ -79,7 +81,7 @@ const ProfilePage = () => {
       addToast('error', 'Mật khẩu mới không khớp');
       return;
     }
-    
+
     if (passwordData.newPassword.length < 6) {
       addToast('error', 'Mật khẩu phải có ít nhất 6 ký tự');
       return;
@@ -122,6 +124,23 @@ const ProfilePage = () => {
       </div>
     );
   }
+
+  const handleUpgradeRequest = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await userService.requestUpgradeToSeller(
+        "Tôi muốn trở thành người bán"
+      );
+
+      setMessage(res); // "Upgrade request submitted"
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Có lỗi xảy ra");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -402,12 +421,29 @@ const ProfilePage = () => {
           <p className="text-gray-700 mb-4">
             Bạn muốn bán sản phẩm trên nền tảng? Nâng cấp tài khoản của bạn lên Người bán ngay!
           </p>
+
           <button
-            onClick={() => window.location.href = '/upgrade-to-seller'}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all"
+            onClick={handleUpgradeRequest}
+            disabled={loading}
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg
+                 hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50"
           >
-            Yêu cầu nâng cấp
+            {loading ? "Đang gửi yêu cầu..." : "Yêu cầu nâng cấp"}
           </button>
+
+          {/* Success message */}
+          {message && (
+            <p className="mt-4 text-green-600 font-medium">
+              {message}
+            </p>
+          )}
+
+          {/* Error message */}
+          {error && (
+            <p className="mt-4 text-red-600 font-medium">
+              {error}
+            </p>
+          )}
         </div>
       )}
     </div>

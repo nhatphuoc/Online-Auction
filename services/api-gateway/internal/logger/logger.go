@@ -54,7 +54,7 @@ func InitLoggerWithOTel(env string) {
 
 	// Wrap với OTel bridge để gửi logs qua OTLP
 	loggerProvider := telemetry.GetLoggerProvider()
-	otelHandler := otelslog.NewHandler("category_service-api", otelslog.WithLoggerProvider(loggerProvider))
+	otelHandler := otelslog.NewHandler("api-gateway", otelslog.WithLoggerProvider(loggerProvider))
 
 	// Combine handlers: console output + OTel export
 	handler := combinedHandler{
@@ -101,8 +101,12 @@ func (h combinedHandler) WithGroup(name string) slog.Handler {
 
 // WithContext thêm trace_id và span_id từ context vào log
 func WithContext(ctx context.Context) *slog.Logger {
-	// Sẽ extract trace context từ OpenTelemetry sau
-	return Log
+	// Extract trace context từ OpenTelemetry
+	// Note: OTel bridge tự động thêm trace_id và span_id vào logs
+	// khi có active span trong context
+	return Log.With(
+		slog.String("source", "api-gateway"),
+	)
 }
 
 // Info logs info message

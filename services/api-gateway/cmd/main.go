@@ -18,7 +18,6 @@ import (
 	_ "api_gateway/docs"
 
 	"github.com/gofiber/fiber/v2"
-	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/swagger"
 )
@@ -95,9 +94,46 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(middleware.TracingMiddleware())
-	app.Use(fiberlogger.New(fiberlogger.Config{
-		Format: "${time} | ${status} | ${latency} | ${method} | ${path}\n",
-	}))
+	
+	// Custom structured logger middleware
+	app.Use(func(c *fiber.Ctx) error {
+		start := time.Now()
+		
+		// Process request
+		err := c.Next()
+		
+		// Log request details with structured logging
+		duration := time.Since(start)
+		status := c.Response().StatusCode()
+		
+		logAttrs := []any{
+			slog.String("method", c.Method()),
+			slog.String("path", c.Path()),
+			slog.Int("status", status),
+			slog.Duration("latency", duration),
+			slog.String("ip", c.IP()),
+			slog.String("user_agent", c.Get("User-Agent")),
+		}
+		
+		// Thêm user info nếu có
+		if userID, ok := c.Locals("userID").(string); ok && userID != "" {
+			logAttrs = append(logAttrs, slog.String("user_id", userID))
+		}
+		if email, ok := c.Locals("email").(string); ok && email != "" {
+			logAttrs = append(logAttrs, slog.String("user_email", email))
+		}
+		
+		// Log level based on status code
+		if status >= 500 {
+			slog.Error("Request completed with server error", logAttrs...)
+		} else if status >= 400 {
+			slog.Warn("Request completed with client error", logAttrs...)
+		} else {
+			slog.Info("Request completed successfully", logAttrs...)
+		}
+		
+		return err
+	})
 
 	// CORS middleware - CRITICAL: Must be enabled for frontend to work properly
 	// This handles OPTIONS preflight requests from browsers

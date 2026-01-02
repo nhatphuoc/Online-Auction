@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -33,6 +34,11 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 			jwt.MapClaims{},
 		)
 		if err != nil {
+			slog.Warn("Invalid token format received",
+				slog.String("error", err.Error()),
+				slog.String("path", c.Path()),
+				slog.String("ip", c.IP()),
+			)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid token format",
 			})
@@ -40,6 +46,10 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
+			slog.Warn("Invalid token claims",
+				slog.String("path", c.Path()),
+				slog.String("ip", c.IP()),
+			)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid token claims",
 			})
@@ -47,6 +57,10 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 
 		// Kiểm tra type == "access"
 		if t, ok := claims["type"].(string); !ok || t != "access" {
+			slog.Warn("Token is not access token",
+				slog.String("token_type", t),
+				slog.String("path", c.Path()),
+			)
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Token is not access token",
 			})
@@ -74,6 +88,13 @@ func AuthMiddleware(cfg *config.Config) fiber.Handler {
 		c.Locals("email", email)
 		c.Locals("role", role)
 		c.Locals("token", tokenString)
+
+		slog.Debug("User authenticated successfully",
+			slog.String("user_id", userID),
+			slog.String("email", email),
+			slog.String("role", role),
+			slog.String("path", c.Path()),
+		)
 
 		return c.Next()
 	}
@@ -109,7 +130,10 @@ func ProxyMiddleware(cfg *config.Config, serviceName string) fiber.Handler {
 		// Tạo JWT nội bộ ký bằng private key của API Gateway
 		internalJWT, err := generateInternalJWT(cfg, serviceName)
 		if err != nil {
-			fmt.Println(err.Error())
+			slog.Error("Failed to generate internal JWT",
+				slog.String("error", err.Error()),
+				slog.String("service", serviceName),
+			)
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		}
 
@@ -122,7 +146,13 @@ func ProxyMiddleware(cfg *config.Config, serviceName string) fiber.Handler {
 		c.Request().Header.Set("X-Auth-Internal-Service", cfg.AuthInternalSecret)
 		c.Request().Header.Set("X-Internal-JWT", internalJWT)
 
-		fmt.Printf("Proxying request to %s with userID=%s, email=%s, role=%s\n, internal-jwt=%s\n", serviceName, userID, email, role, internalJWT)
+		slog.Debug("Proxy headers set for internal service",
+			slog.String("service", serviceName),
+			slog.String("user_id", userID),
+			slog.String("email", email),
+			slog.String("role", role),
+		)
+		
 		return c.Next()
 	}
 }

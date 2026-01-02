@@ -3,10 +3,11 @@ package handlers
 import (
 	"api_gateway/internal/config"
 	"bytes"
-	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -22,6 +23,8 @@ func NewProxyHandler(cfg *config.Config) *ProxyHandler {
 // ProxyRequest forwards the request to the target service
 func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		startTime := time.Now()
+		
 		// Build target URL
 		path := strings.Trim(c.Params("*"), "/")
 
@@ -35,10 +38,26 @@ func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 			fullURL += "?" + c.Context().QueryArgs().String()
 		}
 
-		fmt.Printf("Proxying request to: %s\n", fullURL)
+		// Log proxy request
+		logAttrs := []any{
+			slog.String("target_url", fullURL),
+			slog.String("method", c.Method()),
+			slog.String("original_path", c.Path()),
+		}
+		
+		if userID, ok := c.Locals("userID").(string); ok && userID != "" {
+			logAttrs = append(logAttrs, slog.String("user_id", userID))
+		}
+		
+		slog.Debug("Proxying request to service", logAttrs...)
+		
 		// Create request
 		req, err := http.NewRequest(c.Method(), fullURL, bytes.NewReader(c.Body()))
 		if err != nil {
+			slog.Error("Failed to create proxy request", 
+				slog.String("error", err.Error()),
+				slog.String("target_url", fullURL),
+			)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to create request",
 			})
@@ -50,9 +69,17 @@ func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 		})
 
 		// Make request
-		client := &http.Client{}
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+		}
 		resp, err := client.Do(req)
 		if err != nil {
+			duration := time.Since(startTime)
+			slog.Error("Failed to reach service",
+				slog.String("error", err.Error()),
+				slog.String("target_url", fullURL),
+				slog.Duration("duration", duration),
+			)
 			return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
 				"error":   "Failed to reach service",
 				"details": err.Error(),
@@ -70,10 +97,24 @@ func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 		// Copy response body
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
+			slog.Error("Failed to read service response",
+				slog.String("error", err.Error()),
+				slog.String("target_url", fullURL),
+			)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to read response",
 			})
 		}
+
+		duration := time.Since(startTime)
+		
+		// Log successful proxy
+		slog.Info("Proxy request completed",
+			slog.String("target_url", fullURL),
+			slog.Int("status", resp.StatusCode),
+			slog.Duration("duration", duration),
+			slog.Int("response_size", len(body)),
+		)
 
 		c.Status(resp.StatusCode)
 		return c.Send(body)
@@ -83,10 +124,19 @@ func (h *ProxyHandler) ProxyRequest(targetURL string) fiber.Handler {
 func (h *ProxyHandler) ProxyWebSocket(c *fiber.Ctx) error {
 	internalJWT := c.Get("X-Internal-JWT")
 	if internalJWT == "" {
+		slog.Warn("WebSocket proxy request missing internal JWT",
+			slog.String("path", c.Path()),
+			slog.String("ip", c.IP()),
+		)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Missing X-Internal-JWT header",
 		})
 	}
+
+	slog.Info("WebSocket connection info provided",
+		slog.String("service", "comment-service"),
+		slog.String("path", c.Path()),
+	)
 
 	return c.JSON(fiber.Map{
 		"comment_service_websocket_url": h.cfg.CommentServiceWebSocketURL,
@@ -97,10 +147,19 @@ func (h *ProxyHandler) ProxyWebSocket(c *fiber.Ctx) error {
 func (h *ProxyHandler) OrderProxyWebSocket(c *fiber.Ctx) error {
 	internalJWT := c.Get("X-Internal-JWT")
 	if internalJWT == "" {
+		slog.Warn("WebSocket proxy request missing internal JWT",
+			slog.String("path", c.Path()),
+			slog.String("ip", c.IP()),
+		)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Missing X-Internal-JWT header",
 		})
 	}
+
+	slog.Info("WebSocket connection info provided",
+		slog.String("service", "order-service"),
+		slog.String("path", c.Path()),
+	)
 
 	return c.JSON(fiber.Map{
 		"order_service_websocket_url": h.cfg.OrderServiceWebSocketURL,

@@ -367,7 +367,10 @@ export const CreateProductPage = () => {
               Giá khởi điểm <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
+    ₫
+  </span>
+
               <input
                 type="text"
                 value={formData.startingPrice
@@ -395,7 +398,10 @@ export const CreateProductPage = () => {
               Bước giá <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
+    ₫
+  </span>
+
               <input
                 type="text"
                 value={
@@ -424,7 +430,10 @@ export const CreateProductPage = () => {
               Giá mua ngay (tùy chọn)
             </label>
             <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
+    ₫
+  </span>
+
               <input
                 type="text"
                 value={

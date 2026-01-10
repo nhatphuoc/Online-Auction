@@ -51,13 +51,13 @@ export interface Product {
   extendDurationMinutes?: number;
   sellerId: number;
   sellerInfo: {
-    userId: number;
-    username: string;
+    id: number;
+    fullName: string;
     avatarUrl?: string;
   };
-  highestBidder?: {
-    userId: number;
-    username: string;
+  highestBidder: {
+    id: number;
+    fullName: string;
     avatarUrl?: string;
   };
 }

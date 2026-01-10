@@ -40,6 +40,7 @@ export const endpoints = {
     topMostBids: '/products/top-most-bids',
     topHighestPrice: '/products/top-highest-price',
     buyNow: (id: number) => `/products/${id}/buy-now`,
+    won: '/products/won',
   },
   bids: {
     place: '/bids',

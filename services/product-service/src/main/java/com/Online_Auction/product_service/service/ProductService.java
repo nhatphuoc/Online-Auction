@@ -1,6 +1,7 @@
 package com.Online_Auction.product_service.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.Online_Auction.product_service.client.RestTemplateNotificationServiceClient;
 import com.Online_Auction.product_service.client.RestTemplateOrderServiceClient;
 import com.Online_Auction.product_service.client.RestTemplateUserServiceClient;
+import com.Online_Auction.product_service.controller.ProductController.ProductSort;
 import com.Online_Auction.product_service.domain.Product;
 import com.Online_Auction.product_service.dto.request.ProductCreateRequest;
 import com.Online_Auction.product_service.dto.request.ProductUpdateRequest;
@@ -29,13 +31,17 @@ import com.Online_Auction.product_service.external.order.CreateOrderRequest;
 import com.Online_Auction.product_service.mapper.ProductMapper;
 import com.Online_Auction.product_service.repository.ProductRepository;
 import com.Online_Auction.product_service.specs.ProductSpecs;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductService {
+
+    private ObjectMapper om = new ObjectMapper();
 
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
@@ -85,7 +91,7 @@ public class ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         SimpleUserInfo sellerInfo = this.getSimpleUserInfoById(product.getSellerId());
-        SimpleUserInfo highestBidder = null; // TODO: call bidding-service
+        SimpleUserInfo highestBidder = this.getSimpleUserInfoById(product.getCurrentBidder());
 
         return productMapper.toProductDTO(product, sellerInfo, highestBidder);
     }
@@ -178,9 +184,17 @@ public class ProductService {
             String query,
             Long categoryId,
             int page,
-            int pageSize) {
+            int pageSize,
+            ProductSort sort) {
 
-        Pageable pageable = PageRequest.of(page, pageSize, Sort.by("createdAt").descending());
+        Sort sortSpec = switch (sort) {
+            case PRICE_ASC -> Sort.by("currentPrice").ascending();
+            case PRICE_DESC -> Sort.by("currentPrice").descending();
+            case BID_COUNT_DESC -> Sort.by("bidCount").descending();
+            case NEWEST -> Sort.by("createdAt").descending();
+        };
+
+        Pageable pageable = PageRequest.of(page, pageSize, sortSpec);
 
         Specification<Product> spec = Specification
                 .where(ProductSpecs.hasCategory(categoryId))
@@ -202,21 +216,49 @@ public class ProductService {
                         p.getCategoryName()));
     }
 
+    public Page<ProductListItemResponse> getWonProducts(Long bidderId, int page, int pageSize) {
+        LocalDateTime now = LocalDateTime.now();
+
+        Pageable pageable = PageRequest.of(page, pageSize, Sort.by("endAt").descending());
+
+        Page<Product> products = productRepository.findByHighestBidderAndEnded(bidderId, now, pageable);
+
+        return products.map(p -> new ProductListItemResponse(
+                p.getId(),
+                p.getThumbnailUrl(),
+                p.getName(),
+                p.getCurrentPrice(),
+                p.getBuyNowPrice(),
+                p.getCreatedAt(),
+                p.getEndAt(),
+                p.getBidCount(),
+                p.getParentCategoryId(),
+                p.getParentCategoryName(),
+                p.getCategoryId(),
+                p.getCategoryName()));
+    }
+
     // =================================
     // UTILITY FUNCTIONS
     // =================================
     private SimpleUserInfo getSimpleUserInfoById(long id) {
         SimpleUserResponse userResponse = restTemplateUserServiceClient.getUserById(id);
+        try {
+            log.info("Raw: {}", om.writeValueAsString(userResponse));
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+
         if (userResponse == null) {
             throw new ResponseStatusException(
                     HttpStatus.NOT_FOUND,
                     "User not found with id = " + id);
         }
         SimpleUserInfo userInfo = new SimpleUserInfo();
-        userInfo.setId(userInfo.getId());
-        userInfo.setEmail(userInfo.getEmail());
-        userInfo.setFullName(userInfo.getFullName());
-        userInfo.setUserRole(userInfo.getUserRole());
+        userInfo.setId(userResponse.getId());
+        userInfo.setEmail(userResponse.getEmail());
+        userInfo.setFullName(userResponse.getFullName());
+        userInfo.setUserRole(userResponse.getUserRole());
         return userInfo;
     }
 

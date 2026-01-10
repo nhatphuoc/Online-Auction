@@ -7,6 +7,11 @@ import {
   SearchResponse,
 } from '../types';
 
+type ProductSort =
+  | 'NEWEST'
+  | 'PRICE_ASC'
+  | 'PRICE_DESC'
+  | 'BID_COUNT_DESC';
 export interface BuyNowResponse {
   productId: number;
   finalPrice: number;
@@ -50,22 +55,36 @@ export const productService = {
     return response.data;
   },
 
+
   async searchProducts(params: {
     query?: string;
     categoryId?: number;
     page?: number;
     pageSize?: number;
+    sort?: ProductSort;
   }) {
     const queryParams = new URLSearchParams();
-    if (params.query) queryParams.append('query', params.query);
-    if (params.categoryId)
+
+    if (params.query) {
+      queryParams.append('query', params.query);
+    }
+
+    if (params.categoryId) {
       queryParams.append('categoryId', params.categoryId.toString());
-    queryParams.append('page', (params.page || 0).toString());
-    queryParams.append('pageSize', (params.pageSize || 12).toString());
+    }
+
+    queryParams.append('page', (params.page ?? 0).toString());
+    queryParams.append('pageSize', (params.pageSize ?? 12).toString());
+
+    // ⭐ QUAN TRỌNG
+    if (params.sort) {
+      queryParams.append('sort', params.sort);
+    }
 
     const response = await apiClient.get<SearchResponse<ProductListItem>>(
       `${endpoints.products.search}?${queryParams.toString()}`
     );
+
     return response.data;
   },
 
@@ -112,4 +131,12 @@ export const productService = {
     );
     return response.data;
   },
+
+  async getWonProducts(params?: { page?: number; pageSize?: number }) {
+    const response = await apiClient.get<ApiResponse<{ content: ProductListItem[] }>>(
+      endpoints.products.won,
+      { params }
+    );
+    return response.data;
+  }
 };

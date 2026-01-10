@@ -7,26 +7,37 @@ import { ProductGrid } from '../../components/UI/ProductCard';
 import { Pagination } from '../../components/UI/Pagination';
 import { Search, Filter, X } from 'lucide-react';
 
+type ProductSort =
+  | 'NEWEST'
+  | 'PRICE_ASC'
+  | 'PRICE_DESC'
+  | 'BID_COUNT_DESC';
+
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
-  
+
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  
+
   const [searchQuery, setSearchQuery] = useState(query);
   const [selectedParentCategory, setSelectedParentCategory] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState('endAt');
+  const [sortBy, setSortBy] = useState<ProductSort>('NEWEST');
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    setSearchQuery(query);
+    setCurrentPage(0);
+  }, [query]);
 
   const loadCategories = async () => {
     try {
@@ -40,12 +51,14 @@ const SearchPage = () => {
   const searchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
+      const categoryId =
+        selectedCategory ?? selectedParentCategory ?? undefined;
       const response = await productService.searchProducts({
         query: query || undefined,
-        parentCategoryId: selectedParentCategory || undefined,
-        categoryId: selectedCategory || undefined,
+        categoryId,
         page: currentPage,
         pageSize: 12,
+        sort: sortBy,
       });
 
       if (response.success && response.data) {
@@ -59,7 +72,7 @@ const SearchPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [query, selectedParentCategory, selectedCategory, currentPage]);
+  }, [query, selectedParentCategory, selectedCategory, currentPage, sortBy]);
 
   useEffect(() => {
     searchProducts();
@@ -67,10 +80,17 @@ const SearchPage = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      setSearchParams({ q: searchQuery.trim() });
-      setCurrentPage(0);
+
+    const trimmed = searchQuery.trim();
+
+    if (trimmed) {
+      setSearchParams({ q: trimmed });
+    } else {
+      // ⭐ QUAN TRỌNG: reset query
+      setSearchParams({});
     }
+
+    setCurrentPage(0);
   };
 
   const handleClearFilters = () => {
@@ -184,16 +204,15 @@ const SearchPage = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => {
-                    setSortBy(e.target.value);
+                    setSortBy(e.target.value as ProductSort);
                     setCurrentPage(0);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="endAt">Sắp kết thúc</option>
-                  <option value="price_asc">Giá tăng dần</option>
-                  <option value="price_desc">Giá giảm dần</option>
-                  <option value="bids">Nhiều lượt đấu</option>
-                  <option value="newest">Mới nhất</option>
+                  <option value="NEWEST">Mới nhất</option>
+                  <option value="PRICE_ASC">Giá tăng dần</option>
+                  <option value="PRICE_DESC">Giá giảm dần</option>
+                  <option value="BID_COUNT_DESC">Nhiều lượt đấu</option>
                 </select>
               </div>
             </div>

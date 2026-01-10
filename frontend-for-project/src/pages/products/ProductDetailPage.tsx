@@ -37,27 +37,27 @@ const ProductDetailPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<TabType>('description');
-  
+
   // Bidding
   const [bidAmount, setBidAmount] = useState(0);
   const [showBidModal, setShowBidModal] = useState(false);
   const [showConfirmBid, setShowConfirmBid] = useState(false);
   const [bidHistory, setBidHistory] = useState<BidHistory[]>([]);
   const [isLoadingBids, setIsLoadingBids] = useState(false);
-  
+
   // Buy Now
   const [showConfirmBuyNow, setShowConfirmBuyNow] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
-  
+
   // Comments/Q&A
   const [comments, setComments] = useState<Comment[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [ws, setWs] = useState<WebSocket | null>(null);
-  
+
   // Related products
   const [relatedProducts, setRelatedProducts] = useState<ProductListItem[]>([]);
-  
+
   // Watchlist
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
@@ -65,7 +65,7 @@ const ProductDetailPage = () => {
   // Check if product is in watchlist
   const checkWatchlistStatus = useCallback(async () => {
     if (!id || !isAuthenticated) return;
-    
+
     try {
       const inWatchlist = await watchlistService.isInWatchlist(parseInt(id));
       setIsInWatchlist(inWatchlist);
@@ -102,18 +102,18 @@ const ProductDetailPage = () => {
 
   const loadProductDetail = useCallback(async () => {
     if (!id) return;
-    
+
     setIsLoading(true);
     try {
       const data = await productService.getProductDetail(parseInt(id));
       setProduct(data);
       setBidAmount(data.currentPrice + data.stepPrice);
-      
+
       // Load related products
       if (data.categoryId) {
         loadRelatedProducts(data.categoryId, parseInt(id));
       }
-      
+
       // Check watchlist status
       if (isAuthenticated) {
         checkWatchlistStatus();
@@ -144,7 +144,7 @@ const ProductDetailPage = () => {
 
   const loadBidHistory = useCallback(async () => {
     if (!id) return;
-    
+
     setIsLoadingBids(true);
     try {
       const response = await bidService.searchBidHistory({
@@ -162,7 +162,7 @@ const ProductDetailPage = () => {
 
   const loadComments = useCallback(async () => {
     if (!id) return;
-    
+
     setIsLoadingComments(true);
     try {
       const data = await commentService.getProductComments(parseInt(id), {
@@ -320,7 +320,7 @@ const ProductDetailPage = () => {
         type: 'comment',
         content: newQuestion.trim(),
       };
-      
+
       console.log('Sending WebSocket message:', message);
       ws.send(JSON.stringify(message));
       setNewQuestion('');
@@ -375,6 +375,14 @@ const ProductDetailPage = () => {
   const isSeller = user?.id === product.sellerId;
   const suggestedBid = product.currentPrice + product.stepPrice;
 
+  function maskName(name?: string, visibleChars = 2): string {
+    if (!name) return '';
+    if (name.length <= visibleChars) return '*'.repeat(name.length);
+
+    const maskedLength = name.length - visibleChars;
+    return '*'.repeat(maskedLength) + name.slice(-visibleChars);
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -407,7 +415,7 @@ const ProductDetailPage = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {allImages.length > 1 && (
                   <>
                     <button
@@ -433,11 +441,10 @@ const ProductDetailPage = () => {
                     <button
                       key={idx}
                       onClick={() => setCurrentImageIndex(idx)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
-                        idx === currentImageIndex
-                          ? 'border-blue-600'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${idx === currentImageIndex
+                        ? 'border-blue-600'
+                        : 'border-gray-200 hover:border-gray-300'
+                        }`}
                     >
                       <img
                         src={img}
@@ -482,16 +489,37 @@ const ProductDetailPage = () => {
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                       {product.sellerInfo.avatarUrl ? (
-                        <img src={product.sellerInfo.avatarUrl} alt={product.sellerInfo.username} className="w-full h-full rounded-full object-cover" />
+                        <img src={product.sellerInfo.avatarUrl} alt={product.sellerInfo.fullName} className="w-full h-full rounded-full object-cover" />
                       ) : (
                         <User className="w-6 h-6 text-blue-600" />
                       )}
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">
-                        {product.sellerInfo.username}
+                        {maskName(product.sellerInfo.fullName)}
                       </p>
                       <p className="text-sm text-gray-500">Người bán</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Highest Bidder Info */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      {product.highestBidder.avatarUrl ? (
+                        <img src={product.highestBidder.avatarUrl} alt={product.highestBidder.fullName} className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        <User className="w-6 h-6 text-blue-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {maskName(product.highestBidder.fullName)}
+                      </p>
+                      <p className="text-sm text-gray-500">Người mua cao nhất</p>
                     </div>
                   </div>
                 </div>
@@ -554,7 +582,7 @@ const ProductDetailPage = () => {
                       Đấu giá
                     </button>
                     {product.buyNowPrice && (
-                      <button 
+                      <button
                         onClick={() => setShowConfirmBuyNow(true)}
                         disabled={isBuyingNow}
                         className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -588,11 +616,10 @@ const ProductDetailPage = () => {
                     <button
                       onClick={handleToggleWatchlist}
                       disabled={isTogglingWatchlist}
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 border rounded-lg font-medium transition-colors ${
-                        isInWatchlist
-                          ? 'border-red-300 bg-red-50 text-red-700'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      } ${isTogglingWatchlist ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 border rounded-lg font-medium transition-colors ${isInWatchlist
+                        ? 'border-red-300 bg-red-50 text-red-700'
+                        : 'border-gray-300 hover:bg-gray-50'
+                        } ${isTogglingWatchlist ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <Heart className={`w-5 h-5 ${isInWatchlist ? 'fill-current' : ''}`} />
                       {isInWatchlist ? 'Đã lưu' : 'Lưu'}
@@ -614,33 +641,30 @@ const ProductDetailPage = () => {
             <nav className="flex">
               <button
                 onClick={() => setActiveTab('description')}
-                className={`px-6 py-4 border-b-2 font-semibold transition-colors ${
-                  activeTab === 'description'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-6 py-4 border-b-2 font-semibold transition-colors ${activeTab === 'description'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
               >
                 Mô tả
               </button>
               <button
                 onClick={() => setActiveTab('bidHistory')}
-                className={`px-6 py-4 border-b-2 font-semibold transition-colors ${
-                  activeTab === 'bidHistory'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-6 py-4 border-b-2 font-semibold transition-colors ${activeTab === 'bidHistory'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
               >
-                Lịch sử đấu giá 
+                Lịch sử đấu giá
               </button>
               <button
                 onClick={() => setActiveTab('questions')}
-                className={`px-6 py-4 border-b-2 font-semibold transition-colors ${
-                  activeTab === 'questions'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
+                className={`px-6 py-4 border-b-2 font-semibold transition-colors ${activeTab === 'questions'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
               >
-                Câu hỏi 
+                Câu hỏi
               </button>
             </nav>
           </div>

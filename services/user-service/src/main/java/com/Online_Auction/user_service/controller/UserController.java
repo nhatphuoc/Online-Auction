@@ -16,6 +16,7 @@ import com.Online_Auction.user_service.service.UserService;
 import com.Online_Auction.user_service.service.UserUpgradeService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.web.bind.annotation.RequestMapping;
 
@@ -37,6 +38,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
 
     private final UserService userService;
@@ -53,12 +55,21 @@ public class UserController {
 
     @GetMapping("/{id}/simple")
     public ResponseEntity<ApiResponse<SimpleUserResponse>> getSimpleUserById(@PathVariable Long id) {
+        log.info("GET /users/{}/simple - request received", id);
+
         User user = userService.findById(id);
-        if (user == null)
+        if (user == null) {
+            log.warn("User not found for id={}", id);
             return ResponseEntity.badRequest().body(ApiResponse.fail("User not found"));
+        }
+
+        SimpleUserResponse response = UserMapper.toSimpleUserResponse(user);
+
+        log.info("User fetched successfully for id={}", id);
+        log.debug("SimpleUserResponse for id={} => {}", id, response);
 
         return ResponseEntity.ok(
-                ApiResponse.success(UserMapper.toSimpleUserResponse(user), "User fetched successfully"));
+                ApiResponse.success(response, "User fetched successfully"));
     }
 
     @PostMapping

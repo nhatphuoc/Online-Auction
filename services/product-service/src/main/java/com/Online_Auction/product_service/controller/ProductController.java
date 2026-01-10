@@ -3,6 +3,7 @@ package com.Online_Auction.product_service.controller;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -131,14 +132,33 @@ public class ProductController {
             @RequestParam(required = false) String query,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int pageSize) {
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(defaultValue = "NEWEST") ProductSort sort) {
         Page<ProductListItemResponse> result = productService.searchProducts(
                 query,
                 categoryId,
                 page,
-                pageSize);
+                pageSize,
+                sort);
 
         return ApiResponse.success(result, "Query success");
+    }
+
+    @GetMapping("/won")
+    public ApiResponse<Page<ProductListItemResponse>> getWonProducts(
+            @RequestParam int page,
+            @RequestParam int pageSize,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        Page<ProductListItemResponse> result = productService.getWonProducts(userPrincipal.getUserId(), page, pageSize);
+        return ApiResponse.success(result, "Query success");
+    }
+
+    public enum ProductSort {
+        NEWEST, // mới nhất
+        PRICE_ASC, // giá tăng dần
+        PRICE_DESC, // giá giảm dần
+        BID_COUNT_DESC // nhiều lượt đấu
     }
 
     /**

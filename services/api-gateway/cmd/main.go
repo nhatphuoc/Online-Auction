@@ -78,6 +78,17 @@ func main() {
 		log.Fatalf("Failed to initialize metrics: %v", err)
 	}
 
+	// Initialize rate limiter with Redis
+	rateLimiter, err := middleware.NewRateLimiter(cfg)
+	if err != nil {
+		log.Fatalf("Failed to initialize rate limiter: %v", err)
+	}
+	defer func() {
+		if err := rateLimiter.Close(); err != nil {
+			slog.Error("Error closing rate limiter", "error", err)
+		}
+	}()
+
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -94,6 +105,9 @@ func main() {
 	// Middleware
 	app.Use(recover.New())
 	app.Use(middleware.TracingMiddleware())
+	
+	// Apply rate limiting middleware (before logging and CORS)
+	app.Use(rateLimiter.Middleware())
 	
 	// Custom structured logger middleware
 	app.Use(func(c *fiber.Ctx) error {

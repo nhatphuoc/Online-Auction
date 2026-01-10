@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -35,6 +36,17 @@ type Config struct {
 	AutoBiddingServiceURL      string
 	CommentServiceWebSocketURL string
 	OrderServiceWebSocketURL   string
+
+	// Redis configuration for rate limiting
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
+
+	// Rate limiting configuration
+	RateLimitEnabled       bool
+	RateLimitRequestsPerIP int    // requests per window
+	RateLimitWindow        int    // window in seconds
+	RateLimitBurstSize     int    // burst size for token bucket
 
 	OTelEndpoint            string
 	OTelServiceName         string
@@ -76,6 +88,17 @@ func LoadConfig() *Config {
 		AutoBiddingServiceURL:      getEnv("AUTO_BIDDING_SERVICE_URL", "http://localhost:8092"),
 		CommentServiceWebSocketURL: getEnv("COMMENT_SERVICE_WEBSOCKET_URL", "ws://localhost:8091/ws"),
 		OrderServiceWebSocketURL:   getEnv("ORDER_SERVICE_WEBSOCKET_URL", "ws://localhost:8086/ws"),
+
+		// Redis configuration
+		RedisAddr:     getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisPassword: getEnv("REDIS_PASSWORD", "redis123"),
+		RedisDB:       getEnvInt("REDIS_DB", 0),
+
+		// Rate limiting configuration
+		RateLimitEnabled:       getEnvBool("RATE_LIMIT_ENABLED", true),
+		RateLimitRequestsPerIP: getEnvInt("RATE_LIMIT_REQUESTS_PER_IP", 100),   // 100 requests
+		RateLimitWindow:        getEnvInt("RATE_LIMIT_WINDOW_SECONDS", 60),    // per 60 seconds
+		RateLimitBurstSize:     getEnvInt("RATE_LIMIT_BURST_SIZE", 20),        // allow burst of 20
 
 		APIGatewayName:          getEnv("API_GATEWAY_NAME", "api-gateway"),
 		CategoryServiceName:     getEnv("CATEGORY_SERVICE_NAME", "category-service"),
@@ -133,6 +156,24 @@ func LoadConfig() *Config {
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if boolValue, err := strconv.ParseBool(value); err == nil {
+			return boolValue
+		}
 	}
 	return defaultValue
 }

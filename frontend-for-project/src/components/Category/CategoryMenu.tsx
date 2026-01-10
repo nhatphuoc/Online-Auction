@@ -74,6 +74,21 @@ export const CategoryMenu = () => {
           </div>
         ) : (
           <ul className="space-y-1">
+            {/* Mục "Tất cả" */}
+            <li>
+              <Link
+                to="/category"
+                className="block px-3 py-2 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+              >
+                Tất cả sản phẩm
+              </Link>
+            </li>
+            
+            {/* Divider */}
+            <li className="my-2">
+              <hr className="border-gray-200" />
+            </li>
+
             {parentCategories.map((parent) => {
               const children = getChildCategories(parent.id);
               const isExpanded = expandedParents.has(parent.id);

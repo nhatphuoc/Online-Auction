@@ -370,6 +370,12 @@ const ProductDetailPage = () => {
       </div>
     );
   }
+  const formatVND = (value: number) =>
+    value ? value.toLocaleString('vi-VN') : '';
+
+  const parseVND = (value: string) =>
+    Number(value.replace(/\./g, '')) || 0;
+
 
   if (!product) {
     return (
@@ -970,12 +976,12 @@ const ProductDetailPage = () => {
               Giá tối đa bạn sẵn sàng trả
             </label>
             <input
-              type="number"
-              value={autoBidMax}
-              min={product.currentPrice + product.stepPrice}
-              step={product.stepPrice}
-              onChange={(e) => setAutoBidMax(Number(e.target.value) || 0)}
+              type="text"
+              inputMode="numeric"
+              value={formatVND(autoBidMax)}
+              onChange={(e) => setAutoBidMax(parseVND(e.target.value))}
               className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Nhập số tiền"
             />
             <p className="text-sm text-gray-500 mt-1">
               Tối thiểu: {formatCurrency(product.currentPrice + product.stepPrice)}

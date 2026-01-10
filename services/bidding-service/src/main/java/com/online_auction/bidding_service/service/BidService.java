@@ -1,6 +1,7 @@
 package com.online_auction.bidding_service.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
@@ -11,13 +12,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.online_auction.bidding_service.client.ProductServiceClient;
 import com.online_auction.bidding_service.config.RabbitMQConfig;
 import com.online_auction.bidding_service.domain.AutoBid;
 import com.online_auction.bidding_service.domain.BiddingHistory;
 import com.online_auction.bidding_service.domain.BiddingHistory.BidStatus;
 import com.online_auction.bidding_service.domain.Product;
-import com.online_auction.bidding_service.dto.request.ProductBidRequest;
 import com.online_auction.bidding_service.dto.response.ApiResponse;
 import com.online_auction.bidding_service.dto.response.BiddingHistorySearchResponse;
 import com.online_auction.bidding_service.dto.response.ProductBidSuccessData;
@@ -34,8 +35,9 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BidService {
-
+        private ObjectMapper objectMapper = new ObjectMapper();
         private final BiddingHistoryRepository biddingHistoryRepository;
         private final ProductRepository productRepository;
         private final ProductServiceClient productServiceClient;
@@ -46,51 +48,106 @@ public class BidService {
         public ApiResponse<?> placeBid(
                         Long productId,
                         Long bidderId,
+                        Double bidAmount,
+                        String requestId) {
+
+                // ====== 1. Lock product ======
+                Product product = productRepository.findByIdForUpdate(productId)
+                                .orElse(null);
+
+                if (product == null) {
+                        saveHistory(productId, bidderId, bidAmount, requestId,
+                                        BidStatus.FAILED, "PRODUCT_NOT_FOUND");
+                        return ApiResponse.fail("Product not found");
+                }
+
+                // ====== 2. Check auction end ======
+                if (LocalDateTime.now().isAfter(product.getEndAt())) {
+                        saveHistory(productId, bidderId, bidAmount, requestId,
+                                        BidStatus.FAILED, "AUCTION_ENDED");
+                        return ApiResponse.fail("Auction has already ended");
+                }
+
+                Long previousHighestBidder = product.getCurrentBidder();
+
+                // ====== 3. Case: Chưa có ai bid ======
+                if (product.getCurrentPrice() == null) {
+
+                        if (bidAmount < product.getStartingPrice()) {
+                                saveHistory(productId, bidderId, bidAmount, requestId,
+                                                BidStatus.FAILED, "LOWER_THAN_STARTING_PRICE");
+                                return ApiResponse.fail("Bid amount must be equal or higher than starting price");
+                        }
+
+                        product.setCurrentPrice(bidAmount);
+                        product.setCurrentBidder(bidderId);
+                        product.setBidCount(product.getBidCount() + 1);
+
+                        productRepository.save(product);
+
+                        saveHistory(productId, bidderId, bidAmount, requestId,
+                                        BidStatus.SUCCESS, null);
+
+                        publishBidSuccessEvent(
+                                        productId,
+                                        bidderId,
+                                        bidAmount,
+                                        null,
+                                        requestId);
+
+                        return ApiResponse.ok(
+                                        new ProductBidSuccessData(bidAmount, null),
+                                        "Bid placed successfully");
+                }
+
+                // ====== 4. Case: Đã có người bid ======
+                if (bidAmount <= product.getCurrentPrice()) {
+                        saveHistory(productId, bidderId, bidAmount, requestId,
+                                        BidStatus.FAILED, "LOWER_THAN_CURRENT_PRICE");
+                        return ApiResponse.fail("Bid amount must be higher than current price");
+                }
+
+                // ====== 5. Update product ======
+                product.setCurrentPrice(bidAmount);
+                product.setCurrentBidder(bidderId);
+                product.setBidCount(product.getBidCount() + 1);
+
+                productRepository.save(product);
+
+                // ====== 6. Save history SUCCESS ======
+                saveHistory(productId, bidderId, bidAmount, requestId,
+                                BidStatus.SUCCESS, null);
+
+                // ====== 7. Publish event ======
+                publishBidSuccessEvent(
+                                productId,
+                                bidderId,
+                                bidAmount,
+                                previousHighestBidder,
+                                requestId);
+
+                return ApiResponse.ok(
+                                new ProductBidSuccessData(bidAmount, previousHighestBidder),
+                                "Bid placed successfully");
+        }
+
+        public void publishBidSuccessEvent(
+                        Long productId,
+                        Long bidderId,
                         Double amount,
-                        String requestId,
-                        String userJwt) {
-
-                ProductBidRequest req = new ProductBidRequest(bidderId, amount, requestId);
-
-                // 1. Call Product-Service atomic endpoint
-                ApiResponse<ProductBidSuccessData> resp = productServiceClient.placeBidToProductService(productId, req,
-                                userJwt);
-
-                System.out.println("Response: " + resp);
-                if (resp == null) {
-                        saveHistory(productId, bidderId, amount, requestId, BidStatus.FAILED,
-                                        "NULL_RESPONSE_FROM_PRODUCT_SERVICE");
-                        return ApiResponse.fail("Product service returned empty response");
-                }
-
-                // 2. Nếu lỗi từ product-service
-                if (!resp.isSuccess()) {
-                        saveHistory(productId, bidderId, amount, requestId, BidStatus.FAILED, resp.getMessage());
-                        return ApiResponse.fail(resp.getMessage());
-                }
-
-                // 3. Thành công
-                ProductBidSuccessData data = resp.getData();
-                saveHistory(productId, bidderId, amount, requestId, BidStatus.SUCCESS, null);
-
-                // 4. Publish event
+                        Long previousHighestBidder,
+                        String requestId) {
                 BidPlacedEvent event = new BidPlacedEvent(
                                 productId,
                                 bidderId,
                                 amount,
-                                data != null ? data.getPreviousHighestBidder() : null,
+                                previousHighestBidder,
                                 requestId);
 
                 rabbitTemplate.convertAndSend(
                                 RabbitMQConfig.EXCHANGE,
                                 RabbitMQConfig.ROUTING_KEY_BID_SUCCESS,
                                 event);
-                Product product = productRepository
-                                .findByIdForUpdate(productId)
-                                .orElseThrow(() -> new RuntimeException("PRODUCT_NOT_FOUND"));
-                triggerAutoBid(product, bidderId);
-
-                return ApiResponse.ok(data, resp.getMessage());
         }
 
         @Transactional
@@ -98,53 +155,58 @@ public class BidService {
 
                 List<AutoBid> autoBids = autoBidRepository
                                 .findByProductIdAndActiveTrueOrderByMaxAmountDesc(product.getId());
-
-                if (autoBids.isEmpty())
+                System.out.println("size: " + autoBids.size());
+                if (autoBids.isEmpty()) {
                         return;
-
-                for (AutoBid autoBid : autoBids) {
-
-                        // 1. Không auto bid chính mình
-                        if (autoBid.getBidderId().equals(lastBidderId))
-                                continue;
-
-                        double currentPrice = product.getCurrentPrice() != null
-                                        ? product.getCurrentPrice()
-                                        : product.getStartingPrice();
-
-                        double nextPrice = currentPrice + product.getStepPrice();
-
-                        // 2. Nếu vượt max → deactivate
-                        if (nextPrice > autoBid.getMaxAmount()) {
-                                autoBid.setActive(false);
-                                autoBidRepository.save(autoBid);
-                                continue;
-                        }
-
-                        // 3. UPDATE PRODUCT LOCAL (CỐT LÕI)
-                        Long prevBidder = product.getCurrentBidder();
-
-                        product.setCurrentPrice(nextPrice);
-                        product.setCurrentBidder(autoBid.getBidderId());
-                        product.setBidCount(product.getBidCount() + 1);
-
-                        productRepository.save(product);
-
-                        // 4. SAVE HISTORY (AUTO)
-                        saveHistory(
-                                        product.getId(),
-                                        autoBid.getBidderId(),
-                                        nextPrice,
-                                        "AUTO_" + UUID.randomUUID(),
-                                        BidStatus.SUCCESS,
-                                        null);
-
-                        // 5. Chỉ 1 auto bid mỗi vòng
-                        break;
                 }
+
+                AutoBid highest = autoBids.get(0);
+                System.out.println("HighestId: " + highest.getBidderId());
+                System.out.println("currentId: " + lastBidderId);
+
+                System.out.println("HighestAmount: " + highest.getMaxAmount());
+                System.out.println("CurrentAmount: " + product.getCurrentPrice());
+                // Không auto-bid chính người vừa bid
+                if (highest.getBidderId().equals(lastBidderId) && highest.getMaxAmount() != product.getCurrentPrice()) {
+                        return;
+                }
+
+                double step = product.getStepPrice();
+                double nextPrice = product.getCurrentPrice() + step;
+                System.out.println("next price: " + nextPrice);
+
+                // Nếu vượt quá maxAmount của autoBid → stop
+                if (nextPrice > highest.getMaxAmount()) {
+                        return;
+                }
+
+                Long prevBidder = product.getCurrentBidder();
+
+                product.setCurrentPrice(nextPrice);
+                product.setCurrentBidder(highest.getBidderId());
+                product.setBidCount(product.getBidCount() + 1);
+
+                productRepository.save(product);
+
+                String bidId = "auto_bid_" + UUID.randomUUID();
+
+                saveHistory(
+                                product.getId(),
+                                highest.getBidderId(),
+                                nextPrice,
+                                bidId,
+                                BidStatus.SUCCESS,
+                                null);
+
+                publishBidSuccessEvent(
+                                product.getId(),
+                                highest.getBidderId(),
+                                nextPrice,
+                                prevBidder,
+                                bidId);
         }
 
-        private void saveHistory(Long productId, Long bidderId, Double amount,
+        public void saveHistory(Long productId, Long bidderId, Double amount,
                         String requestId, BidStatus status, String reason) {
                 BiddingHistory h = new BiddingHistory();
                 h.setProductId(productId);

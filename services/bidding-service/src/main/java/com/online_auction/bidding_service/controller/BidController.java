@@ -50,8 +50,7 @@ public class BidController {
                                 req.getProductId(),
                                 user.getUserId(),
                                 req.getAmount(),
-                                req.getRequestId(),
-                                userJwt);
+                                req.getRequestId());
 
                 return ResponseEntity
                                 .status(response.isSuccess() ? 200 : 400)

@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,22 +14,26 @@ import com.online_auction.bidding_service.client.ProductServiceClient;
 import com.online_auction.bidding_service.config.RabbitMQConfig;
 import com.online_auction.bidding_service.domain.BiddingHistory;
 import com.online_auction.bidding_service.domain.BiddingHistory.BidStatus;
+import com.online_auction.bidding_service.domain.Product;
 import com.online_auction.bidding_service.dto.request.ProductBidRequest;
 import com.online_auction.bidding_service.dto.response.ApiResponse;
 import com.online_auction.bidding_service.dto.response.BiddingHistorySearchResponse;
 import com.online_auction.bidding_service.dto.response.ProductBidSuccessData;
+import com.online_auction.bidding_service.dto.response.UserBidResponse;
 import com.online_auction.bidding_service.event.BidPlacedEvent;
 import com.online_auction.bidding_service.repository.BiddingHistoryRepository;
+import com.online_auction.bidding_service.repository.ProductRepository;
 import com.online_auction.bidding_service.specs.BiddingHistorySpecs;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class BidService {
 
         private final BiddingHistoryRepository biddingHistoryRepository;
-
+        private final ProductRepository productRepository;
         private final ProductServiceClient productServiceClient;
         private final RabbitTemplate rabbitTemplate;
 
@@ -117,4 +123,51 @@ public class BidService {
                                 entity.getCreatedAt());
         }
 
+        public List<UserBidResponse> getUserBids(Long userId) {
+                List<BiddingHistory> bids = biddingHistoryRepository.findAllByBidderId(userId);
+
+                return bids.stream().map(bid -> {
+                        Product product = productRepository.findById(bid.getProductId())
+                                        .orElseThrow(() -> new RuntimeException("Product not found"));
+
+                        return UserBidResponse.builder()
+                                        .bidId(bid.getId())
+                                        .bidAmount(bid.getAmount())
+                                        .bidStatus(bid.getStatus().name())
+                                        .reason(bid.getReason())
+                                        .bidCreatedAt(bid.getCreatedAt())
+                                        .productId(product.getId())
+                                        .productName(product.getName())
+                                        .thumbnailUrl(product.getThumbnailUrl())
+                                        .currentPrice(product.getCurrentPrice())
+                                        .buyNowPrice(product.getBuyNowPrice())
+                                        .endAt(product.getEndAt())
+                                        .autoExtend(product.isAutoExtend())
+                                        .currentBidder(product.getCurrentBidder())
+                                        .build();
+                }).toList();
+        }
+
+        public Page<UserBidResponse> getUserBidsFiltered(Long userId, String filter, int page, int size) {
+                List<UserBidResponse> allBids = getUserBids(userId);
+
+                List<UserBidResponse> filteredBids = switch (filter.toLowerCase()) {
+                        case "winning" -> allBids.stream()
+                                        .filter(bid -> bid.getCurrentPrice() != null && bid.getBidAmount() != null
+                                                        && bid.getBidAmount().equals(bid.getCurrentPrice()))
+                                        .toList();
+                        case "outbid" -> allBids.stream()
+                                        .filter(bid -> bid.getCurrentPrice() != null && bid.getBidAmount() != null
+                                                        && !bid.getBidAmount().equals(bid.getCurrentPrice()))
+                                        .toList();
+                        default -> allBids;
+                };
+
+                // Tạo Page từ List
+                int start = Math.min(page * size, filteredBids.size());
+                int end = Math.min(start + size, filteredBids.size());
+                List<UserBidResponse> pageContent = filteredBids.subList(start, end);
+
+                return new PageImpl<>(pageContent, PageRequest.of(page, size), filteredBids.size());
+        }
 }

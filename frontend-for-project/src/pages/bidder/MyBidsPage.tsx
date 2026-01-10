@@ -4,22 +4,18 @@ import { TrendingUp, Eye, Clock, Trophy, AlertCircle, Gavel } from 'lucide-react
 import { bidService } from '../../services/bid.service';
 import { useAuthStore } from '../../stores/auth.store';
 import { useUIStore } from '../../stores/ui.store';
-import { BidHistory } from '../../types';
+import { UserBidResponse } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { CountdownTimer } from '../../components/UI/CountdownTimer';
 import { LoadingSpinner } from '../../components/Common/Loading';
 
-interface BidWithProduct extends BidHistory {
-  productName?: string;
-  productImage?: string;
-  productEndAt?: string;
-  currentPrice?: number;
-  isWinning?: boolean;
-  isEnded?: boolean;
+interface BidWithStatus extends UserBidResponse {
+  isWinning: boolean;
+  isEnded: boolean;
 }
 
 const MyBidsPage = () => {
-  const [bids, setBids] = useState<BidWithProduct[]>([]);
+  const [bids, setBids] = useState<BidWithStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'winning' | 'outbid'>('all');
   const { user } = useAuthStore();
@@ -36,13 +32,26 @@ const MyBidsPage = () => {
         size: 100,
       });
 
-      // Group bids by product and get latest bid for each
-      const bidsByProduct = new Map<number, BidWithProduct>();
-      
-      response.content.forEach((bid) => {
+      console.log(response);
+
+      // Map backend response sang BidWithStatus
+      const bidsWithStatus: BidWithStatus[] = response.content.map((bid) => {
+        const isEnded = bid.endAt ? new Date(bid.endAt) <= new Date() : false;
+        const isWinning = !isEnded && bid.currentBidder === user.id;
+
+        return {
+          ...bid,
+          isEnded,
+          isWinning,
+        };
+      });
+
+      // Group theo productId -> lấy bid mới nhất cho mỗi sản phẩm
+      const bidsByProduct = new Map<number, BidWithStatus>();
+      bidsWithStatus.forEach((bid) => {
         const existing = bidsByProduct.get(bid.productId);
-        if (!existing || new Date(bid.createdAt) > new Date(existing.createdAt)) {
-          bidsByProduct.set(bid.productId, bid as BidWithProduct);
+        if (!existing || new Date(bid.bidCreatedAt) > new Date(existing.bidCreatedAt)) {
+          bidsByProduct.set(bid.productId, bid);
         }
       });
 
@@ -57,7 +66,7 @@ const MyBidsPage = () => {
 
   useEffect(() => {
     loadMyBids();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const filteredBids = bids.filter((bid) => {
@@ -105,33 +114,30 @@ const MyBidsPage = () => {
               <div className="flex border-b border-gray-200">
                 <button
                   onClick={() => setFilter('all')}
-                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-                    filter === 'all'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${filter === 'all'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   Tất cả ({bids.length})
                 </button>
                 <button
                   onClick={() => setFilter('winning')}
-                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-                    filter === 'winning'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${filter === 'winning'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
-                  Đang thắng ({bids.filter(b => b.isWinning && !b.isEnded).length})
+                  Đang thắng ({bids.filter((b) => b.isWinning && !b.isEnded).length})
                 </button>
                 <button
                   onClick={() => setFilter('outbid')}
-                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
-                    filter === 'outbid'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${filter === 'outbid'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
-                  Bị vượt giá ({bids.filter(b => !b.isWinning && !b.isEnded).length})
+                  Bị vượt giá ({bids.filter((b) => !b.isWinning && !b.isEnded).length})
                 </button>
               </div>
             </div>
@@ -153,13 +159,14 @@ const MyBidsPage = () => {
                           to={`/products/${bid.productId}`}
                           className="flex-shrink-0 w-32 h-32 bg-gray-200 rounded-lg overflow-hidden group"
                         >
-                          {bid.productImage ? (
+                          {bid.thumbnailUrl ? (
                             <img
-                              src={bid.productImage}
+                              src={bid.thumbnailUrl}
                               alt={bid.productName || 'Product'}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               onError={(e) => {
-                                e.currentTarget.src = 'https://via.placeholder.com/400?text=No+Image';
+                                e.currentTarget.src =
+                                  'https://via.placeholder.com/400?text=No+Image';
                               }}
                             />
                           ) : (
@@ -180,7 +187,7 @@ const MyBidsPage = () => {
                                 {bid.productName || `Sản phẩm #${bid.productId}`}
                               </Link>
                               <p className="text-sm text-gray-500 mt-1">
-                                Đấu giá lúc: {formatDate(bid.createdAt)}
+                                Đấu giá lúc: {formatDate(bid.bidCreatedAt)}
                               </p>
                             </div>
 
@@ -207,7 +214,7 @@ const MyBidsPage = () => {
                             <div>
                               <p className="text-sm text-gray-600 mb-1">Giá đấu của bạn</p>
                               <p className="text-lg font-bold text-blue-600">
-                                {formatCurrency(bid.amount)}
+                                {formatCurrency(bid.bidAmount)}
                               </p>
                             </div>
 
@@ -222,7 +229,7 @@ const MyBidsPage = () => {
                             )}
 
                             {/* Time Remaining */}
-                            {bid.productEndAt && (
+                            {bid.endAt && (
                               <div>
                                 <p className="text-sm text-gray-600 mb-1">Thời gian còn lại</p>
                                 {bid.isEnded ? (
@@ -232,7 +239,7 @@ const MyBidsPage = () => {
                                 ) : (
                                   <div className="flex items-center gap-2">
                                     <Clock className="w-4 h-4 text-orange-500" />
-                                    <CountdownTimer endTime={bid.productEndAt} showIcon={false} />
+                                    <CountdownTimer endTime={bid.endAt} showIcon={false} />
                                   </div>
                                 )}
                               </div>

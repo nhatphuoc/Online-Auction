@@ -1,6 +1,6 @@
 import apiClient from './api/client';
 import { endpoints } from './api/endpoints';
-import { BidRequest, BidResponse, BidHistory, PaginationResponse } from '../types';
+import { BidRequest, BidResponse, BidHistory, PaginationResponse, UserBidResponse } from '../types';
 
 export const bidService = {
   async placeBid(bidData: BidRequest) {
@@ -20,12 +20,11 @@ export const bidService = {
     to?: string;
     page?: number;
     size?: number;
-  }) {
+  }): Promise<PaginationResponse<UserBidResponse>> {
     const queryParams = new URLSearchParams();
-    if (params.productId)
-      queryParams.append('productId', params.productId.toString());
-    if (params.bidderId)
-      queryParams.append('bidderId', params.bidderId.toString());
+
+    if (params.productId) queryParams.append('productId', params.productId.toString());
+    if (params.bidderId) queryParams.append('bidderId', params.bidderId.toString());
     if (params.status) queryParams.append('status', params.status);
     if (params.requestId) queryParams.append('requestId', params.requestId);
     if (params.from) queryParams.append('from', params.from);
@@ -33,9 +32,11 @@ export const bidService = {
     queryParams.append('page', (params.page || 0).toString());
     queryParams.append('size', (params.size || 10).toString());
 
-    const response = await apiClient.get<PaginationResponse<BidHistory>>(
+    const response = await apiClient.get<PaginationResponse<UserBidResponse>>(
       `${endpoints.bids.search}?${queryParams.toString()}`
     );
+
     return response.data;
   },
+
 };

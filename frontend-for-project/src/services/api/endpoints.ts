@@ -44,7 +44,7 @@ export const endpoints = {
   },
   bids: {
     place: '/bids',
-    search: '/bids/search',
+    search: '/bids/v2/search',
   },
   orders: {
     create: '/orders/data/order/',

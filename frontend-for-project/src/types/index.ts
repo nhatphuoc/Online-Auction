@@ -346,3 +346,15 @@ export interface WebSocketMessage {
   data: Record<string, unknown>;
   timestamp: string;
 }
+
+export interface UserBidResponse {
+  id: number;                // id của bidding history
+  productId: number;
+  productName: string;
+  thumbnailUrl: string | null; // ảnh đại diện sản phẩm
+  endAt: string;             // ISO string của thời gian kết thúc
+  bidAmount: number;         // giá mà user đã đặt
+  currentPrice: number | null; // giá hiện tại
+  currentBidder: number | null; // user đang thắng
+  bidCreatedAt: string;      // thời gian user đặt bid
+}

@@ -3,6 +3,7 @@ package com.online_auction.bidding_service.controller;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -12,6 +13,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,6 +22,7 @@ import com.online_auction.bidding_service.domain.BiddingHistory;
 import com.online_auction.bidding_service.dto.request.BidRequest;
 import com.online_auction.bidding_service.dto.response.ApiResponse;
 import com.online_auction.bidding_service.dto.response.BiddingHistorySearchResponse;
+import com.online_auction.bidding_service.dto.response.UserBidResponse;
 import com.online_auction.bidding_service.service.BidService;
 
 @RestController
@@ -75,4 +78,21 @@ public class BidController {
                                 to,
                                 pageable);
         }
+
+        @GetMapping("/v2/search")
+        @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_SELLER', 'ROLE_BIDDER')")
+        public ResponseEntity<Page<UserBidResponse>> searchUserBids(
+                        @RequestParam(required = false, defaultValue = "all") String filter,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size,
+                        @RequestHeader("X-User-Token") String userJwt) {
+
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                UserPrincipal user = (UserPrincipal) auth.getPrincipal();
+
+                Page<UserBidResponse> bidsPage = bidService.getUserBidsFiltered(user.getUserId(), filter, page, size);
+
+                return ResponseEntity.ok(bidsPage);
+        }
+
 }

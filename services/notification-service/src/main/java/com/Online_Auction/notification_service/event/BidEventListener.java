@@ -34,7 +34,8 @@ public class BidEventListener {
                 EmailRequest emailRequest = new EmailRequest();
                 emailRequest.setTo(data.getEmail());
                 emailRequest.setSubject("Bidding Notification");
-                emailRequest.setBody("Bidding successfully");
+                emailRequest.setBody("Bidding successfully for product: " + "http://localhost:5173/products/"
+                        + event.getProductId());
                 emailService.sendEmail(emailRequest);
             }
         }
@@ -47,9 +48,10 @@ public class BidEventListener {
                 EmailRequest emailRequest = new EmailRequest();
                 emailRequest.setTo(data.getEmail());
                 emailRequest.setSubject("Bidding Notification");
-                emailRequest.setBody("Bidding successfully");
+                emailRequest.setBody("Another person bids the product: " + "http://localhost:5173/products/"
+                        + event.getProductId());
                 emailService.sendEmail(emailRequest);
             }
-        }   
+        }
     }
 }

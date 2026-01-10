@@ -255,6 +255,10 @@ export interface ApiResponse<T> {
 export interface UserProfile extends User {
   address?: string;
   dateOfBirth?: string;
+  birthDay?: string | null;
+  totalNumberReviews?: number;
+  totalNumberGoodReviews?: number;
+  isSellerRequestSent?: boolean;
   rating?: UserRating;
 }
 

@@ -8,6 +8,7 @@ import {
 import { userService } from '../../services/user.service';
 import { UserProfile } from '../../types';
 import { useUIStore } from '../../stores/ui.store';
+import { getRatingDisplay, getRatingStatus } from '../../utils/ratingUtils';
 
 const ProfilePage = () => {
   const { user, setUser } = useAuth();
@@ -35,6 +36,7 @@ const ProfilePage = () => {
 
   useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchProfile = async () => {
@@ -135,8 +137,9 @@ const ProfilePage = () => {
       );
 
       setMessage(res); // "Upgrade request submitted"
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Có lỗi xảy ra");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -283,34 +286,63 @@ const ProfilePage = () => {
       </div>
 
       {/* Rating Card */}
-      {(isBidder || isSeller) && profileData?.rating && (
+      {(isBidder || isSeller) && profileData && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center gap-3 mb-6">
             <Award className="w-6 h-6 text-yellow-500" />
             <h2 className="text-xl font-semibold">Đánh giá</h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-2xl font-bold text-blue-600">{profileData.rating.totalRatings}</p>
-              <p className="text-sm text-gray-600">Tổng đánh giá</p>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <p className="text-2xl font-bold text-green-600">{profileData.rating.positiveRatings}</p>
-              <p className="text-sm text-gray-600">Tích cực</p>
-            </div>
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <p className="text-2xl font-bold text-red-600">{profileData.rating.negativeRatings}</p>
-              <p className="text-sm text-gray-600">Tiêu cực</p>
-            </div>
-            <div className="text-center p-4 bg-yellow-50 rounded-lg">
-              <p className="text-2xl font-bold text-yellow-600">{profileData.rating.ratingPercentage}%</p>
-              <p className="text-sm text-gray-600">Tỷ lệ +</p>
-            </div>
-          </div>
+          {(() => {
+            const ratingData = getRatingDisplay(profileData);
+            const ratingStatus = getRatingStatus(ratingData.ratingPercentage);
+            
+            return (
+              <>
+                {/* Rating Status Badge */}
+                {ratingData.totalRatings > 0 && (
+                  <div className="mb-6 flex items-center justify-center">
+                    <div className={`px-6 py-3 rounded-full border-2 ${ratingStatus.color} font-semibold text-lg flex items-center gap-2`}>
+                      <span>{ratingStatus.emoji}</span>
+                      <span>{ratingStatus.text}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rating Statistics */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="text-center p-4 bg-gray-50 rounded-lg">
+                    <p className="text-2xl font-bold text-blue-600">{ratingData.totalRatings}</p>
+                    <p className="text-sm text-gray-600">Tổng đánh giá</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <p className="text-2xl font-bold text-green-600">{ratingData.positiveRatings}</p>
+                    <p className="text-sm text-gray-600">Tích cực</p>
+                  </div>
+                  <div className="text-center p-4 bg-red-50 rounded-lg">
+                    <p className="text-2xl font-bold text-red-600">{ratingData.negativeRatings}</p>
+                    <p className="text-sm text-gray-600">Tiêu cực</p>
+                  </div>
+                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                    <p className="text-2xl font-bold text-yellow-600">{ratingData.ratingPercentage}%</p>
+                    <p className="text-sm text-gray-600">Tỷ lệ tích cực</p>
+                  </div>
+                </div>
+
+                {/* No ratings message */}
+                {ratingData.totalRatings === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Star className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-lg font-medium mb-1">Chưa có đánh giá</p>
+                    <p className="text-sm">Hoàn thành giao dịch để nhận đánh giá từ người dùng khác</p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Rating Reviews */}
-          {profileData.rating.reviews && profileData.rating.reviews.length > 0 && (
+          {profileData.rating?.reviews && profileData.rating.reviews.length > 0 && (
             <div>
               <h3 className="font-semibold mb-4">Nhận xét gần đây</h3>
               <div className="space-y-3">

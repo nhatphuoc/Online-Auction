@@ -125,4 +125,17 @@ public class BidController {
                 return ResponseEntity.ok(
                                 ApiResponse.ok(null, "AUTO_BID_REGISTERED_SUCCESSFULLY"));
         }
+
+        @GetMapping("/product/{productId}")
+        public ResponseEntity<Page<BiddingHistorySearchResponse>> getBidsByProduct(
+                        @PathVariable Long productId,
+                        @RequestParam(required = false) Long bidderId,
+                        @RequestParam(required = false) BiddingHistory.BidStatus status,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "10") int size) {
+                Page<BiddingHistorySearchResponse> result = bidService.getBidsByProduct(productId, bidderId, status,
+                                page, size);
+
+                return ResponseEntity.ok(result);
+        }
 }

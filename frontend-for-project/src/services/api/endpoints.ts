@@ -46,6 +46,7 @@ export const endpoints = {
     place: '/bids',
     search: '/bids/v2/search',
     registerAutoBids: '/bids/register-auto-bids',
+    getByProduct: (productId: number) => `/bids/product/${productId}`,
   },
   orders: {
     create: '/orders/data/order/',

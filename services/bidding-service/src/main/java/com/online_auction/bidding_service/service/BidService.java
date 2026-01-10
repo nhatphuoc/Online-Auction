@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -167,14 +168,15 @@ public class BidService {
                 return biddingHistoryRepository
                                 .findAll(BiddingHistorySpecs.search(productId, bidderId, status, requestId, from, to),
                                                 pageable)
-                                .map(this::toResponse);
+                                .map(a -> toResponse(null, requestId));
         }
 
-        private BiddingHistorySearchResponse toResponse(BiddingHistory entity) {
+        private BiddingHistorySearchResponse toResponse(BiddingHistory entity, String bidderName) {
                 return new BiddingHistorySearchResponse(
                                 entity.getId(),
                                 entity.getProductId(),
                                 entity.getBidderId(),
+                                bidderName,
                                 entity.getAmount(),
                                 entity.getRequestId(),
                                 entity.getStatus(),
@@ -229,4 +231,21 @@ public class BidService {
 
                 return new PageImpl<>(pageContent, PageRequest.of(page, size), filteredBids.size());
         }
+
+        public Page<BiddingHistorySearchResponse> getBidsByProduct(
+                        Long productId,
+                        Long bidderId,
+                        BiddingHistory.BidStatus status,
+                        int page,
+                        int size) {
+                Pageable pageable = PageRequest.of(
+                                page,
+                                size,
+                                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+                return biddingHistoryRepository.searchByProductId(
+                                productId,
+                                pageable);
+        }
+
 }

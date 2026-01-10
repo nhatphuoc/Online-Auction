@@ -96,6 +96,7 @@ export interface BidHistory {
   id: number;
   productId: number;
   bidderId: number;
+  bidderName: string;
   amount: number;
   status: 'SUCCESS' | 'FAILED';
   requestId: string;

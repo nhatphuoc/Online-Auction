@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.online_auction.bidding_service.domain.BiddingHistory;
+import com.online_auction.bidding_service.dto.response.BiddingHistorySearchResponse;
 
 public interface BiddingHistoryRepository
     extends JpaRepository<BiddingHistory, Long>, JpaSpecificationExecutor<BiddingHistory> {
@@ -43,4 +44,24 @@ public interface BiddingHistoryRepository
 
   @Query("SELECT b FROM BiddingHistory b WHERE b.bidderId = :userId ORDER BY b.createdAt DESC")
   List<BiddingHistory> findAllByBidderId(@Param("userId") Long userId);
+
+  @Query("""
+          SELECT new com.online_auction.bidding_service.dto.response.BiddingHistorySearchResponse(
+              bh.id,
+              bh.productId,
+              bh.bidderId,
+              u.fullName,
+              bh.amount,
+              bh.requestId,
+              bh.status,
+              bh.reason,
+              bh.createdAt
+          )
+          FROM BiddingHistory bh
+          JOIN User u ON u.id = bh.bidderId
+          WHERE bh.productId = :productId
+      """)
+  Page<BiddingHistorySearchResponse> searchByProductId(
+      @Param("productId") Long productId,
+      Pageable pageable);
 }

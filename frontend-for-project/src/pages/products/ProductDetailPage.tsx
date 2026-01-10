@@ -159,12 +159,18 @@ const ProductDetailPage = () => {
 
     setIsLoadingBids(true);
     try {
-      const response = await bidService.searchBidHistory({
-        productId: parseInt(id),
-        status: 'SUCCESS',
-        size: 50,
-      });
-      setBidHistory(response.content);
+      const pageData = await bidService.getBidsByProduct(
+        parseInt(id),
+        {
+          status: 'SUCCESS',
+          size: 50,
+          page: 0,
+        }
+      );
+
+      // ✅ SET ĐÚNG ARRAY
+      setBidHistory(pageData.content);
+
     } catch (error) {
       console.error('Failed to load bid history:', error);
     } finally {
@@ -750,7 +756,7 @@ const ProductDetailPage = () => {
                               {formatDate(bid.createdAt)}
                             </td>
                             <td className="px-4 py-3 text-sm font-medium">
-                              {formatBidderName(`Người dùng ${bid.bidderId}`)}
+                              {formatBidderName(`Người dùng ${bid.bidderName}`)}
                             </td>
                             <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right">
                               {formatCurrency(bid.amount)}

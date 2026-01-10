@@ -47,4 +47,33 @@ export const bidService = {
     return response.data;
   },
 
+  async getBidsByProduct(
+    productId: number,
+    params?: {
+      page?: number;
+      size?: number;
+      status?: 'SUCCESS' | 'FAILED';
+      bidderId?: number;
+    }
+  ): Promise<PaginationResponse<BidHistory>> {
+
+    const queryParams = new URLSearchParams();
+
+    if (params?.status) {
+      queryParams.append('status', params.status);
+    }
+
+    if (params?.bidderId) {
+      queryParams.append('bidderId', params.bidderId.toString());
+    }
+
+    queryParams.append('page', (params?.page ?? 0).toString());
+    queryParams.append('size', (params?.size ?? 10).toString());
+
+    const response = await apiClient.get<PaginationResponse<BidHistory>>(
+      `${endpoints.bids.getByProduct(productId)}?${queryParams.toString()}`
+    );
+
+    return response.data;
+  }
 };

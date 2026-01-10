@@ -75,5 +75,12 @@ export const bidService = {
     );
 
     return response.data;
+  },
+
+  async cancelTopBid(productId: number) {
+    const response = await apiClient.delete<BidResponse>(
+      endpoints.bids.cancelTopBid(productId)
+    );
+    return response.data;
   }
 };

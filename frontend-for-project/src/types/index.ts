@@ -101,6 +101,7 @@ export interface BidHistory {
   status: 'SUCCESS' | 'FAILED';
   requestId: string;
   createdAt: string;
+  reason?: string;
 }
 
 export interface Order {

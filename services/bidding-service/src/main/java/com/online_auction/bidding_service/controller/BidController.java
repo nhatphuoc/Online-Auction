@@ -137,4 +137,19 @@ public class BidController {
 
                 return ResponseEntity.ok(result);
         }
+
+        @DeleteMapping("/product/{productId}/cancel-top-bid")
+        @PreAuthorize("hasAnyRole('ROLE_SELLER', 'ROLE_ADMIN')")
+        public ResponseEntity<?> cancelTopBid(
+                        @PathVariable Long productId,
+                        @RequestHeader("X-User-Token") String userJwt) {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                UserPrincipal user = (UserPrincipal) auth.getPrincipal();
+
+                ApiResponse<?> response = bidService.cancelTopBid(productId, user.getUserId());
+
+                return ResponseEntity
+                                .status(response.isSuccess() ? 200 : 400)
+                                .body(response);
+        }
 }

@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Send,
   MessageCircle,
+  X,
 } from 'lucide-react';
 
 type TabType = 'description' | 'bidHistory' | 'questions';
@@ -48,6 +49,10 @@ const ProductDetailPage = () => {
   // Buy Now
   const [showConfirmBuyNow, setShowConfirmBuyNow] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
+
+  // Cancel Top Bid
+  const [showConfirmCancelBid, setShowConfirmCancelBid] = useState(false);
+  const [isCancellingBid, setIsCancellingBid] = useState(false);
 
   // Comments/Q&A
   const [comments, setComments] = useState<Comment[]>([]);
@@ -323,6 +328,35 @@ const ProductDetailPage = () => {
     }
   };
 
+  const handleCancelTopBid = async () => {
+    if (!product || !isAuthenticated) {
+      addToast('error', 'Vui lòng đăng nhập');
+      navigate('/login');
+      return;
+    }
+
+    setShowConfirmCancelBid(false);
+    setIsCancellingBid(true);
+
+    try {
+      const response = await bidService.cancelTopBid(product.id);
+
+      if (response.success) {
+        addToast('success', 'Đã hủy lượt đấu giá cao nhất');
+        await loadProductDetail();
+        await loadBidHistory();
+      } else {
+        addToast('error', response.message || 'Không thể hủy lượt đấu giá');
+      }
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const errorMessage = err?.response?.data?.message || 'Lỗi khi hủy lượt đấu giá. Vui lòng thử lại';
+      addToast('error', errorMessage);
+    } finally {
+      setIsCancellingBid(false);
+    }
+  };
+
   const handleSendQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQuestion.trim() || !ws || !isAuthenticated) {
@@ -396,7 +430,7 @@ const ProductDetailPage = () => {
 
   const allImages = [product.thumbnailUrl, ...(product.images || [])];
   const isAuctionEnded = new Date(product.endAt) < new Date();
-  const isSeller = user?.id === product.sellerId;
+  const isSeller = user?.id === product.sellerInfo.id;
   const suggestedBid = product.currentPrice + product.stepPrice;
 
   function maskName(name?: string, visibleChars = 2): string {
@@ -552,6 +586,16 @@ const ProductDetailPage = () => {
                       <p className="text-sm text-gray-500">Người mua cao nhất</p>
                     </div>
                   </div>
+                  {isSeller && product.highestBidder && !isAuctionEnded && (
+                    <button
+                      onClick={() => setShowConfirmCancelBid(true)}
+                      disabled={isCancellingBid}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4" />
+                      Hủy lượt đấu giá
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -746,7 +790,7 @@ const ProductDetailPage = () => {
                   <div className="text-center py-8">
                     <LoadingSpinner />
                   </div>
-                ) : bidHistory.length === 0 ? (
+                ) : (bidHistory.filter(bid => bid.status === 'SUCCESS').length === 0 && bidHistory.filter(bid => bid.status === 'FAILED' && bid.reason === 'CANCELLED_BY_SELLER').length === 0) ? (
                   <div className="text-center py-12 text-gray-500">
                     <Gavel className="w-16 h-16 mx-auto mb-4 opacity-30" />
                     <p>Chưa có lượt đấu giá nào</p>
@@ -762,19 +806,22 @@ const ProductDetailPage = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {bidHistory.map((bid) => (
-                          <tr key={bid.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm text-gray-600">
-                              {formatDate(bid.createdAt)}
-                            </td>
-                            <td className="px-4 py-3 text-sm font-medium">
-                              {formatBidderName(`Người dùng ${bid.bidderName}`)}
-                            </td>
-                            <td className="px-4 py-3 text-sm font-bold text-blue-600 text-right">
-                              {formatCurrency(bid.amount)}
-                            </td>
-                          </tr>
-                        ))}
+                        {bidHistory.filter(bid => bid.status === 'SUCCESS' || (bid.status === 'FAILED' && bid.reason === 'CANCELLED_BY_SELLER')).map((bid) => {
+                          const isCancelled = bid.status === 'FAILED' && bid.reason === 'CANCELLED_BY_SELLER';
+                          return (
+                            <tr key={bid.id} className={`hover:bg-gray-50 ${isCancelled ? '' : ''}`}>
+                              <td className={`px-4 py-3 text-sm text-gray-600 ${isCancelled ? 'line-through text-red-500' : ''}`}>
+                                {formatDate(bid.createdAt)}
+                              </td>
+                              <td className={`px-4 py-3 text-sm font-medium ${isCancelled ? 'line-through text-red-500' : ''}`}>
+                                {formatBidderName(`Người dùng ${bid.bidderName}`)}
+                              </td>
+                              <td className={`px-4 py-3 text-sm font-bold text-blue-600 text-right ${isCancelled ? 'line-through text-red-500' : ''}`}>
+                                {formatCurrency(bid.amount)}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -957,6 +1004,17 @@ const ProductDetailPage = () => {
         title="Xác nhận mua ngay"
         message={`Bạn có chắc chắn muốn mua ngay sản phẩm này với giá ${formatCurrency(product?.buyNowPrice || 0)}? Phiên đấu giá sẽ kết thúc ngay lập tức.`}
         confirmText="Mua ngay"
+        variant="warning"
+      />
+
+      {/* Confirm Cancel Top Bid Dialog */}
+      <ConfirmDialog
+        isOpen={showConfirmCancelBid}
+        onClose={() => setShowConfirmCancelBid(false)}
+        onConfirm={handleCancelTopBid}
+        title="Xác nhận hủy lượt đấu giá"
+        message={`Bạn có chắc chắn muốn hủy lượt đấu giá cao nhất hiện tại? Giá sẽ được hoàn về lượt đấu giá trước đó.`}
+        confirmText="Xác nhận hủy"
         variant="warning"
       />
 

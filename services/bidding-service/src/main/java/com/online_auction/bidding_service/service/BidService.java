@@ -310,4 +310,67 @@ public class BidService {
                                 pageable);
         }
 
+        @Transactional
+        public ApiResponse<?> cancelTopBid(Long productId, Long sellerId) {
+                // ====== 1. Lock product ======
+                Product product = productRepository.findByIdForUpdate(productId)
+                                .orElse(null);
+
+                if (product == null) {
+                        return ApiResponse.fail("Product not found");
+                }
+
+                // ====== 2. Check seller authorization ======
+                if (!product.getSellerId().equals(sellerId)) {
+                        return ApiResponse.fail("You are not authorized to cancel bids for this product");
+                }
+
+                // ====== 3. Check if there is a current bidder ======
+                if (product.getCurrentBidder() == null) {
+                        return ApiResponse.fail("No bids to cancel");
+                }
+
+                // ====== 4. Find the latest SUCCESS bid for this product ======
+                Pageable pageable = PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "createdAt"));
+                Page<BiddingHistory> latestSuccessBidPage = biddingHistoryRepository.findByProductIdAndStatus(
+                                productId,
+                                BidStatus.SUCCESS,
+                                pageable);
+
+                if (latestSuccessBidPage.isEmpty()) {
+                        return ApiResponse.fail("No successful bid found to cancel");
+                }
+
+                BiddingHistory latestBid = latestSuccessBidPage.getContent().get(0);
+                latestBid.setStatus(BidStatus.FAILED);
+                latestBid.setReason("CANCELLED_BY_SELLER");
+                biddingHistoryRepository.save(latestBid);
+
+                // ====== 5. Find the previous highest bid (after the cancelled one) ======
+                Pageable prevPageable = PageRequest.of(0, 1, Sort.by(Sort.Direction.DESC, "createdAt"));
+                Page<BiddingHistory> prevBidPage = biddingHistoryRepository.findByProductIdAndStatus(
+                                productId,
+                                BidStatus.SUCCESS,
+                                prevPageable);
+
+                if (prevBidPage.hasContent()) {
+                        BiddingHistory previousBid = prevBidPage.getContent().get(0);
+                        product.setCurrentPrice(previousBid.getAmount());
+                        product.setCurrentBidder(previousBid.getBidderId());
+                } else {
+                        // No previous bid, revert to starting price
+                        product.setCurrentPrice(null);
+                        product.setCurrentBidder(null);
+                        product.setBidCount(0L);
+                }
+
+                // ====== 6. Save to products table in bidding-service database ======
+                productRepository.save(product);
+
+                // ====== 7. Publish event (optional, for notifications) ======
+                // You can add a RabbitMQ event here if needed
+
+                return ApiResponse.ok(null, "Top bid cancelled successfully");
+        }
+
 }

@@ -64,4 +64,9 @@ public interface BiddingHistoryRepository
   Page<BiddingHistorySearchResponse> searchByProductId(
       @Param("productId") Long productId,
       Pageable pageable);
+
+  Page<BiddingHistory> findByProductIdAndStatus(
+      Long productId,
+      BiddingHistory.BidStatus status,
+      Pageable pageable);
 }

@@ -115,6 +115,9 @@ export const OrderChat: React.FC<OrderChatProps> = ({ orderId, buyerId, sellerId
 
   // Deduplicate messages by ID (extra safety layer)
   const uniqueMessages = useMemo(() => {
+    if (!messages || !Array.isArray(messages)) {
+      return [];
+    }
     const seen = new Set<number>();
     return messages.filter(msg => {
       if (!msg.id) return true; // Keep messages without ID (shouldn't happen)

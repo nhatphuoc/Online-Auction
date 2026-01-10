@@ -5,6 +5,7 @@ import { Order } from '../../types';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { Package, ShoppingCart, Clock, User, Star, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useUIStore } from '../../stores/ui.store';
+import OrderMiniWizard from '../../components/Order/OrderMiniWizard';
 
 const OrdersPage = () => {
   const navigate = useNavigate();
@@ -216,6 +217,11 @@ const OrdersPage = () => {
                     📦 Mã vận đơn: <span className="font-mono">{order.tracking_number}</span>
                   </p>
                 )}
+
+                {/* Mini Wizard - Progress Indicator */}
+                <div className="mb-4 pb-4 border-b border-gray-100">
+                  <OrderMiniWizard status={order.status} isBuyer={activeTab === 'buyer'} />
+                </div>
 
                 <div className="flex gap-2 mt-4 pt-4 border-t">
                   <button

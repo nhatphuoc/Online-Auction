@@ -10,6 +10,8 @@ import {
 import { useUIStore } from '../../stores/ui.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { OrderChat } from '../../components/Order/OrderChat';
+import OrderWizard from '../../components/Order/OrderWizard';
+import OrderChatErrorBoundary from '../../components/Order/OrderChatErrorBoundary';
 
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -296,6 +298,9 @@ const OrderDetailPage = () => {
       {/* Tab Content */}
       {activeTab === 'details' && (
         <div className="space-y-6">
+          {/* Order Wizard - Progress Tracker */}
+          <OrderWizard order={order} isBuyer={!!isBuyer} />
+
           {/* Order Info */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">Thông tin đơn hàng</h2>
@@ -537,11 +542,13 @@ const OrderDetailPage = () => {
 
       {activeTab === 'chat' && order && (
         <div className="bg-white rounded-lg shadow overflow-hidden" style={{ height: '600px' }}>
-          <OrderChat
-            orderId={order.id}
-            buyerId={order.winner_id}
-            sellerId={order.seller_id}
-          />
+          <OrderChatErrorBoundary>
+            <OrderChat
+              orderId={order.id}
+              buyerId={order.winner_id}
+              sellerId={order.seller_id}
+            />
+          </OrderChatErrorBoundary>
         </div>
       )}
 

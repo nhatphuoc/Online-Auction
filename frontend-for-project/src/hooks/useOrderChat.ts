@@ -42,10 +42,19 @@ export const useOrderChat = ({
       setIsLoading(true);
       const response = await orderChatService.getChatHistory(orderId, 50, 0);
       console.log('Chat history loaded:', response);
-      setMessages(response.data);
+      
+      // Ensure messages is always an array
+      if (response && response.data && Array.isArray(response.data)) {
+        setMessages(response.data);
+      } else {
+        console.warn('Invalid chat history response, using empty array');
+        setMessages([]);
+      }
+      
       hasLoadedHistory.current = true;
     } catch (error) {
       console.error('Failed to load chat history:', error);
+      setMessages([]); // Set to empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -82,13 +91,16 @@ export const useOrderChat = ({
             
             // Deduplicate messages by ID
             setMessages(prev => {
+              // Ensure prev is an array
+              const prevMessages = Array.isArray(prev) ? prev : [];
+              
               // Skip if message already exists (prevent duplicate)
-              if (message.id && prev.some(m => m.id === message.id)) {
+              if (message.id && prevMessages.some(m => m.id === message.id)) {
                 console.log('Duplicate message detected, skipping:', message.id);
-                return prev;
+                return prevMessages;
               }
               console.log('Adding new message from WebSocket:', message);
-              return [...prev, message];
+              return [...prevMessages, message];
             });
             
             onMessage?.(message);
@@ -148,9 +160,16 @@ export const useOrderChat = ({
   const loadMoreMessages = useCallback(async (offset: number) => {
     try {
       const response = await orderChatService.getChatHistory(orderId, 50, offset);
-      // Prepend older messages to the beginning of the list
-      setMessages(prev => [...response.data, ...prev]);
-      return response.pagination;
+      
+      // Ensure response.data is an array before prepending
+      if (response && response.data && Array.isArray(response.data)) {
+        // Prepend older messages to the beginning of the list
+        setMessages(prev => [...response.data, ...prev]);
+        return response.pagination;
+      } else {
+        console.warn('Invalid load more messages response');
+        return null;
+      }
     } catch (error) {
       console.error('Failed to load more messages:', error);
       return null;

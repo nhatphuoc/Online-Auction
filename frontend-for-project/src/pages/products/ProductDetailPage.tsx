@@ -62,6 +62,18 @@ const ProductDetailPage = () => {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isTogglingWatchlist, setIsTogglingWatchlist] = useState(false);
 
+  // Auto Bid
+  const [showAutoBidModal, setShowAutoBidModal] = useState(false);
+  const [autoBidMax, setAutoBidMax] = useState(0);
+  const [isRegisteringAutoBid, setIsRegisteringAutoBid] = useState(false);
+
+  useEffect(() => {
+    if (product) {
+      setAutoBidMax(product.currentPrice + product.stepPrice * 5);
+    }
+  }, [product]);
+
+
   // Check if product is in watchlist
   const checkWatchlistStatus = useCallback(async () => {
     if (!id || !isAuthenticated) return;
@@ -581,6 +593,16 @@ const ProductDetailPage = () => {
                       <Gavel className="w-5 h-5" />
                       Đấu giá
                     </button>
+
+                    {/* Auto Bid Button */}
+                    <button
+                      onClick={() => setShowAutoBidModal(true)}
+                      className="w-full flex items-center justify-center gap-2 px-6 py-3 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg font-semibold transition-colors"
+                    >
+                      <Clock className="w-5 h-5" />
+                      Đặt giá tự động (Auto Bid)
+                    </button>
+
                     {product.buyNowPrice && (
                       <button
                         onClick={() => setShowConfirmBuyNow(true)}
@@ -919,6 +941,55 @@ const ProductDetailPage = () => {
         confirmText="Mua ngay"
         variant="warning"
       />
+
+      <Modal
+        isOpen={showAutoBidModal}
+        onClose={() => setShowAutoBidModal(false)}
+        title="Đặt giá tự động"
+      >
+        <div className="space-y-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+            Hệ thống sẽ tự động đấu giá cho bạn với bước giá tối thiểu,
+            cho đến khi đạt mức tối đa bạn đặt.
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Giá tối đa bạn sẵn sàng trả
+            </label>
+            <input
+              type="number"
+              value={autoBidMax}
+              min={product.currentPrice + product.stepPrice}
+              step={product.stepPrice}
+              onChange={(e) => setAutoBidMax(Number(e.target.value) || 0)}
+              className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Tối thiểu: {formatCurrency(product.currentPrice + product.stepPrice)}
+            </p>
+          </div>
+
+          <button
+            disabled={isRegisteringAutoBid}
+            onClick={async () => {
+              try {
+                setIsRegisteringAutoBid(true);
+                await bidService.registerAutoBid(product.id, autoBidMax);
+                addToast('success', 'Đã đăng ký đấu giá tự động');
+                setShowAutoBidModal(false);
+              } catch {
+                addToast('error', 'Không thể đăng ký auto bid');
+              } finally {
+                setIsRegisteringAutoBid(false);
+              }
+            }}
+            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold disabled:opacity-50"
+          >
+            Xác nhận Auto Bid
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

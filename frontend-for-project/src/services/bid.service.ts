@@ -39,4 +39,12 @@ export const bidService = {
     return response.data;
   },
 
+  async registerAutoBid(productId: number, maxAmount: number) {
+    const response = await apiClient.post(endpoints.bids.registerAutoBids, {
+      productId,
+      maxAmount,
+    });
+    return response.data;
+  },
+
 };

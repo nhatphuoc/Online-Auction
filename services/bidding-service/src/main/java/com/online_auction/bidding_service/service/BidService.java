@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.online_auction.bidding_service.client.ProductServiceClient;
 import com.online_auction.bidding_service.config.RabbitMQConfig;
+import com.online_auction.bidding_service.domain.AutoBid;
 import com.online_auction.bidding_service.domain.BiddingHistory;
 import com.online_auction.bidding_service.domain.BiddingHistory.BidStatus;
 import com.online_auction.bidding_service.domain.Product;
@@ -21,12 +22,14 @@ import com.online_auction.bidding_service.dto.response.BiddingHistorySearchRespo
 import com.online_auction.bidding_service.dto.response.ProductBidSuccessData;
 import com.online_auction.bidding_service.dto.response.UserBidResponse;
 import com.online_auction.bidding_service.event.BidPlacedEvent;
+import com.online_auction.bidding_service.repository.AutoBidRepository;
 import com.online_auction.bidding_service.repository.BiddingHistoryRepository;
 import com.online_auction.bidding_service.repository.ProductRepository;
 import com.online_auction.bidding_service.specs.BiddingHistorySpecs;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +39,7 @@ public class BidService {
         private final ProductRepository productRepository;
         private final ProductServiceClient productServiceClient;
         private final RabbitTemplate rabbitTemplate;
+        private final AutoBidRepository autoBidRepository;
 
         @Transactional
         public ApiResponse<?> placeBid(
@@ -80,8 +84,63 @@ public class BidService {
                                 RabbitMQConfig.EXCHANGE,
                                 RabbitMQConfig.ROUTING_KEY_BID_SUCCESS,
                                 event);
+                Product product = productRepository
+                                .findByIdForUpdate(productId)
+                                .orElseThrow(() -> new RuntimeException("PRODUCT_NOT_FOUND"));
+                triggerAutoBid(product, bidderId);
 
                 return ApiResponse.ok(data, resp.getMessage());
+        }
+
+        @Transactional
+        private void triggerAutoBid(Product product, Long lastBidderId) {
+
+                List<AutoBid> autoBids = autoBidRepository
+                                .findByProductIdAndActiveTrueOrderByMaxAmountDesc(product.getId());
+
+                if (autoBids.isEmpty())
+                        return;
+
+                for (AutoBid autoBid : autoBids) {
+
+                        // 1. Không auto bid chính mình
+                        if (autoBid.getBidderId().equals(lastBidderId))
+                                continue;
+
+                        double currentPrice = product.getCurrentPrice() != null
+                                        ? product.getCurrentPrice()
+                                        : product.getStartingPrice();
+
+                        double nextPrice = currentPrice + product.getStepPrice();
+
+                        // 2. Nếu vượt max → deactivate
+                        if (nextPrice > autoBid.getMaxAmount()) {
+                                autoBid.setActive(false);
+                                autoBidRepository.save(autoBid);
+                                continue;
+                        }
+
+                        // 3. UPDATE PRODUCT LOCAL (CỐT LÕI)
+                        Long prevBidder = product.getCurrentBidder();
+
+                        product.setCurrentPrice(nextPrice);
+                        product.setCurrentBidder(autoBid.getBidderId());
+                        product.setBidCount(product.getBidCount() + 1);
+
+                        productRepository.save(product);
+
+                        // 4. SAVE HISTORY (AUTO)
+                        saveHistory(
+                                        product.getId(),
+                                        autoBid.getBidderId(),
+                                        nextPrice,
+                                        "AUTO_" + UUID.randomUUID(),
+                                        BidStatus.SUCCESS,
+                                        null);
+
+                        // 5. Chỉ 1 auto bid mỗi vòng
+                        break;
+                }
         }
 
         private void saveHistory(Long productId, Long bidderId, Double amount,

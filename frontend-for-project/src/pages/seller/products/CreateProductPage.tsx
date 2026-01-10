@@ -99,7 +99,7 @@ export const CreateProductPage = () => {
 
       // Upload using presigned URL flow
       const results = await mediaService.uploadMultipleFiles(files, 'products');
-      
+
       // Extract successful uploads
       const uploadedUrls = results
         .filter((r) => r.imageUrl !== null)
@@ -227,9 +227,8 @@ export const CreateProductPage = () => {
             onChange={(e) =>
               setFormData({ ...formData, name: e.target.value })
             }
-            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.name ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.name ? 'border-red-500' : 'border-gray-300'
+              }`}
             placeholder="Nhập tên sản phẩm"
           />
           {errors.name && (
@@ -252,11 +251,10 @@ export const CreateProductPage = () => {
                   <img
                     src={url}
                     alt={`Product ${index + 1}`}
-                    className={`w-full h-32 object-cover rounded-lg ${
-                      url === formData.thumbnailUrl
-                        ? 'ring-4 ring-blue-500'
-                        : ''
-                    }`}
+                    className={`w-full h-32 object-cover rounded-lg ${url === formData.thumbnailUrl
+                      ? 'ring-4 ring-blue-500'
+                      : ''
+                      }`}
                   />
                   {url === formData.thumbnailUrl && (
                     <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
@@ -329,11 +327,11 @@ export const CreateProductPage = () => {
           value={
             formData.categoryId
               ? {
-                  categoryId: formData.categoryId,
-                  categoryName: formData.categoryName!,
-                  parentCategoryId: formData.parentCategoryId!,
-                  parentCategoryName: formData.parentCategoryName!,
-                }
+                categoryId: formData.categoryId,
+                categoryName: formData.categoryName!,
+                parentCategoryId: formData.parentCategoryId!,
+                parentCategoryName: formData.parentCategoryName!,
+              }
               : undefined
           }
           onChange={(category) => {
@@ -371,17 +369,19 @@ export const CreateProductPage = () => {
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                type="number"
-                value={formData.startingPrice || ''}
+                type="text"
+                value={formData.startingPrice
+                  ? new Intl.NumberFormat('vi-VN').format(formData.startingPrice)
+                  : ''
+                }
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    startingPrice: parseFloat(e.target.value) || 0,
+                    startingPrice: Number(e.target.value.replace(/[^\d]/g, '')) || 0,
                   })
                 }
-                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.startingPrice ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.startingPrice ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="0"
               />
             </div>
@@ -397,17 +397,20 @@ export const CreateProductPage = () => {
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                type="number"
-                value={formData.stepPrice || ''}
+                type="text"
+                value={
+                  formData.stepPrice
+                    ? new Intl.NumberFormat('vi-VN').format(formData.stepPrice)
+                    : ''
+                }
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    stepPrice: parseFloat(e.target.value) || 0,
+                    stepPrice: Number(e.target.value.replace(/[^\d]/g, '')) || 0,
                   })
                 }
-                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.stepPrice ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.stepPrice ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="0"
               />
             </div>
@@ -423,19 +426,22 @@ export const CreateProductPage = () => {
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
-                type="number"
-                value={formData.buyNowPrice || ''}
+                type="text"
+                value={
+                  formData.buyNowPrice !== undefined
+                    ? new Intl.NumberFormat('vi-VN').format(formData.buyNowPrice)
+                    : ''
+                }
                 onChange={(e) =>
                   setFormData({
                     ...formData,
                     buyNowPrice: e.target.value
-                      ? parseFloat(e.target.value)
+                      ? Number(e.target.value.replace(/[^\d]/g, ''))
                       : undefined,
                   })
                 }
-                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.buyNowPrice ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.buyNowPrice ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="0"
               />
             </div>
@@ -458,9 +464,8 @@ export const CreateProductPage = () => {
               onChange={(e) =>
                 setFormData({ ...formData, endAt: e.target.value })
               }
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.endAt ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.endAt ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
           </div>
           {errors.endAt && (

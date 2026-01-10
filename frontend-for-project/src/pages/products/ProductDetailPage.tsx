@@ -527,15 +527,21 @@ const ProductDetailPage = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      {product.highestBidder.avatarUrl ? (
-                        <img src={product.highestBidder.avatarUrl} alt={product.highestBidder.fullName} className="w-full h-full rounded-full object-cover" />
+                      {product.highestBidder?.avatarUrl ? (
+                        <img
+                          src={product.highestBidder.avatarUrl}
+                          alt={product.highestBidder?.fullName ?? "Người dùng ẩn danh"}
+                          className="w-full h-full rounded-full object-cover"
+                        />
                       ) : (
                         <User className="w-6 h-6 text-blue-600" />
                       )}
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">
-                        {maskName(product.highestBidder.fullName)}
+                        {product.highestBidder
+                          ? maskName(product.highestBidder.fullName)
+                          : "Chưa có người đấu giá"}
                       </p>
                       <p className="text-sm text-gray-500">Người mua cao nhất</p>
                     </div>

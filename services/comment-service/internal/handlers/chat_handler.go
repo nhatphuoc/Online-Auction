@@ -189,6 +189,26 @@ func (h *CommentHandler) GetProductComments(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, responses)
 }
 
+var locVN = mustLoad("Asia/Ho_Chi_Minh")
+
+func mustLoad(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
+func FixedTimeNow() time.Time {
+	nowVN := time.Now().In(locVN)
+	return time.Date(
+		nowVN.Year(), nowVN.Month(), nowVN.Day(),
+		nowVN.Hour(), nowVN.Minute(), nowVN.Second(),
+		nowVN.Nanosecond(),
+		time.UTC,
+	)
+}
+
 // HandleWebSocket handles WebSocket connections
 func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 	// Get query params
@@ -199,7 +219,7 @@ func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 	if productIDStr == "" || internalJWT == "" {
 		slog.Error("Missing required parameters")
 		c.Close()
-		return
+		// (không cần return ở đây)
 	}
 
 	// You may want to load config here if needed, or inject via handler struct
@@ -274,17 +294,24 @@ func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 	var productID int
 	fmt.Sscanf(productIDStr, "%d", &productID)
 
-	// Fetch user's name from database (not user-service)
+	// Fetch user's name and review info from database (not user-service)
 	userName := ""
 	var user models.User
 	err = h.db.Model(&user).Where("id = ?", userID).Select()
 	if err != nil {
 		slog.Warn("Failed to get user from database", "userID", userID, "error", err)
 		userName = fmt.Sprintf("Người dùng #%d", userID)
-	} else if user.FullName != "" {
-		userName = utils.MaskUserName(user.FullName)
 	} else {
-		userName = fmt.Sprintf("Người dùng #%d", userID)
+		userName = utils.MaskUserName(user.FullName)
+	}
+
+	// Đánh dấu client có bị chặn comment không
+	commentBlocked := false
+	if user.TotalNumberReviews > 0 {
+		ratio := float64(user.TotalNumberGoodReviews) / float64(user.TotalNumberReviews)
+		if ratio < 0.8 {
+			commentBlocked = true
+		}
 	}
 
 	client := &Client{
@@ -295,21 +322,25 @@ func (h *CommentHandler) HandleWebSocket(c *websocket.Conn) {
 		Send:      make(chan []byte, 256),
 		Token:     tokenString,
 	}
+	// Truyền trạng thái chặn comment qua context
+	ctx := context.WithValue(context.Background(), "commentBlocked", commentBlocked)
 
 	hub.register <- client
 
 	// Start goroutines for reading and writing
 	go h.writePump(client)
-	h.readPump(client)
+	h.readPumpWithContext(client, ctx)
 	return
 }
 
-// readPump reads messages from WebSocket connection
-func (h *CommentHandler) readPump(client *Client) {
+// readPumpWithContext reads messages from WebSocket connection, cho phép truyền trạng thái chặn comment
+func (h *CommentHandler) readPumpWithContext(client *Client, ctx context.Context) {
 	defer func() {
 		hub.unregister <- client
 		client.Conn.Close()
 	}()
+
+	commentBlocked, _ := ctx.Value("commentBlocked").(bool)
 
 	for {
 		var wsMsg models.WebSocketMessage
@@ -324,15 +355,26 @@ func (h *CommentHandler) readPump(client *Client) {
 		// Handle different message types
 		switch wsMsg.Type {
 		case "comment":
+			if commentBlocked {
+				// Gửi lỗi qua websocket, không insert comment
+				errMsg := models.WebSocketMessage{
+					Type: "error",
+					Data: fiber.Map{
+						"message": "Tỷ lệ tích cực dưới 80% - Không thể comment",
+					},
+				}
+				msgBytes, _ := json.Marshal(errMsg)
+				client.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+				continue
+			}
 			// Save comment to database
 			comment := &models.Comment{
 				ProductID: client.ProductID,
 				SenderID:  client.UserID,
 				Content:   wsMsg.Content,
-				CreatedAt: time.Now().UTC(),
+				CreatedAt: FixedTimeNow(),
 			}
 
-			ctx := context.Background()
 			_, err := h.db.ModelContext(ctx, comment).Insert()
 			if err != nil {
 				slog.Error("Failed to save comment", "error", err)
@@ -385,18 +427,10 @@ func (h *CommentHandler) writePump(client *Client) {
 		client.Conn.Close()
 	}()
 
-	for {
-		select {
-		case message, ok := <-client.Send:
-			if !ok {
-				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-
-			err := client.Conn.WriteMessage(websocket.TextMessage, message)
-			if err != nil {
-				return
-			}
+	for message := range client.Send {
+		if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			return
 		}
 	}
+	client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 }

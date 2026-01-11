@@ -29,6 +29,7 @@ import {
 type TabType = 'description' | 'bidHistory' | 'questions';
 
 const ProductDetailPage = () => {
+  const [commentBlocked, setCommentBlocked] = useState(false);
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuthStore();
@@ -214,8 +215,10 @@ const ProductDetailPage = () => {
         const message = JSON.parse(event.data);
         console.log('WebSocket message received:', message);
         if (message.type === 'comment' && message.data) {
-          // Backend sends: { type: 'comment', data: CommentResponse }
           setComments(prev => [...prev, message.data]);
+        }
+        if (message.type === 'error' && message.data?.message === 'Tỷ lệ tích cực dưới 80% - Không thể comment') {
+          setCommentBlocked(true);
         }
       };
 
@@ -289,10 +292,21 @@ const ProductDetailPage = () => {
         await loadProductDetail();
         await loadBidHistory();
       } else {
-        addToast('error', response.message || 'Đấu giá thất bại');
+        // Hiển thị rõ toast nếu bị chặn do review thấp
+        if (response.message && response.message.includes('Tỷ lệ tích cực dưới 80%')) {
+          addToast('error', 'Bạn bị chặn đấu giá do tỷ lệ đánh giá tích cực dưới 80%. Vui lòng cải thiện đánh giá để tiếp tục tham gia.');
+        } else {
+          addToast('error', response.message || 'Đấu giá thất bại');
+        }
       }
-    } catch {
-      addToast('error', 'Lỗi khi đấu giá. Vui lòng thử lại');
+    } catch (err) {
+      // Nếu BE trả về lỗi dạng này qua exception
+      const errorMessage = (err as any)?.response?.data?.message;
+      if (errorMessage && errorMessage.includes('Tỷ lệ tích cực dưới 80%')) {
+        addToast('error', 'Bạn bị chặn đấu giá do tỷ lệ đánh giá tích cực dưới 80%. Vui lòng cải thiện đánh giá để tiếp tục tham gia.');
+      } else {
+        addToast('error', 'Lỗi khi đấu giá. Vui lòng thử lại');
+      }
     }
   };
 
@@ -840,25 +854,31 @@ const ProductDetailPage = () => {
                   <>
                     {/* Question Form */}
                     {isAuthenticated && (
-                      <form onSubmit={handleSendQuestion} className="mb-6 pb-6 border-b">
-                        <div className="flex gap-3">
-                          <input
-                            type="text"
-                            value={newQuestion}
-                            onChange={(e) => setNewQuestion(e.target.value)}
-                            placeholder="Đặt câu hỏi về sản phẩm..."
-                            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <button
-                            type="submit"
-                            disabled={!newQuestion.trim()}
-                            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                          >
-                            <Send className="w-5 h-5" />
-                            Gửi
-                          </button>
+                      commentBlocked ? (
+                        <div className="mb-6 pb-6 border-b text-red-600 font-semibold text-center">
+                          Tỷ lệ tích cực dưới 80% - Không thể comment
                         </div>
-                      </form>
+                      ) : (
+                        <form onSubmit={handleSendQuestion} className="mb-6 pb-6 border-b">
+                          <div className="flex gap-3">
+                            <input
+                              type="text"
+                              value={newQuestion}
+                              onChange={(e) => setNewQuestion(e.target.value)}
+                              placeholder="Đặt câu hỏi về sản phẩm..."
+                              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button
+                              type="submit"
+                              disabled={!newQuestion.trim()}
+                              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                            >
+                              <Send className="w-5 h-5" />
+                              Gửi
+                            </button>
+                          </div>
+                        </form>
+                      )
                     )}
 
                     {/* Comments List */}

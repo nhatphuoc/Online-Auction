@@ -1615,7 +1615,7 @@ func (h *OrderHandler) readPump(client *Client) {
 		switch wsMsg.Type {
 		case "message":
 			// Save message to database using raw query
-			now := time.Now().UTC()
+			now := FixedTimeNow()
 			var messageID int64
 			ctx := context.Background()
 			insertQuery := `INSERT INTO order_messages (order_id, sender_id, message, created_at) 

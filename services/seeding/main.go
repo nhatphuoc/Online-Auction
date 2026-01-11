@@ -15,57 +15,283 @@ func main() {
 	defer db.Close()
 
 	ctx := context.Background()
+	log.Println("Starting custom seeding: products ended + orders...")
 
-	log.Println("Starting database seeding...")
+	// // Xóa dữ liệu cũ
+	// if err := clearData(ctx, db); err != nil {
+	// 	log.Fatalf("Failed to clear data: %v", err)
+	// }
 
-	// Clear existing data (in reverse order of dependencies)
-	if err := clearData(ctx, db); err != nil {
-		log.Fatalf("Failed to clear data: %v", err)
+	// Seed sản phẩm đã kết thúc và order
+	if err := seedEndedProductsAndOrders(ctx, db, 10); err != nil {
+		log.Fatalf("Failed to seed products & orders: %v", err)
 	}
 
-	// Seed data in order of dependencies
-	if err := seedCategories(ctx, db); err != nil {
-		log.Fatalf("Failed to seed categories: %v", err)
+	log.Println("Custom seeding completed!")
+}
+
+// Tạo N sản phẩm đã kết thúc với seller 17, winner 18, và order tương ứng
+func seedEndedProductsAndOrders(ctx context.Context, db *sql.DB, n int) error {
+	sellerID := int64(17)
+	winnerID := int64(18)
+	now := time.Now()
+	// Danh sách sản phẩm thực tế
+	products := []struct {
+		name, desc, img      string
+		categoryID           int64
+		startPrice, endPrice int64
+	}{
+		{
+			"iPhone 15 Pro Max 256GB",
+			"Điện thoại Apple iPhone 15 Pro Max 256GB, màu Titan Xanh, máy quốc tế.",
+			"https://cdn.tgdd.vn/Products/Images/42/303891/iphone-15-pro-max-blue-thumb-600x600.jpg",
+			1, 30000000, 32500000,
+		},
+		{
+			"MacBook Air M2 2022 13 inch",
+			"Laptop Apple MacBook Air M2 2022, 13 inch, 8GB/256GB, màu Midnight.",
+			"https://cdn.tgdd.vn/Products/Images/44/281570/macbook-air-m2-2022-600x600.jpg",
+			1, 25000000, 26500000,
+		},
+		{
+			"AirPods Pro 2",
+			"Tai nghe không dây Apple AirPods Pro 2, chống ồn chủ động.",
+			"https://cdn.tgdd.vn/Products/Images/54/289454/airpods-pro-2-thumb-600x600.jpg",
+			1, 5000000, 5700000,
+		},
+		{
+			"Samsung Galaxy S24 Ultra 256GB",
+			"Điện thoại Samsung Galaxy S24 Ultra 256GB, màu Đen Titan.",
+			"https://cdn.tgdd.vn/Products/Images/42/303891/samsung-galaxy-s24-ultra-thumb-600x600.jpg",
+			1, 28000000, 29900000,
+		},
+		{
+			"Sony WH-1000XM5",
+			"Tai nghe chụp tai chống ồn Sony WH-1000XM5, màu Đen.",
+			"https://cdn.tgdd.vn/Products/Images/54/285067/sony-wh-1000xm5-thumb-600x600.jpg",
+			1, 9000000, 9900000,
+		},
+		{
+			"Apple Watch Series 9 41mm",
+			"Đồng hồ thông minh Apple Watch Series 9 41mm, viền nhôm, dây thể thao.",
+			"https://cdn.tgdd.vn/Products/Images/7077/309812/apple-watch-s9-41mm-thumb-600x600.jpg",
+			1, 11000000, 11900000,
+		},
+		{
+			"iPad Air 5 2022 64GB",
+			"Máy tính bảng Apple iPad Air 5 2022 64GB, WiFi, màu Xanh Dương.",
+			"https://cdn.tgdd.vn/Products/Images/522/247517/ipad-air-5-2022-thumb-600x600.jpg",
+			1, 15000000, 16200000,
+		},
+		{
+			"Dell XPS 13 9315",
+			"Laptop Dell XPS 13 9315, i5-1230U, 16GB/512GB, màn hình FHD+.",
+			"https://cdn.tgdd.vn/Products/Images/44/299044/dell-xps-13-9315-thumb-600x600.jpg",
+			1, 27000000, 28500000,
+		},
+		{
+			"Canon EOS R50 Kit RF-S18-45mm",
+			"Máy ảnh Canon EOS R50 kèm ống kính RF-S18-45mm.",
+			"https://cdn.tgdd.vn/Products/Images/4728/309812/canon-eos-r50-thumb-600x600.jpg",
+			1, 18000000, 19500000,
+		},
+		{
+			"Kindle Paperwhite Gen 11",
+			"Máy đọc sách Kindle Paperwhite Gen 11, màn hình 6.8 inch, chống nước.",
+			"https://cdn.tgdd.vn/Products/Images/522/247517/kindle-paperwhite-gen-11-thumb-600x600.jpg",
+			1, 3500000, 4200000,
+		},
 	}
 
-	productIDMap, err := seedProducts(ctx, db)
+	// Ảnh cho từng sản phẩm (3 ảnh/sản phẩm)
+	productImages := [][]string{
+		{
+			"https://cdn.tgdd.vn/Products/Images/42/303891/iphone-15-pro-max-blue-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/42/303891/iphone-15-pro-max-titan-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/42/303891/iphone-15-pro-max-silver-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/44/281570/macbook-air-m2-2022-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/44/281570/macbook-air-m2-2022-midnight-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/44/281570/macbook-air-m2-2022-silver-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/54/289454/airpods-pro-2-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/54/289454/airpods-pro-2-case-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/54/289454/airpods-pro-2-2-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/42/303891/samsung-galaxy-s24-ultra-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/42/303891/samsung-galaxy-s24-ultra-black-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/42/303891/samsung-galaxy-s24-ultra-gray-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/54/285067/sony-wh-1000xm5-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/54/285067/sony-wh-1000xm5-black-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/54/285067/sony-wh-1000xm5-silver-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/7077/309812/apple-watch-s9-41mm-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/7077/309812/apple-watch-s9-41mm-pink-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/7077/309812/apple-watch-s9-41mm-blue-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/522/247517/ipad-air-5-2022-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/522/247517/ipad-air-5-2022-blue-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/522/247517/ipad-air-5-2022-purple-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/44/299044/dell-xps-13-9315-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/44/299044/dell-xps-13-9315-silver-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/44/299044/dell-xps-13-9315-blue-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/4728/309812/canon-eos-r50-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/4728/309812/canon-eos-r50-kit-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/4728/309812/canon-eos-r50-black-thumb-600x600.jpg",
+		},
+		{
+			"https://cdn.tgdd.vn/Products/Images/522/247517/kindle-paperwhite-gen-11-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/522/247517/kindle-paperwhite-gen-11-black-thumb-600x600.jpg",
+			"https://cdn.tgdd.vn/Products/Images/522/247517/kindle-paperwhite-gen-11-case-thumb-600x600.jpg",
+		},
+	}
+
+	// Đa dạng trạng thái order
+	orderStatuses := []string{
+		"PENDING_PAYMENT", "PAID", "ADDRESS_PROVIDED", "SHIPPING", "DELIVERED", "COMPLETED", "CANCELLED",
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		log.Fatalf("Failed to seed products: %v", err)
+		return fmt.Errorf("cannot start transaction: %v", err)
 	}
-
-	if err := seedProductImages(ctx, db, productIDMap); err != nil {
-		log.Fatalf("Failed to seed product images: %v", err)
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		}
+	}()
+	for i, p := range products {
+		endAt := now.Add(-24 * time.Hour).Add(time.Duration(-i) * time.Hour)
+		// Insert product đúng cấu trúc bảng mới
+		var productID int64
+		err := tx.QueryRowContext(ctx, `
+			INSERT INTO products (
+				auto_extend, order_created, sent_email,
+				name, description, thumbnail_url,
+				category_id, seller_id,
+				starting_price, step_price, buy_now_price, current_price,
+				bid_count, status, created_at, end_at
+			) VALUES (
+				$1, $2, $3,
+				$4, $5, $6,
+				$7, $8,
+				$9, $10, $11, $12,
+				$13, $14, $15, $16
+			) RETURNING id
+		`,
+			true, true, false, // auto_extend, order_created, sent_email
+			p.name, p.desc, productImages[i][0], // thumbnail_url lấy ảnh đầu tiên
+			p.categoryID, sellerID,
+			float64(p.startPrice), 100000.0, float64(p.endPrice)+1000000, float64(p.endPrice),
+			10+int64(i), "ENDED", now, endAt,
+		).Scan(&productID)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("error inserting product %s: %v", p.name, err)
+		}
+		// Thêm 3 ảnh cho sản phẩm
+		for _, img := range productImages[i] {
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO product_images (product_id, image_url)
+				VALUES ($1, $2)
+			`, productID, img)
+			if err != nil {
+				tx.Rollback()
+				return fmt.Errorf("error inserting image for product %s: %v", p.name, err)
+			}
+		}
+		// Tạo order với trạng thái đa dạng
+		status := orderStatuses[i%len(orderStatuses)]
+		var (
+			paymentMethod, paymentProof, shippingAddress, shippingPhone, trackingNumber, shippingInvoice, cancelReason sql.NullString
+			paidAt, deliveredAt, completedAt, cancelledAt                                                              sql.NullTime
+		)
+		switch status {
+		case "PENDING_PAYMENT":
+		case "PAID":
+			paymentMethod = sql.NullString{String: "Chuyển khoản ngân hàng", Valid: true}
+			paymentProof = sql.NullString{String: "https://i.imgur.com/1Q8ZQZB.jpg", Valid: true}
+			paidAt = sql.NullTime{Time: now.Add(-23 * time.Hour), Valid: true}
+		case "ADDRESS_PROVIDED":
+			paymentMethod = sql.NullString{String: "Ví Momo", Valid: true}
+			paymentProof = sql.NullString{String: "https://i.imgur.com/2Q8ZQZB.jpg", Valid: true}
+			paidAt = sql.NullTime{Time: now.Add(-22 * time.Hour), Valid: true}
+			shippingAddress = sql.NullString{String: "123 Đường ABC, Quận 1, TP.HCM", Valid: true}
+			shippingPhone = sql.NullString{String: "0909123456", Valid: true}
+		case "SHIPPING":
+			paymentMethod = sql.NullString{String: "COD", Valid: true}
+			paymentProof = sql.NullString{String: "https://i.imgur.com/3Q8ZQZB.jpg", Valid: true}
+			paidAt = sql.NullTime{Time: now.Add(-21 * time.Hour), Valid: true}
+			shippingAddress = sql.NullString{String: "456 Đường XYZ, Quận 3, TP.HCM", Valid: true}
+			shippingPhone = sql.NullString{String: "0911222333", Valid: true}
+			trackingNumber = sql.NullString{String: "GHN123456789", Valid: true}
+			shippingInvoice = sql.NullString{String: "https://i.imgur.com/4Q8ZQZB.jpg", Valid: true}
+		case "DELIVERED":
+			paymentMethod = sql.NullString{String: "Chuyển khoản ngân hàng", Valid: true}
+			paymentProof = sql.NullString{String: "https://i.imgur.com/5Q8ZQZB.jpg", Valid: true}
+			paidAt = sql.NullTime{Time: now.Add(-20 * time.Hour), Valid: true}
+			shippingAddress = sql.NullString{String: "789 Đường DEF, Quận 5, TP.HCM", Valid: true}
+			shippingPhone = sql.NullString{String: "0988777666", Valid: true}
+			trackingNumber = sql.NullString{String: "VNPOST987654321", Valid: true}
+			shippingInvoice = sql.NullString{String: "https://i.imgur.com/6Q8ZQZB.jpg", Valid: true}
+			deliveredAt = sql.NullTime{Time: now.Add(-19 * time.Hour), Valid: true}
+		case "COMPLETED":
+			paymentMethod = sql.NullString{String: "Ví Momo", Valid: true}
+			paymentProof = sql.NullString{String: "https://i.imgur.com/7Q8ZQZB.jpg", Valid: true}
+			paidAt = sql.NullTime{Time: now.Add(-18 * time.Hour), Valid: true}
+			shippingAddress = sql.NullString{String: "321 Đường GHI, Quận 7, TP.HCM", Valid: true}
+			shippingPhone = sql.NullString{String: "0977666555", Valid: true}
+			trackingNumber = sql.NullString{String: "J&T123456789", Valid: true}
+			shippingInvoice = sql.NullString{String: "https://i.imgur.com/8Q8ZQZB.jpg", Valid: true}
+			deliveredAt = sql.NullTime{Time: now.Add(-17 * time.Hour), Valid: true}
+			completedAt = sql.NullTime{Time: now.Add(-16 * time.Hour), Valid: true}
+		case "CANCELLED":
+			cancelReason = sql.NullString{String: "Người mua không thanh toán", Valid: true}
+			cancelledAt = sql.NullTime{Time: now.Add(-15 * time.Hour), Valid: true}
+		}
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO orders (
+				auction_id, winner_id, seller_id, final_price, status,
+				payment_method, payment_proof,
+				shipping_address, shipping_phone, tracking_number, shipping_invoice,
+				paid_at, delivered_at, completed_at, cancelled_at, cancel_reason,
+				created_at, updated_at
+			) VALUES (
+				$1, $2, $3, $4, $5,
+				$6, $7,
+				$8, $9, $10, $11,
+				$12, $13, $14, $15, $16,
+				$17, $18
+			)
+		`,
+			productID, winnerID, sellerID, float64(p.endPrice), status,
+			paymentMethod, paymentProof,
+			shippingAddress, shippingPhone, trackingNumber, shippingInvoice,
+			paidAt, deliveredAt, completedAt, cancelledAt, cancelReason,
+			now, now,
+		)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("error inserting order for product %s: %v", p.name, err)
+		}
 	}
-
-	if err := seedWatchList(ctx, db); err != nil {
-		log.Fatalf("Failed to seed watch list: %v", err)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit failed: %v", err)
 	}
-
-	if err := seedBiddingHistory(ctx, db); err != nil {
-		log.Fatalf("Failed to seed bidding history: %v", err)
-	}
-
-	if err := seedComments(ctx, db); err != nil {
-		log.Fatalf("Failed to seed comments: %v", err)
-	}
-
-	if err := seedOrders(ctx, db); err != nil {
-		log.Fatalf("Failed to seed orders: %v", err)
-	}
-
-	if err := seedOrderMessages(ctx, db); err != nil {
-		log.Fatalf("Failed to seed order messages: %v", err)
-	}
-
-	if err := seedOrderRatings(ctx, db); err != nil {
-		log.Fatalf("Failed to seed order ratings: %v", err)
-	}
-
-	if err := seedUserUpgradeRequests(ctx, db); err != nil {
-		log.Fatalf("Failed to seed user upgrade requests: %v", err)
-	}
-
-	log.Println("Database seeding completed successfully!")
+	log.Printf("Seeded %d ended products and orders.", len(products))
+	return nil
 }
 
 func clearData(ctx context.Context, db *sql.DB) error {
@@ -1325,7 +1551,7 @@ func seedProducts(ctx context.Context, db *sql.DB) (map[int]int64, error) {
 	for i, p := range products {
 		// Determine order_created based on status
 		orderCreated := p.status == "FINISHED"
-		
+
 		var productID int64
 		err := db.QueryRowContext(ctx, `
 			INSERT INTO products (
@@ -1343,7 +1569,7 @@ func seedProducts(ctx context.Context, db *sql.DB) (map[int]int64, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error inserting product %s: %v", p.name, err)
 		}
-		
+
 		// Save the mapping: index (1-based) -> actual product ID
 		productIDMap[i+1] = productID
 	}
@@ -1356,7 +1582,7 @@ func seedProductImages(ctx context.Context, db *sql.DB, productIDMap map[int]int
 	log.Println("Seeding product images...")
 
 	images := []struct {
-		productIndex int    // index in products array (1-based)
+		productIndex int // index in products array (1-based)
 		imageURL     string
 	}{
 		// Product 1-4: Điện thoại
@@ -1476,7 +1702,7 @@ func seedProductImages(ctx context.Context, db *sql.DB, productIDMap map[int]int
 		if !exists {
 			return fmt.Errorf("product index %d not found in product ID map", img.productIndex)
 		}
-		
+
 		_, err := db.ExecContext(ctx, `
 			INSERT INTO product_images (product_id, image_url)
 			VALUES ($1, $2)

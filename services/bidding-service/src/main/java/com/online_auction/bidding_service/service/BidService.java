@@ -1,3 +1,4 @@
+
 package com.online_auction.bidding_service.service;
 
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import com.online_auction.bidding_service.domain.AutoBid;
 import com.online_auction.bidding_service.domain.BiddingHistory;
 import com.online_auction.bidding_service.domain.BiddingHistory.BidStatus;
 import com.online_auction.bidding_service.domain.Product;
+import com.online_auction.bidding_service.domain.User;
 import com.online_auction.bidding_service.dto.response.ApiResponse;
 import com.online_auction.bidding_service.dto.response.BiddingHistorySearchResponse;
 import com.online_auction.bidding_service.dto.response.ProductBidSuccessData;
@@ -27,6 +29,7 @@ import com.online_auction.bidding_service.event.BidPlacedEvent;
 import com.online_auction.bidding_service.repository.AutoBidRepository;
 import com.online_auction.bidding_service.repository.BiddingHistoryRepository;
 import com.online_auction.bidding_service.repository.ProductRepository;
+import com.online_auction.bidding_service.repository.UserRepository;
 import com.online_auction.bidding_service.specs.BiddingHistorySpecs;
 
 import java.time.LocalDateTime;
@@ -34,70 +37,86 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+
 @RequiredArgsConstructor
 @Slf4j
 public class BidService {
-        private ObjectMapper objectMapper = new ObjectMapper();
+        private final UserRepository userRepository;
         private final BiddingHistoryRepository biddingHistoryRepository;
         private final ProductRepository productRepository;
         private final ProductServiceClient productServiceClient;
         private final RabbitTemplate rabbitTemplate;
         private final AutoBidRepository autoBidRepository;
+        private ObjectMapper objectMapper = new ObjectMapper();
 
-        @Transactional
-        public ApiResponse<?> placeBid(
-                        Long productId,
-                        Long bidderId,
-                        Double bidAmount,
-                        String requestId) {
+    @Transactional
+    public ApiResponse<?> placeBid(
+            Long productId,
+            Long bidderId,
+            Double bidAmount,
+            String requestId) {
+        // ====== 0. Check user review percent ======
+        User user = userRepository.findById(bidderId).orElse(null);
+        if (user == null) {
+            saveHistory(productId, bidderId, bidAmount, requestId,
+                    BidStatus.FAILED, "USER_NOT_FOUND");
+            return ApiResponse.fail("User not found");
+        }
+        if (user.getTotalNumberReviews() > 0) {
+            double ratio = (double) user.getTotalNumberGoodReviews() / user.getTotalNumberReviews();
+            if (ratio < 0.8) {
+                saveHistory(productId, bidderId, bidAmount, requestId,
+                        BidStatus.FAILED, "USER_REVIEW_TOO_LOW");
+                return ApiResponse.fail("Tỷ lệ tích cực dưới 80% - Không thể bidding");
+                                                }
+        }
 
-                // ====== 1. Lock product ======
-                Product product = productRepository.findByIdForUpdate(productId)
-                                .orElse(null);
+        // ====== 1. Lock product ======
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElse(null);
 
-                if (product == null) {
-                        saveHistory(productId, bidderId, bidAmount, requestId,
-                                        BidStatus.FAILED, "PRODUCT_NOT_FOUND");
-                        return ApiResponse.fail("Product not found");
-                }
+        if (product == null) {
+            saveHistory(productId, bidderId, bidAmount, requestId,
+                    BidStatus.FAILED, "PRODUCT_NOT_FOUND");
+            return ApiResponse.fail("Product not found");
+        }
 
-                // ====== 2. Check auction end ======
-                if (LocalDateTime.now().isAfter(product.getEndAt())) {
-                        saveHistory(productId, bidderId, bidAmount, requestId,
-                                        BidStatus.FAILED, "AUCTION_ENDED");
-                        return ApiResponse.fail("Auction has already ended");
-                }
+        // ====== 2. Check auction end ======
+        if (LocalDateTime.now().isAfter(product.getEndAt())) {
+            saveHistory(productId, bidderId, bidAmount, requestId,
+                    BidStatus.FAILED, "AUCTION_ENDED");
+            return ApiResponse.fail("Auction has already ended");
+        }
 
-                Long previousHighestBidder = product.getCurrentBidder();
+        Long previousHighestBidder = product.getCurrentBidder();
 
-                // ====== 3. Case: Chưa có ai bid ======
-                if (product.getCurrentPrice() == null) {
+        // ====== 3. Case: Chưa có ai bid ======
+        if (product.getCurrentPrice() == null) {
+            if (bidAmount < product.getStartingPrice()) {
+                saveHistory(productId, bidderId, bidAmount, requestId,
+                        BidStatus.FAILED, "LOWER_THAN_STARTING_PRICE");
+                return ApiResponse.fail("Bid amount must be equal or higher than starting price");
+            }
 
-                        if (bidAmount < product.getStartingPrice()) {
-                                saveHistory(productId, bidderId, bidAmount, requestId,
-                                                BidStatus.FAILED, "LOWER_THAN_STARTING_PRICE");
-                                return ApiResponse.fail("Bid amount must be equal or higher than starting price");
-                        }
+            product.setCurrentPrice(bidAmount);
+            product.setCurrentBidder(bidderId);
+            product.setBidCount(product.getBidCount() + 1);
 
-                        product.setCurrentPrice(bidAmount);
-                        product.setCurrentBidder(bidderId);
-                        product.setBidCount(product.getBidCount() + 1);
+            productRepository.save(product);
 
-                        productRepository.save(product);
+            saveHistory(productId, bidderId, bidAmount, requestId,
+                    BidStatus.SUCCESS, null);
 
-                        saveHistory(productId, bidderId, bidAmount, requestId,
-                                        BidStatus.SUCCESS, null);
+            publishBidSuccessEvent(
+                    productId,
+                    bidderId,
+                    bidAmount,
+                    null,
+                    requestId);
 
-                        publishBidSuccessEvent(
-                                        productId,
-                                        bidderId,
-                                        bidAmount,
-                                        null,
-                                        requestId);
-
-                        return ApiResponse.ok(
-                                        new ProductBidSuccessData(bidAmount, null),
-                                        "Bid placed successfully");
+            return ApiResponse.ok(
+                    new ProductBidSuccessData(bidAmount, null),
+                    "Bid placed successfully");
                 }
 
                 // ====== 4. Case: Đã có người bid ======
@@ -141,7 +160,7 @@ public class BidService {
                 return ApiResponse.ok(
                                 new ProductBidSuccessData(bidAmount, previousHighestBidder),
                                 "Bid placed successfully");
-        }
+	}
 
         public void publishBidSuccessEvent(
                         Long productId,

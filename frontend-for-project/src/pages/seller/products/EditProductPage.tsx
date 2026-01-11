@@ -141,14 +141,14 @@ export const EditProductPage = () => {
             <div>
               <p className="text-sm text-gray-600">Giá hiện tại</p>
               <p className="font-bold text-blue-600">
-                {product.currentPrice.toLocaleString('vi-VN')} đ
+                {(product.currentPrice ?? 0).toLocaleString('vi-VN')} đ
               </p>
             </div>
-            {product.buyNowPrice && (
+            {product.buyNowPrice !== undefined && product.buyNowPrice !== null && (
               <div>
                 <p className="text-sm text-gray-600">Giá mua ngay</p>
                 <p className="font-semibold text-green-600">
-                  {product.buyNowPrice.toLocaleString('vi-VN')} đ
+                  {(product.buyNowPrice ?? 0).toLocaleString('vi-VN')} đ
                 </p>
               </div>
             )}

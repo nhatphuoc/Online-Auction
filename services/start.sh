@@ -54,6 +54,7 @@ for service in "${JAVA_SERVICES[@]}"; do
   echo "Starting $service"
   (
     cd "$service" || exit
+    ./mvnw clean install
     ./mvnw spring-boot:run
   ) &
   PIDS+=($!)

@@ -52,6 +52,18 @@ public class ProductController {
         return ResponseEntity.ok(product);
     }
 
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteProduct(@PathVariable Long id) {
+        // Lấy userId từ SecurityContext
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        Long sellerId = principal.getUserId();
+
+        productService.deleteProduct(sellerId, id);
+        return ResponseEntity.ok("Delete Successfully");
+    }
+
     // =================================
     // GET PRODUCT DETAIL (ALL USERS)
     // =================================

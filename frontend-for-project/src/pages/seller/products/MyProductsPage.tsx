@@ -23,7 +23,7 @@ const MyProductsPage = () => {
 
   const fetchMyProducts = useCallback(async () => {
     if (!user?.id) return;
-    
+
     try {
       setIsLoading(true);
       // API trả về array trực tiếp, không có wrapper
@@ -116,7 +116,7 @@ const MyProductsPage = () => {
               <Package className="w-12 h-12 text-blue-500 opacity-20" />
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
@@ -126,7 +126,7 @@ const MyProductsPage = () => {
               <Clock className="w-12 h-12 text-green-500 opacity-20" />
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-gray-500">
             <div className="flex items-center justify-between">
               <div>
@@ -136,7 +136,7 @@ const MyProductsPage = () => {
               <Gavel className="w-12 h-12 text-gray-500 opacity-20" />
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow-sm p-6 border-l-4 border-purple-500">
             <div className="flex items-center justify-between">
               <div>
@@ -154,18 +154,16 @@ const MyProductsPage = () => {
         <div className="flex gap-4 px-6 border-b border-gray-200">
           <button
             onClick={() => setFilter('all')}
-            className={`px-4 py-4 font-medium transition-colors relative ${
-              filter === 'all'
+            className={`px-4 py-4 font-medium transition-colors relative ${filter === 'all'
                 ? 'text-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
-            }`}
+              }`}
           >
             Tất cả
-            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-              filter === 'all' 
-                ? 'bg-blue-100 text-blue-700' 
+            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${filter === 'all'
+                ? 'bg-blue-100 text-blue-700'
                 : 'bg-gray-100 text-gray-600'
-            }`}>
+              }`}>
               {products.length}
             </span>
             {filter === 'all' && (
@@ -174,18 +172,16 @@ const MyProductsPage = () => {
           </button>
           <button
             onClick={() => setFilter('active')}
-            className={`px-4 py-4 font-medium transition-colors relative ${
-              filter === 'active'
+            className={`px-4 py-4 font-medium transition-colors relative ${filter === 'active'
                 ? 'text-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
-            }`}
+              }`}
           >
             Đang đấu giá
-            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-              filter === 'active' 
-                ? 'bg-blue-100 text-blue-700' 
+            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${filter === 'active'
+                ? 'bg-blue-100 text-blue-700'
                 : 'bg-gray-100 text-gray-600'
-            }`}>
+              }`}>
               {stats.active}
             </span>
             {filter === 'active' && (
@@ -194,18 +190,16 @@ const MyProductsPage = () => {
           </button>
           <button
             onClick={() => setFilter('ended')}
-            className={`px-4 py-4 font-medium transition-colors relative ${
-              filter === 'ended'
+            className={`px-4 py-4 font-medium transition-colors relative ${filter === 'ended'
                 ? 'text-blue-600'
                 : 'text-gray-600 hover:text-gray-900'
-            }`}
+              }`}
           >
             Đã kết thúc
-            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${
-              filter === 'ended' 
-                ? 'bg-blue-100 text-blue-700' 
+            <span className={`ml-2 px-2 py-0.5 text-xs rounded-full ${filter === 'ended'
+                ? 'bg-blue-100 text-blue-700'
                 : 'bg-gray-100 text-gray-600'
-            }`}>
+              }`}>
               {stats.ended}
             </span>
             {filter === 'ended' && (
@@ -229,8 +223,8 @@ const MyProductsPage = () => {
             {filter === 'all'
               ? 'Bạn chưa có sản phẩm nào'
               : filter === 'active'
-              ? 'Không có sản phẩm đang đấu giá'
-              : 'Không có sản phẩm đã kết thúc'}
+                ? 'Không có sản phẩm đang đấu giá'
+                : 'Không có sản phẩm đã kết thúc'}
           </p>
           {filter === 'all' && (
             <Link
@@ -247,7 +241,7 @@ const MyProductsPage = () => {
           {filteredProducts.map((product) => {
             const isActive = new Date(product.endAt).getTime() > Date.now();
             const hasBids = product.currentPrice > product.startingPrice;
-            
+
             return (
               <div
                 key={product.id}
@@ -265,15 +259,14 @@ const MyProductsPage = () => {
                   />
                   {/* Status Badge */}
                   <div
-                    className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold shadow-lg ${
-                      isActive
+                    className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-semibold shadow-lg ${isActive
                         ? 'bg-green-500 text-white'
                         : 'bg-gray-700 text-white'
-                    }`}
+                      }`}
                   >
                     {isActive ? '🟢 Đang đấu giá' : '⚫ Đã kết thúc'}
                   </div>
-                  
+
                   {/* Quick Actions Overlay */}
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                     <Link
@@ -317,7 +310,7 @@ const MyProductsPage = () => {
                         {formatCurrency(product.startingPrice)}
                       </span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Giá hiện tại:</span>
                       <span className={`font-bold text-lg ${hasBids ? 'text-blue-600' : 'text-gray-900'}`}>
@@ -340,9 +333,9 @@ const MyProductsPage = () => {
                     <div className="flex items-center gap-2">
                       <Gavel className="w-4 h-4 text-gray-500" />
                       <span className="text-sm text-gray-600">
-                        {product.highestBidder?.username ? (
+                        {product.highestBidder?.fullName ? (
                           <>
-                            <span className="font-medium text-gray-900">{product.highestBidder.username}</span>
+                            <span className="font-medium text-gray-900">{product.highestBidder.fullName}</span>
                             <span className="text-gray-500"> đang dẫn đầu</span>
                           </>
                         ) : (
@@ -354,11 +347,10 @@ const MyProductsPage = () => {
 
                   {/* Time Info */}
                   <div
-                    className={`flex items-center gap-2 py-2 px-3 rounded-lg mb-4 ${
-                      isActive 
-                        ? 'bg-green-50 text-green-700' 
+                    className={`flex items-center gap-2 py-2 px-3 rounded-lg mb-4 ${isActive
+                        ? 'bg-green-50 text-green-700'
                         : 'bg-red-50 text-red-700'
-                    }`}
+                      }`}
                   >
                     <Clock className="w-4 h-4" />
                     <span className="text-sm font-medium">

@@ -91,7 +91,10 @@ public class ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
         SimpleUserInfo sellerInfo = this.getSimpleUserInfoById(product.getSellerId());
-        SimpleUserInfo highestBidder = this.getSimpleUserInfoById(product.getCurrentBidder());
+
+        SimpleUserInfo highestBidder = product.getCurrentBidder() != null
+                ? this.getSimpleUserInfoById(product.getCurrentBidder())
+                : null;
 
         return productMapper.toProductDTO(product, sellerInfo, highestBidder);
     }
@@ -114,8 +117,20 @@ public class ProductService {
 
         productRepository.save(product);
 
-        SimpleUserInfo sellerInfo = new SimpleUserInfo(); // TODO
-        SimpleUserInfo highestBidder = null; // TODO
+        SimpleUserInfo sellerInfo = this.getSimpleUserInfoById(product.getSellerId());
+        SimpleUserInfo highestBidder = product.getCurrentBidder() != null
+                ? this.getSimpleUserInfoById(product.getCurrentBidder())
+                : null;
+
+        if (highestBidder != null) {
+            notificationServiceClient.sendEmail(
+                    EmailNotificationRequest.builder()
+                            .to(highestBidder.getEmail())
+                            .subject("Update Product")
+                            .body("http://localhost:5173/products/" + productId + " description added: "
+                                    + request.getAdditionalDescription())
+                            .build());
+        }
 
         return productMapper.toProductDTO(product, sellerInfo, highestBidder);
     }

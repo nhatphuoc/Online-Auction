@@ -102,26 +102,38 @@ public class BidService {
 
                 // ====== 4. Case: Đã có người bid ======
                 if (bidAmount <= product.getCurrentPrice()) {
-                        saveHistory(productId, bidderId, bidAmount, requestId,
-                                        BidStatus.FAILED, "LOWER_THAN_CURRENT_PRICE");
                         return ApiResponse.fail("Bid amount must be higher than current price");
+                }
+
+                List<AutoBid> autoBids = autoBidRepository
+                                .findByProductIdAndActiveTrueOrderByMaxAmountDesc(productId);
+                AutoBid highest = autoBids.stream()
+                                .filter(ab -> !ab.getBidderId().equals(bidderId))
+                                .findFirst()
+                                .orElse(null);
+                Long winningBidderId = bidderId;
+                if (highest != null) {
+                        if (bidAmount < highest.getMaxAmount()) {
+                                bidAmount = bidAmount + product.getStepPrice();
+                                winningBidderId = highest.getBidderId();
+                        }
                 }
 
                 // ====== 5. Update product ======
                 product.setCurrentPrice(bidAmount);
-                product.setCurrentBidder(bidderId);
+                product.setCurrentBidder(winningBidderId);
                 product.setBidCount(product.getBidCount() + 1);
 
                 productRepository.save(product);
 
                 // ====== 6. Save history SUCCESS ======
-                saveHistory(productId, bidderId, bidAmount, requestId,
+                saveHistory(productId, winningBidderId, bidAmount, requestId,
                                 BidStatus.SUCCESS, null);
 
                 // ====== 7. Publish event ======
                 publishBidSuccessEvent(
                                 productId,
-                                bidderId,
+                                winningBidderId,
                                 bidAmount,
                                 previousHighestBidder,
                                 requestId);

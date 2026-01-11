@@ -12,7 +12,7 @@ export const EditProductPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const addToast = useUIStore((state) => state.addToast);
-  
+
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,10 +29,11 @@ export const EditProductPage = () => {
     try {
       setIsLoading(true);
       const data = await productService.getProductDetail(productId);
+      console.log(data);
       setProduct(data);
-      
+
       // Check if user is the seller
-      if (user && data.sellerId !== user.id) {
+      if (user && data.sellerInfo.id !== user.id) {
         addToast('error', 'Bạn không có quyền chỉnh sửa sản phẩm này');
         navigate('/seller/products');
       }
@@ -61,7 +62,7 @@ export const EditProductPage = () => {
         product.id,
         additionalDescription
       );
-      
+
       setProduct(updated);
       setAdditionalDescription('');
       setError('');

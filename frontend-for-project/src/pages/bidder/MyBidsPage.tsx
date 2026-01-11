@@ -12,6 +12,7 @@ import { LoadingSpinner } from '../../components/Common/Loading';
 interface BidWithStatus extends UserBidResponse {
   isWinning: boolean;
   isEnded: boolean;
+  isWon: boolean;
 }
 
 const MyBidsPage = () => {
@@ -38,11 +39,13 @@ const MyBidsPage = () => {
       const bidsWithStatus: BidWithStatus[] = response.content.map((bid) => {
         const isEnded = bid.endAt ? new Date(bid.endAt) <= new Date() : false;
         const isWinning = !isEnded && bid.currentBidder === user.id;
+        const isWon = isEnded && bid.currentBidder === user.id;
 
         return {
           ...bid,
           isEnded,
           isWinning,
+          isWon
         };
       });
 
@@ -192,7 +195,12 @@ const MyBidsPage = () => {
                             </div>
 
                             {/* Status Badge */}
-                            {bid.isEnded ? (
+                            {bid.isWon ? (
+                              <span className="px-3 py-1 bg-yellow-100 text-green-800 rounded-full text-sm font-medium flex items-center gap-1">
+                                <Trophy className="w-4 h-4" />
+                                Đã thắng
+                              </span>
+                            ) : bid.isEnded ? (
                               <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
                                 Đã kết thúc
                               </span>

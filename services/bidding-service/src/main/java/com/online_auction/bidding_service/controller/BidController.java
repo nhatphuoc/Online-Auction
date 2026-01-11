@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.online_auction.bidding_service.config.security.UserPrincipal;
 import com.online_auction.bidding_service.domain.BiddingHistory;
+import com.online_auction.bidding_service.domain.Product;
 import com.online_auction.bidding_service.dto.request.AutoBidRegisterRequest;
 import com.online_auction.bidding_service.dto.request.BidRequest;
 import com.online_auction.bidding_service.dto.response.ApiResponse;
